@@ -1,36 +1,38 @@
-# YouTube AI MCP (starter)
+# YouTube AI MCP
 
-A Cloudflare Workers MCP starter for researching public YouTube videos and planning training-video content.
+Cloudflare Worker hosting an OAuth-protected MCP endpoint for Claude.
 
-## Implemented tools
-- `youtube_video_research`: searches public YouTube videos by keyword using YouTube Data API v3.
-- `youtube_training_video_outline`: drafts a training-video outline, title ideas, and a description checklist.
+## Current tools
+- `youtube_video_research`: searches public YouTube videos by keyword with YouTube Data API v3.
+- `youtube_training_video_outline`: drafts video outlines and title ideas.
 
-## Current security
-- `/health` is public and reports service health only.
-- The MCP endpoint requires `Authorization: Bearer <MCP_ACCESS_TOKEN>`.
-- Keep `MCP_ACCESS_TOKEN` and `YOUTUBE_API_KEY` in Cloudflare Worker secrets. Never commit secrets to this repository.
-- Restrict the Google API key to YouTube Data API v3.
+## Important limits
+Private channel analytics, editing existing videos, uploading, and publishing are not implemented yet. They require Google OAuth and explicit YouTube channel permissions. This service does not guarantee views and does not automatically publish content.
 
-## Connect Claude securely
-This Worker currently protects the MCP endpoint with a static bearer token. In Claude's custom connector settings, select **No sign-in**, then configure a fixed request header if the UI offers it:
-- Header name: `Authorization`
-- Header value: `Bearer <your MCP_ACCESS_TOKEN>`
+## Cloudflare setup
+The repository uses a Cloudflare KV namespace bound as `OAUTH_KV`.
 
-Use the value of the `MCP_ACCESS_TOKEN` secret already stored in Cloudflare. Do not paste it into a chat, GitHub, or a public issue. Claude supports fixed request headers for servers that use a bearer token. If the Request headers option is unavailable in your connector UI, do not remove server-side authentication; implement a supported OAuth flow instead.
+Add these as **Worker secrets** in Cloudflare → Workers & Pages → youtube-ai-mcp → Settings → Variables and Secrets:
+- `OAUTH_ADMIN_PASSWORD`: a long, unique password used only for the Claude connector authorization screen. Do not use your Google password.
+- `YOUTUBE_API_KEY`: Google API key restricted to YouTube Data API v3.
 
-This bearer token only authenticates access to this MCP server. It is not Google OAuth and does not grant access to private YouTube channel data.
+The previous `MCP_ACCESS_TOKEN` is no longer used by the OAuth flow. Do not share any secret in chat or commit it to GitHub.
 
-## Not yet implemented
-- Private channel analytics.
-- Changing existing video titles/descriptions.
-- Uploading or publishing videos.
-These require Google OAuth authorization from the channel owner and additional implementation. Views cannot be guaranteed.
+## Connect Claude
+After the latest GitHub-triggered Cloudflare deployment succeeds:
+1. Add a custom remote MCP connector in Claude.
+2. URL: `https://youtube-ai-mcp.mkkhutar2.workers.dev/mcp`
+3. Select OAuth / sign in when Claude detects authorization.
+4. The browser should open the YouTube AI MCP authorization page. Enter the `OAUTH_ADMIN_PASSWORD` secret you created in Cloudflare and approve only if the client and redirect host match the Claude connection you just started.
+5. After connection, test `youtube_video_research` with a topic.
 
-## Deploy
-1. Connect this repository to Cloudflare Workers using Workers & Pages → Create application → Import a repository.
-2. Build command: `npm run build`; deploy command: `npx wrangler deploy`.
-3. Add Worker secrets in Cloudflare Settings → Variables and Secrets: `MCP_ACCESS_TOKEN` (long random secret) and `YOUTUBE_API_KEY` (YouTube Data API v3 key).
+If Claude does not open the authorization page or the Cloudflare deployment fails, do not disable OAuth or expose the endpoint publicly. Check the Cloudflare build/deployment logs.
 
-## Build note
-The build script intentionally avoids running a separate TypeScript compiler because the Cloudflare build environment previously hit a JavaScript heap out-of-memory error. Wrangler bundles the Worker during deployment. Verify the newest deployment logs after each code change.
+## Health check
+`https://youtube-ai-mcp.mkkhutar2.workers.dev/health`
+
+## Security
+- OAuth tokens are issued by Cloudflare Workers OAuth Provider and stored through the `OAUTH_KV` binding.
+- Use a unique strong `OAUTH_ADMIN_PASSWORD`; never paste it into chat.
+- Keep the Google API key restricted to YouTube Data API v3.
+- OAuth to this MCP service is separate from Google OAuth for private channel access.

@@ -208,4 +208,15 @@ export default new OAuthProvider<Env>({
     resource_name: "YouTube AI MCP",
   },
   clientIdMetadataDocumentEnabled: true,
+  onError({ code, description, status, internal }) {
+    // Log OAuth diagnostics without logging tokens, cookies, or request bodies.
+    console.error("OAuthProvider error", {
+      code,
+      status,
+      description,
+      category: internal?.category,
+      reason: internal?.reason,
+      detail: internal?.detail instanceof Error ? internal.detail.message : undefined,
+    });
+  },
 });

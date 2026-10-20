@@ -16,4 +16,6 @@ Private channel analytics, uploading/publishing videos, and changing existing vi
 3. Add Worker secrets in Cloudflare Settings → Variables and Secrets: `MCP_ACCESS_TOKEN` (long random secret) and `YOUTUBE_API_KEY` (YouTube Data API v3 key).
 4. Never commit API keys, OAuth client secrets, refresh tokens, or passwords to this public repository.
 
+Build note: the package build script intentionally avoids running a separate TypeScript compiler because the Cloudflare build environment hit a JavaScript heap out-of-memory error. Wrangler bundles the Worker during deployment.
+
 This is a starter, not a claim that YouTube publishing OAuth is already configured.

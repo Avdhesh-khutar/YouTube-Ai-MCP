@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { createMcpHandler } from "agents/mcp";
-import OAuthProvider, {
+import {
+  OAuthProvider,
   AuthorizationError,
   type OAuthHelpers,
   type ConsentDescription,

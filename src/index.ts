@@ -191,7 +191,7 @@ export default new OAuthProvider<Env>({
     fetch(request: Request, env: Env): Promise<Response> {
       const url = new URL(request.url);
       if (url.pathname === "/health") {
-        return Promise.resolve(Response.json({ ok: true, service: "youtube-ai-mcp", version: "0.3.0", oauth: true }));
+        return Promise.resolve(Response.json({ ok: true, service: "youtube-ai-mcp", version: "0.4.0", oauth: true }));
       }
       if (url.pathname === "/authorize") return authorize(request, env);
       return Promise.resolve(Response.json({ error: "Not found", mcpEndpoint: MCP_PATH }, { status: 404 }));
@@ -200,6 +200,7 @@ export default new OAuthProvider<Env>({
   authorizeEndpoint: "/authorize",
   tokenEndpoint: "/oauth/token",
   clientRegistrationEndpoint: "/oauth/register",
+  scopesSupported: SCOPES,
   requiredScopes: SCOPES,
   resourceMetadata: {
     resource: MCP_RESOURCE,

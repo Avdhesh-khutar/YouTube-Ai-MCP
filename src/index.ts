@@ -200,6 +200,7 @@ export default new OAuthProvider<Env>({
   authorizeEndpoint: "/authorize",
   tokenEndpoint: "/oauth/token",
   clientRegistrationEndpoint: "/oauth/register",
+  scopesSupported: SCOPES,
   requiredScopes: SCOPES,
   resourceMetadata: {
     resource: MCP_RESOURCE,

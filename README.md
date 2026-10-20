@@ -12,10 +12,14 @@ A Cloudflare Workers MCP starter for researching public YouTube videos and plann
 - Keep `MCP_ACCESS_TOKEN` and `YOUTUBE_API_KEY` in Cloudflare Worker secrets. Never commit secrets to this repository.
 - Restrict the Google API key to YouTube Data API v3.
 
-## Important: Claude web connector is not yet ready
-Claude's custom connector screen does not provide a field for an arbitrary static bearer token. Selecting “No sign-in” cannot work with the current bearer-protected endpoint; it produces HTTP 401. Do not remove endpoint authentication as a workaround because that would expose the YouTube API quota to unauthenticated callers.
+## Connect Claude securely
+This Worker currently protects the MCP endpoint with a static bearer token. In Claude's custom connector settings, select **No sign-in**, then configure a fixed request header if the UI offers it:
+- Header name: `Authorization`
+- Header value: `Bearer <your MCP_ACCESS_TOKEN>`
 
-A proper OAuth authorization/consent flow (or another supported, securely authenticated connection method) must be implemented before connecting this server through Claude's web custom connector. The current code does not yet implement that OAuth flow.
+Use the value of the `MCP_ACCESS_TOKEN` secret already stored in Cloudflare. Do not paste it into a chat, GitHub, or a public issue. Claude supports fixed request headers for servers that use a bearer token. If the Request headers option is unavailable in your connector UI, do not remove server-side authentication; implement a supported OAuth flow instead.
+
+This bearer token only authenticates access to this MCP server. It is not Google OAuth and does not grant access to private YouTube channel data.
 
 ## Not yet implemented
 - Private channel analytics.

@@ -64,13 +64,9 @@ async function authorize(request: Request, env: Env): Promise<Response> {
       const oauthRequest = await oauth.parseAuthRequest(request);
       const details = await oauth.describeConsent(oauthRequest);
       const consent = await oauth.beginConsent(oauthRequest);
-      const response = consentPage(details, consent.handle);
-      response.headers.set("set-cookie", consent.headers.get("set-cookie") ?? "");
-      // Preserve all browser-binding headers required by the OAuth library.
-      for (const [key, value] of consent.headers) {
-        if (key.toLowerCase() !== "content-type") response.headers.set(key, value);
-      }
-      return response;
+      const headers = new Headers(consent.headers);
+      headers.set("content-type", "text/html; charset=utf-8");
+      return new Response(consentPage(details, consent.handle).body, { headers });
     }
 
     if (request.method === "POST") {

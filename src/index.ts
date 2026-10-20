@@ -2,8 +2,8 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { createMcpHandler } from "agents/mcp";
 import { z } from "zod";
 
-interface Env { MCP_ACCESS_TOKEN: string; YOUTUBE_API_KEY?: string; }
-const server = new McpServer({ name: "youtube-ai-mcp", version: "0.1.0" });
+interface Env { YOUTUBE_API_KEY?: string; }
+const server = new McpServer({ name: "youtube-ai-mcp", version: "0.1.1" });
 
 server.tool("youtube_video_research", "Search public YouTube videos by keyword. Does not access private channel analytics.", {
   query: z.string().min(2).max(120).describe("Topic or keyword"),
@@ -35,12 +35,12 @@ server.tool("youtube_training_video_outline", "Create a training video outline d
   return { content: [{ type: "text", text: JSON.stringify(outline, null, 2) }] };
 });
 
-function error(status: number, message: string): Response { return Response.json({ error: message }, { status }); }
 export default { async fetch(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
-  if (url.pathname === "/health") return Response.json({ ok: true, service: "youtube-ai-mcp", version: "0.1.0" });
-  const authorization = request.headers.get("authorization") ?? "";
-  if (!env.MCP_ACCESS_TOKEN || authorization !== `Bearer ${env.MCP_ACCESS_TOKEN}`) return error(401, "Unauthorized. Configure MCP_ACCESS_TOKEN as a Cloudflare Worker secret.");
+  if (url.pathname === "/health") return Response.json({ ok: true, service: "youtube-ai-mcp", version: "0.1.1" });
+  // This endpoint is intentionally unauthenticated for Claude's custom connector.
+  // Only public YouTube search and outline drafting tools are exposed. Keep the
+  // YouTube API key in Worker secrets and restrict it to YouTube Data API v3.
   (globalThis as unknown as { __ytKey?: string }).__ytKey = env.YOUTUBE_API_KEY;
   return createMcpHandler(server)(request);
 } };

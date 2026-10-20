@@ -19,3 +19,6 @@ Private channel analytics, uploading/publishing videos, and changing existing vi
 Build note: the package build script intentionally avoids running a separate TypeScript compiler because the Cloudflare build environment hit a JavaScript heap out-of-memory error. Wrangler bundles the Worker during deployment.
 
 This is a starter, not a claim that YouTube publishing OAuth is already configured.
+
+
+Latest build fix: added the `ai` package dependency after resolving the previous Wrangler bundling error. Verify the newest commit's build logs, not the older failed build.

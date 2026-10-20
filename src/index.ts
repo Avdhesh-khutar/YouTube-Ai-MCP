@@ -31,7 +31,7 @@ function page(title: string, body: string, status = 200): Response {
 
 function consentPage(details: ConsentDescription, handle: string): Response {
   const name = escapeHtml(details.clientName);
-  const scopeHtml = details.scope.map((scope) => `<li>${escapeHtml(scope)}</li>`).join("");
+  const scopeHtml = details.scope.map((scope) => `<label><input type="checkbox" name="scope" value="${escapeHtml(scope)}" checked> ${escapeHtml(scope)}</label><br>`).join("");
   const domain = details.clientDomain
     ? `Client domain: <strong>${escapeHtml(details.clientDomain)}</strong>`
     : "The client name is supplied by the connecting app and is not independently verified.";
@@ -40,7 +40,7 @@ function consentPage(details: ConsentDescription, handle: string): Response {
     <p>${domain}</p>
     <p>Authorization will return to: <strong>${escapeHtml(details.redirectHost)}</strong></p>
     ${details.redirectIsLoopback ? "<p><strong>Warning:</strong> this sends authorization to an app on your device. Continue only if you just started this connection.</p>" : ""}
-    <p>Requested permissions:</p><ul>${scopeHtml}</ul>
+    <p>Requested permissions (uncheck anything you do not want to grant):</p><div>${scopeHtml}</div>
     <p>This password is only for this MCP connector; it is not your Google password.</p>
     <form method="post" action="/authorize">
       <input type="hidden" name="handle" value="${escapeHtml(handle)}">
@@ -84,10 +84,11 @@ async function authorize(request: Request, env: Env): Promise<Response> {
 
       const suppliedPassword = String(form.get("password") ?? "");
       if (suppliedPassword.length < 1 || suppliedPassword !== env.OAUTH_ADMIN_PASSWORD) {
-        return page("Sign-in failed", "<p>The connector password was not correct.</p><p><a href=\"javascript:history.back()\">Go back and try again</a></p>", 401);
+        return page("Sign-in failed", "<p>The connector password was not correct. Return to the previous page and try again.</p>", 401);
       }
 
-      const approved = await oauth.approveConsent(request, handle, { scope: SCOPES });
+      const requestedScopes = form.getAll("scope").map(String).filter((scope) => SCOPES.includes(scope));
+      const approved = await oauth.approveConsent(request, handle, { scope: requestedScopes });
       const { redirectTo } = await oauth.completeAuthorization({
         request: approved.request,
         userId: "channel-owner",

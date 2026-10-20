@@ -1,5 +1,5 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { createMcpHandler } from "agents/mcp";
+import { McpServer } from "@modelcontextprotocol/server";
+import { createMcpHandler } from "agents/mcp/server";
 import OAuthProvider, {
   AuthorizationError,
   type OAuthHelpers,
@@ -113,14 +113,16 @@ async function authorize(request: Request, env: Env): Promise<Response> {
 }
 
 function createServer(youtubeApiKey?: string): McpServer {
-  const server = new McpServer({ name: "youtube-ai-mcp", version: "0.2.0" });
+  const server = new McpServer({ name: "youtube-ai-mcp", version: "0.3.0" });
 
-  server.tool(
+  server.registerTool(
     "youtube_video_research",
-    "Search public YouTube videos by keyword. Does not access private channel analytics.",
     {
-      query: z.string().min(2).max(120).describe("Topic or keyword"),
-      maxResults: z.number().int().min(1).max(10).optional().describe("Number of results, default 5"),
+      description: "Search public YouTube videos by keyword. Does not access private channel analytics.",
+      inputSchema: {
+        query: z.string().min(2).max(120).describe("Topic or keyword"),
+        maxResults: z.number().int().min(1).max(10).optional().describe("Number of results, default 5"),
+      },
     },
     async ({ query, maxResults }) => {
       if (!youtubeApiKey) {
@@ -150,14 +152,16 @@ function createServer(youtubeApiKey?: string): McpServer {
     },
   );
 
-  server.tool(
+  server.registerTool(
     "youtube_training_video_outline",
-    "Create a training-video outline draft; does not create or publish a video.",
     {
-      topic: z.string().min(3).max(180),
-      audience: z.string().max(120).optional(),
-      durationMinutes: z.number().int().min(1).max(60).optional(),
-      language: z.string().max(40).optional(),
+      description: "Create a training-video outline draft; does not create or publish a video.",
+      inputSchema: {
+        topic: z.string().min(3).max(180),
+        audience: z.string().max(120).optional(),
+        durationMinutes: z.number().int().min(1).max(60).optional(),
+        language: z.string().max(40).optional(),
+      },
     },
     async ({ topic, audience, durationMinutes, language }) => {
       const outline = {
@@ -176,7 +180,7 @@ function createServer(youtubeApiKey?: string): McpServer {
 
 const mcpHandler = {
   fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
-    return createMcpHandler(createServer(env.YOUTUBE_API_KEY))(request, env, ctx);
+    return createMcpHandler(() => createServer(env.YOUTUBE_API_KEY))(request, env, ctx);
   },
 };
 
@@ -187,7 +191,7 @@ export default new OAuthProvider<Env>({
     fetch(request: Request, env: Env): Promise<Response> {
       const url = new URL(request.url);
       if (url.pathname === "/health") {
-        return Promise.resolve(Response.json({ ok: true, service: "youtube-ai-mcp", version: "0.2.0", oauth: true }));
+        return Promise.resolve(Response.json({ ok: true, service: "youtube-ai-mcp", version: "0.3.0", oauth: true }));
       }
       if (url.pathname === "/authorize") return authorize(request, env);
       return Promise.resolve(Response.json({ error: "Not found", mcpEndpoint: MCP_PATH }, { status: 404 }));

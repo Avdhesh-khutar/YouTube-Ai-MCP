@@ -64,9 +64,13 @@ async function authorize(request: Request, env: Env): Promise<Response> {
       const oauthRequest = await oauth.parseAuthRequest(request);
       const details = await oauth.describeConsent(oauthRequest);
       const consent = await oauth.beginConsent(oauthRequest);
+      const response = consentPage(details, consent.handle);
       const headers = new Headers(consent.headers);
+      for (const [key, value] of response.headers) {
+        if (!headers.has(key)) headers.set(key, value);
+      }
       headers.set("content-type", "text/html; charset=utf-8");
-      return new Response(consentPage(details, consent.handle).body, { headers });
+      return new Response(response.body, { headers });
     }
 
     if (request.method === "POST") {
@@ -197,7 +201,6 @@ export default new OAuthProvider<Env>({
   resourceMetadata: {
     resource: MCP_RESOURCE,
     authorization_servers: ["https://youtube-ai-mcp.mkkhutar2.workers.dev"],
-    scopes_supported: SCOPES,
     resource_name: "YouTube AI MCP",
   },
   clientIdMetadataDocumentEnabled: true,

@@ -113,7 +113,7 @@ async function authorize(request: Request, env: Env): Promise<Response> {
 }
 
 function createServer(youtubeApiKey?: string): McpServer {
-  const server = new McpServer({ name: "youtube-ai-mcp", version: "0.3.0" });
+  const server = new McpServer({ name: "youtube-ai-mcp", version: "0.4.0" });
 
   server.registerTool(
     "youtube_video_research",
@@ -200,7 +200,6 @@ export default new OAuthProvider<Env>({
   authorizeEndpoint: "/authorize",
   tokenEndpoint: "/oauth/token",
   clientRegistrationEndpoint: "/oauth/register",
-  scopesSupported: SCOPES,
   requiredScopes: SCOPES,
   resourceMetadata: {
     resource: MCP_RESOURCE,

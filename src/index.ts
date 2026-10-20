@@ -179,8 +179,20 @@ function createServer(youtubeApiKey?: string): McpServer {
 }
 
 const mcpHandler = {
-  fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
-    return createMcpHandler(() => createServer(env.YOUTUBE_API_KEY))(request, env, ctx);
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    try {
+      return await createMcpHandler(() => createServer(env.YOUTUBE_API_KEY))(request, env, ctx);
+    } catch (error) {
+      // Capture unexpected MCP-handler exceptions without logging credentials or request bodies.
+      console.error("MCP handler exception", {
+        method: request.method,
+        path: new URL(request.url).pathname,
+        errorName: error instanceof Error ? error.name : "UnknownError",
+        errorMessage: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      return Response.json({ error: "MCP handler failed", requestId: crypto.randomUUID() }, { status: 500 });
+    }
   },
 };
 

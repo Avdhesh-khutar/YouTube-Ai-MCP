@@ -1,5 +1,5 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { createLegacyMcpHandler } from "agents/mcp";
+import { createMcpHandler } from "agents/mcp";
 import { z } from "zod";
 
 interface Env {
@@ -134,8 +134,8 @@ export default {
       return jsonError(401, "Unauthorized. MCP_ACCESS_TOKEN is required.");
     }
 
-    // Create a fresh SDK v1 server per request and close over this request's key.
-    // This avoids shared mutable global state and uses the correct legacy handler.
-    return createLegacyMcpHandler(createServer(env.YOUTUBE_API_KEY))(request);
+    // Create a fresh server per request and close over this request's key.
+    // This avoids shared mutable global state and keeps the existing dependency generation.
+    return createMcpHandler(createServer(env.YOUTUBE_API_KEY))(request);
   },
 };

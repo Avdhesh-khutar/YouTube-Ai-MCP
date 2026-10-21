@@ -34,7 +34,24 @@ jobs:
         env:
           ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
           ELEVENLABS_VOICE_ID: ${{ secrets.ELEVENLABS_VOICE_ID }}
+          # Keep paid API calls disabled until the chosen voice is API-eligible.
+          ELEVENLABS_USE_API: "false"
         run: python scripts/generate_daily_video.py
+      - name: Verify rendered video and required deliverables
+        run: |
+          set -euo pipefail
+          test -s dist/daily-youtube-video.mp4
+          test -s dist/thumbnail.jpg
+          test -s dist/script.txt
+          test -s dist/captions.srt
+          test -s dist/metadata.json
+          duration=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 dist/daily-youtube-video.mp4)
+          width=$(ffprobe -v error -select_streams v:0 -show_entries stream=width -of csv=s=x:p=0 dist/daily-youtube-video.mp4)
+          height=$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=s=x:p=0 dist/daily-youtube-video.mp4)
+          echo "Video duration: ${duration}s; resolution: ${width}x${height}"
+          python -c "import sys; assert float(sys.argv[1]) >= 60, 'Video is unexpectedly short'" "$duration"
+          test "$width" = "1280"
+          test "$height" = "720"
       - name: Upload private-review package as workflow artifact
         uses: actions/upload-artifact@v4
         with:

@@ -181,13 +181,27 @@ for i, phrase in enumerate(voice_texts, start=1):
         try:
             with urllib.request.urlopen(request, timeout=90) as response:
                 audio.write_bytes(response.read())
+            print(f"Generated ElevenLabs narration segment {i}/{len(voice_texts)}")
         except urllib.error.HTTPError as error:
             detail = error.read().decode("utf-8", errors="replace")[:500]
-            raise RuntimeError(
-                f"ElevenLabs TTS failed for narration segment {i} "
-                f"(HTTP {error.code}): {detail}"
-            ) from error
-        print(f"Generated ElevenLabs narration segment {i}/{len(voice_texts)}")
+            if error.code == 402 and "paid_plan_required" in detail:
+                # Some ElevenLabs library voices require a paid API plan.
+                # Keep the daily pipeline working without repeated rejected API calls.
+                print(
+                    "ElevenLabs voice requires a paid API plan; switching to "
+                    "offline eSpeak for this and remaining segments."
+                )
+                use_elevenlabs = False
+                audio = OUT / f"voice-{i:02d}.wav"
+                subprocess.run(
+                    ["espeak-ng", "-v", "hi", "-s", "145", "-w", str(audio), phrase],
+                    check=True
+                )
+            else:
+                raise RuntimeError(
+                    f"ElevenLabs TTS failed for narration segment {i} "
+                    f"(HTTP {error.code}): {detail}"
+                ) from error
     else:
         audio = OUT / f"voice-{i:02d}.wav"
         subprocess.run(

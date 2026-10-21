@@ -562,7 +562,39 @@ function createServer(env: Env): McpServer {
         metrics: "views,estimatedMinutesWatched,averageViewDuration,subscribersGained,subscribersLost",
       });
       if (!report.ok) return { content: [{ type: "text", text: report.status === 0 ? "Could not reach YouTube Analytics API. Check network/service status and retry later." : `YouTube Analytics API returned HTTP ${report.status}. Confirm YouTube Analytics API is enabled and the authorized Google account owns or manages a channel.` }], isError: true };
-      return { content: [{ type: "text", text: JSON.stringify({ startDate, endDate, report: report.data }, null, 2) }] };
+      const analyticsData = report.data as {
+        columnHeaders?: Array<{ name?: string }>;
+        rows?: Array<Array<string | number | null>>;
+      };
+      const headers = analyticsData.columnHeaders ?? [];
+      const firstRow = analyticsData.rows?.[0] ?? [];
+      const metricValue = (name: string): number | null => {
+        const index = headers.findIndex((header) => header.name === name);
+        if (index < 0 || firstRow[index] === null || firstRow[index] === undefined) return null;
+        const value = Number(firstRow[index]);
+        return Number.isFinite(value) ? value : null;
+      };
+      const views = metricValue("views");
+      const estimatedMinutesWatched = metricValue("estimatedMinutesWatched");
+      const averageViewDuration = metricValue("averageViewDuration");
+      const derivedAverageViewDurationSeconds = views && views > 0 && estimatedMinutesWatched !== null
+        ? (estimatedMinutesWatched * 60) / views
+        : null;
+      const durationDifferencePercent = derivedAverageViewDurationSeconds !== null &&
+        averageViewDuration !== null && averageViewDuration > 0
+        ? Number((Math.abs(derivedAverageViewDurationSeconds - averageViewDuration) / averageViewDuration * 100).toFixed(1))
+        : null;
+      const analyticsConsistency = {
+        derivedAverageViewDurationSeconds: derivedAverageViewDurationSeconds === null
+          ? null
+          : Number(derivedAverageViewDurationSeconds.toFixed(1)),
+        reportedAverageViewDurationSeconds: averageViewDuration,
+        durationDifferencePercent,
+        note: durationDifferencePercent !== null && durationDifferencePercent > 10
+          ? "The reported average duration differs from estimated watch time divided by views. Treat this as a diagnostic only; YouTube metrics may use different aggregation or processing."
+          : "Diagnostic comparison only; the original YouTube Analytics report remains authoritative.",
+      };
+      return { content: [{ type: "text", text: JSON.stringify({ startDate, endDate, analyticsConsistency, report: report.data }, null, 2) }] };
     },
   );
   return server;

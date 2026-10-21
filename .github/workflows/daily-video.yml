@@ -31,6 +31,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install Pillow
       - name: Render daily video package
+        env:
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+          ELEVENLABS_VOICE_ID: ${{ secrets.ELEVENLABS_VOICE_ID }}
         run: python scripts/generate_daily_video.py
       - name: Upload private-review package as workflow artifact
         uses: actions/upload-artifact@v4

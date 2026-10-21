@@ -232,11 +232,11 @@ for index, audio in enumerate(audio_parts, start=1):
     )
     duration = max(3.0, float(probe.stdout.strip()) + 0.4)
     caption_blocks.append(
-        f"{index}\\n{srt_timestamp(cursor)} --> {srt_timestamp(cursor + duration)}\\n"
-        + voice_texts[index - 1] + "\\n"
+        f"{index}\n{srt_timestamp(cursor)} --> {srt_timestamp(cursor + duration)}\n"
+        + voice_texts[index - 1] + "\n"
     )
     cursor += duration
-(OUT / "captions.srt").write_text("\\n".join(caption_blocks), encoding="utf-8")
+(OUT / "captions.srt").write_text("\n".join(caption_blocks), encoding="utf-8")
 
 
 # Create a gentle synthesized ambient bed locally; no external music asset or paid API required.

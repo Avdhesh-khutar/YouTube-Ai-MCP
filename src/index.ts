@@ -119,10 +119,10 @@ function createServer(youtubeApiKey?: string): McpServer {
     "youtube_video_research",
     {
       description: "Search public YouTube videos by keyword. Does not access private channel analytics.",
-      inputSchema: {
+      inputSchema: z.object({
         query: z.string().min(2).max(120).describe("Topic or keyword"),
         maxResults: z.number().int().min(1).max(10).optional().describe("Number of results, default 5"),
-      },
+      }),
     },
     async ({ query, maxResults }) => {
       if (!youtubeApiKey) {
@@ -156,12 +156,12 @@ function createServer(youtubeApiKey?: string): McpServer {
     "youtube_training_video_outline",
     {
       description: "Create a training-video outline draft; does not create or publish a video.",
-      inputSchema: {
+      inputSchema: z.object({
         topic: z.string().min(3).max(180),
         audience: z.string().max(120).optional(),
         durationMinutes: z.number().int().min(1).max(60).optional(),
         language: z.string().max(40).optional(),
-      },
+      }),
     },
     async ({ topic, audience, durationMinutes, language }) => {
       const outline = {

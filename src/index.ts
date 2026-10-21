@@ -69,7 +69,7 @@ async function googleConnect(request: Request, env: Env): Promise<Response> {
   if (request.method === "GET") {
     return page("Connect your YouTube channel", `
       <p>This starts Google's official authorization flow for the channel owner.</p>
-      <p>Requested access is read-only YouTube channel data and YouTube Analytics reports.</p>
+      <p>Requested access includes YouTube channel read access, Analytics reports, and permission to upload videos as private. Uploads remain private until you review them.</p>
       <form id="google-connect-form" method="post" action="/google/connect">
         <label for="password">Worker admin password</label>
         <input id="password" name="password" type="password" autocomplete="current-password" required>

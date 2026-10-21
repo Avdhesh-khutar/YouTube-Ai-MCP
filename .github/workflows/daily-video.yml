@@ -38,3 +38,24 @@ jobs:
           name: daily-video-private-review-${{ github.run_id }}
           path: dist/
           retention-days: 7
+      - name: Upload as PRIVATE to connected YouTube channel
+        env:
+          UPLOAD_TOKEN: ${{ secrets.YOUTUBE_PRIVATE_UPLOAD_TOKEN }}
+        if: env.UPLOAD_TOKEN != ''
+        run: |
+          set -euo pipefail
+          size=$(stat -c%s dist/daily-youtube-video.mp4)
+          if [ "$size" -gt $((47 * 1024 * 1024)) ]; then
+            echo "Video exceeds the 47 MB safe upload limit; artifact retained for review."
+            exit 1
+          fi
+          title=$(jq -r .title dist/metadata.json)
+          description=$(jq -r .description dist/metadata.json)
+          tags=$(jq -r '.tags | join(",")' dist/metadata.json)
+          curl --fail-with-body --silent --show-error \
+            -X POST "https://youtube-ai-mcp.mkkhutar2.workers.dev/automation/upload" \
+            -H "Authorization: Bearer $UPLOAD_TOKEN" \
+            -F "video=@dist/daily-youtube-video.mp4;type=video/mp4" \
+            -F "title=$title" \
+            -F "description=$description" \
+            -F "tags=$tags"

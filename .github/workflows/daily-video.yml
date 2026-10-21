@@ -46,6 +46,7 @@ jobs:
           test -s dist/script.txt
           test -s dist/captions.srt
           test -s dist/metadata.json
+          test -s dist/scene-contact-sheet.jpg
           duration=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 dist/daily-youtube-video.mp4)
           width=$(ffprobe -v error -select_streams v:0 -show_entries stream=width -of csv=s=x:p=0 dist/daily-youtube-video.mp4)
           height=$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=s=x:p=0 dist/daily-youtube-video.mp4)

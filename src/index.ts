@@ -15,6 +15,7 @@ interface Env {
   YOUTUBE_API_KEY?: string;
   GOOGLE_OAUTH_CLIENT_ID?: string;
   GOOGLE_OAUTH_CLIENT_SECRET?: string;
+  DAILY_UPLOAD_TOKEN?: string;
 }
 
 const MCP_PATH = "/mcp";
@@ -318,6 +319,84 @@ async function authorize(request: Request, env: Env): Promise<Response> {
     }
     return page("Authorization unavailable", "The authorization request could not be completed. Please try connecting again.", 500);
   }
+}
+
+
+async function automatedPrivateUpload(request: Request, env: Env): Promise<Response> {
+  if (!env.DAILY_UPLOAD_TOKEN) {
+    return Response.json({ error: "Daily upload endpoint is not configured. Add DAILY_UPLOAD_TOKEN as a Cloudflare Worker secret." }, { status: 503 });
+  }
+  const supplied = request.headers.get("authorization") ?? "";
+  if (supplied.length !== env.DAILY_UPLOAD_TOKEN.length + 7 || !supplied.startsWith("Bearer ") ||
+      supplied.slice(7) !== env.DAILY_UPLOAD_TOKEN) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (request.method !== "POST") {
+    return Response.json({ error: "Method not allowed" }, { status: 405, headers: { allow: "POST" } });
+  }
+  const length = Number(request.headers.get("content-length") ?? "0");
+  if (length > 48 * 1024 * 1024) {
+    return Response.json({ error: "Video package exceeds the 48 MB upload limit." }, { status: 413 });
+  }
+  let form: FormData;
+  try {
+    form = await request.formData();
+  } catch {
+    return Response.json({ error: "Expected multipart form data with a video file." }, { status: 400 });
+  }
+  const video = form.get("video");
+  if (!(video instanceof File) || video.size < 1 || video.size > 47 * 1024 * 1024 || !video.type.startsWith("video/")) {
+    return Response.json({ error: "Provide a video file no larger than 47 MB." }, { status: 400 });
+  }
+  const title = String(form.get("title") ?? "Daily YouTube explainer").trim().slice(0, 100);
+  const description = String(form.get("description") ?? "Automatically generated draft. Please review in YouTube Studio.").slice(0, 5000);
+  const tags = String(form.get("tags") ?? "YouTubeGrowth,CreatorTips").split(",").map((tag) => tag.trim()).filter(Boolean).slice(0, 15);
+  const accessToken = await getGoogleAccessToken(env);
+  if (!accessToken) {
+    return Response.json({ error: "YouTube channel is not connected or Google token refresh failed. Reconnect at /google/connect." }, { status: 401 });
+  }
+  const metadata = {
+    snippet: { title, description, tags, categoryId: "27" },
+    status: { privacyStatus: "private", selfDeclaredMadeForKids: false },
+  };
+  const init = await safeFetch("https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status", {
+    method: "POST",
+    headers: {
+      authorization: \`Bearer \${accessToken}\`,
+      "content-type": "application/json; charset=UTF-8",
+      "x-upload-content-type": video.type || "video/mp4",
+      "x-upload-content-length": String(video.size),
+    },
+    body: JSON.stringify(metadata),
+  });
+  if (!init) return Response.json({ error: "Could not reach YouTube upload service. Check Studio before retrying." }, { status: 502 });
+  if (!init.ok) {
+    const detail = (await init.text().catch(() => "")).slice(0, 400);
+    return Response.json({ error: \`YouTube upload initialization failed (HTTP \${init.status}). \${detail}\` }, { status: 502 });
+  }
+  const uploadUrl = init.headers.get("location");
+  if (!uploadUrl || !uploadUrl.startsWith("https://")) {
+    return Response.json({ error: "YouTube did not return a valid resumable upload URL." }, { status: 502 });
+  }
+  const bytes = await video.arrayBuffer();
+  const uploaded = await safeFetch(uploadUrl, {
+    method: "PUT",
+    headers: { authorization: \`Bearer \${accessToken}\`, "content-type": video.type || "video/mp4", "content-length": String(bytes.byteLength) },
+    body: bytes,
+  });
+  if (!uploaded) return Response.json({ error: "Upload connection failed. Check YouTube Studio before retrying to avoid duplicates." }, { status: 502 });
+  const data = await safeJson<{ id?: string; snippet?: { title?: string }; status?: { privacyStatus?: string } }>(uploaded);
+  if (!uploaded.ok || !data?.id) {
+    return Response.json({ error: \`YouTube upload failed (HTTP \${uploaded.status}).\`, detail: data }, { status: 502 });
+  }
+  return Response.json({
+    uploaded: true,
+    videoId: data.id,
+    title: data.snippet?.title ?? title,
+    privacyStatus: data.status?.privacyStatus ?? "private",
+    url: \`https://www.youtube.com/watch?v=\${data.id}\`,
+    nextStep: "Review in YouTube Studio. This endpoint always uploads as PRIVATE.",
+  }, { headers: { "cache-control": "no-store", "x-content-type-options": "nosniff" } });
 }
 
 function createServer(env: Env): McpServer {
@@ -764,6 +843,7 @@ export default new OAuthProvider<Env>({
       if (url.pathname === "/authorize") return authorize(request, env);
       if (url.pathname === "/google/connect") return googleConnect(request, env);
       if (url.pathname === "/google/callback") return googleCallback(request, env);
+      if (url.pathname === "/automation/upload") return automatedPrivateUpload(request, env);
       return Promise.resolve(Response.json({ error: "Not found", mcpEndpoint: MCP_PATH }, { status: 404 }));
     },
   },

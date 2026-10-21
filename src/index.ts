@@ -394,11 +394,37 @@ async function automatedPrivateUpload(request: Request, env: Env): Promise<Respo
   if (!uploaded.ok || !data?.id) {
     return Response.json({ error: `YouTube upload failed (HTTP ${uploaded.status}).`, detail: data }, { status: 502 });
   }
+  let thumbnailUploaded = false;
+  const thumbnailValue = form.get("thumbnail") as unknown;
+  if (thumbnailValue && typeof thumbnailValue === "object") {
+    const thumbnail = thumbnailValue as File;
+    if (typeof thumbnail.arrayBuffer === "function" && thumbnail.size > 0 &&
+        thumbnail.size <= 2 * 1024 * 1024 && ["image/jpeg", "image/png"].includes(thumbnail.type)) {
+      const thumbBytes = await thumbnail.arrayBuffer();
+      const thumbResponse = await safeFetch(
+        `https://www.googleapis.com/upload/youtube/v3/thumbnails/set?videoId=${encodeURIComponent(data.id)}`,
+        {
+          method: "POST",
+          headers: {
+            authorization: `Bearer ${accessToken}`,
+            "content-type": thumbnail.type,
+            "content-length": String(thumbBytes.byteLength),
+          },
+          body: thumbBytes,
+        },
+      );
+      thumbnailUploaded = Boolean(thumbResponse?.ok);
+      if (!thumbnailUploaded) {
+        console.error("Custom thumbnail upload failed", { status: thumbResponse?.status ?? "network_error" });
+      }
+    }
+  }
   return Response.json({
     uploaded: true,
     videoId: data.id,
     title: data.snippet?.title ?? title,
     privacyStatus: data.status?.privacyStatus ?? "private",
+    thumbnailUploaded,
     url: `https://www.youtube.com/watch?v=${data.id}`,
     nextStep: "Review in YouTube Studio. This endpoint always uploads as PRIVATE.",
   }, { headers: { "cache-control": "no-store", "x-content-type-options": "nosniff" } });

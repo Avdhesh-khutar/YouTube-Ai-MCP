@@ -52,6 +52,7 @@ const GOOGLE_REDIRECT_URI = "https://youtube-ai-mcp.mkkhutar2.workers.dev/google
 const GOOGLE_SCOPES = [
   "https://www.googleapis.com/auth/yt-analytics.readonly",
   "https://www.googleapis.com/auth/youtube.readonly",
+  "https://www.googleapis.com/auth/youtube.upload",
 ].join(" ");
 
 type GoogleTokenSet = { access_token?: string; refresh_token?: string };
@@ -321,7 +322,7 @@ async function authorize(request: Request, env: Env): Promise<Response> {
 
 function createServer(env: Env): McpServer {
   const youtubeApiKey = env.YOUTUBE_API_KEY;
-  const server = new McpServer({ name: "youtube-ai-mcp", version: "0.4.2" });
+  const server = new McpServer({ name: "youtube-ai-mcp", version: "0.5.0" });
 
   server.registerTool(
     "youtube_video_research",
@@ -538,6 +539,131 @@ function createServer(env: Env): McpServer {
   );
 
   server.registerTool(
+    "youtube_upload_video_from_url",
+    {
+      description: "Upload a finished video from a direct public HTTPS video URL to the connected owner's YouTube channel as PRIVATE. This does not generate the video. The source must return a video/* content type, must not redirect, and must be 50 MB or smaller. Requires reconnecting Google OAuth to grant youtube.upload scope.",
+      inputSchema: z.object({
+        videoUrl: z.string().url().max(2048).describe("Direct HTTPS URL to a finished video file (maximum 50 MB; redirects are not followed)"),
+        title: z.string().trim().min(1).max(100).describe("YouTube video title"),
+        description: z.string().max(5000).optional().describe("Video description"),
+        tags: z.array(z.string().trim().min(1).max(100)).max(15).optional().describe("Up to 15 relevant tags"),
+        categoryId: z.string().regex(/^\\d{1,3}$/).optional().describe("YouTube category ID; defaults to 27 (Education)"),
+      }),
+    },
+    async ({ videoUrl, title, description, tags, categoryId }) => {
+      let source: URL;
+      try {
+        source = new URL(videoUrl);
+      } catch {
+        return { content: [{ type: "text", text: "videoUrl must be a valid direct HTTPS URL." }], isError: true };
+      }
+      if (source.protocol !== "https:" || source.username || source.password ||
+          source.hostname === "localhost" || source.hostname.endsWith(".localhost") ||
+          source.hostname === "127.0.0.1" || source.hostname === "::1" ||
+          /^\\d{1,3}(\\.\\d{1,3}){3}$/.test(source.hostname)) {
+        return { content: [{ type: "text", text: "For safety, videoUrl must use a public HTTPS hostname without embedded credentials or an IP address." }], isError: true };
+      }
+      const accessToken = await getGoogleAccessToken(env);
+      if (!accessToken) {
+        return { content: [{ type: "text", text: "YouTube channel is not connected. Open /google/connect and authorize the channel owner first." }], isError: true };
+      }
+
+      const sourceResponse = await safeFetch(source.toString(), { redirect: "error" });
+      if (!sourceResponse) {
+        return { content: [{ type: "text", text: "Could not fetch the video file. Confirm the direct HTTPS URL is reachable and does not redirect." }], isError: true };
+      }
+      if (!sourceResponse.ok) {
+        return { content: [{ type: "text", text: `Video source returned HTTP ${sourceResponse.status}. Use a direct, publicly accessible video URL.` }], isError: true };
+      }
+      const sourceType = (sourceResponse.headers.get("content-type") ?? "").split(";")[0].trim().toLowerCase();
+      if (!sourceType.startsWith("video/")) {
+        return { content: [{ type: "text", text: `Video source must return a video/* content type; received "${sourceType || "unknown"}".` }], isError: true };
+      }
+      const declaredLength = Number(sourceResponse.headers.get("content-length") ?? "0");
+      const maxBytes = 50 * 1024 * 1024;
+      if (declaredLength > maxBytes) {
+        return { content: [{ type: "text", text: "Video exceeds the 50 MB upload limit for this Worker tool." }], isError: true };
+      }
+      let videoBytes: ArrayBuffer;
+      try {
+        videoBytes = await sourceResponse.arrayBuffer();
+      } catch {
+        return { content: [{ type: "text", text: "Could not read the video file from the source URL." }], isError: true };
+      }
+      if (videoBytes.byteLength === 0 || videoBytes.byteLength > maxBytes) {
+        return { content: [{ type: "text", text: "Video file must be non-empty and no larger than 50 MB." }], isError: true };
+      }
+
+      const metadata = {
+        snippet: {
+          title,
+          description: description ?? "",
+          tags: tags ?? [],
+          categoryId: categoryId ?? "27",
+        },
+        status: {
+          privacyStatus: "private",
+          selfDeclaredMadeForKids: false,
+        },
+      };
+      const initiate = await safeFetch(
+        "https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status",
+        {
+          method: "POST",
+          headers: {
+            authorization: `Bearer ${accessToken}`,
+            "content-type": "application/json; charset=UTF-8",
+            "x-upload-content-type": sourceType,
+            "x-upload-content-length": String(videoBytes.byteLength),
+          },
+          body: JSON.stringify(metadata),
+        },
+      );
+      if (!initiate) {
+        return { content: [{ type: "text", text: "Could not reach the YouTube upload service. Please retry later." }], isError: true };
+      }
+      if (!initiate.ok) {
+        const detail = (await initiate.text().catch(() => "")).slice(0, 500);
+        return { content: [{ type: "text", text: `YouTube upload initialization failed (HTTP ${initiate.status}). Reconnect Google and grant the youtube.upload permission if needed. ${detail}` }], isError: true };
+      }
+      const uploadUrl = initiate.headers.get("location");
+      if (!uploadUrl || !uploadUrl.startsWith("https://")) {
+        return { content: [{ type: "text", text: "YouTube did not return a valid resumable upload URL." }], isError: true };
+      }
+      const uploaded = await safeFetch(uploadUrl, {
+        method: "PUT",
+        headers: {
+          authorization: `Bearer ${accessToken}`,
+          "content-type": sourceType,
+          "content-length": String(videoBytes.byteLength),
+        },
+        body: videoBytes,
+      });
+      if (!uploaded) {
+        return { content: [{ type: "text", text: "Upload connection failed. Check YouTube Studio before retrying to avoid duplicate uploads." }], isError: true };
+      }
+      const uploadedData = await safeJson<{ id?: string; snippet?: { title?: string }; status?: { privacyStatus?: string } }>(uploaded);
+      if (!uploaded.ok || !uploadedData?.id) {
+        const detail = uploadedData ? JSON.stringify(uploadedData).slice(0, 500) : "Unreadable response";
+        return { content: [{ type: "text", text: `YouTube upload failed (HTTP ${uploaded.status}). ${detail}` }], isError: true };
+      }
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify({
+            uploaded: true,
+            videoId: uploadedData.id,
+            title: uploadedData.snippet?.title ?? title,
+            privacyStatus: uploadedData.status?.privacyStatus ?? "private",
+            url: `https://www.youtube.com/watch?v=${uploadedData.id}`,
+            nextStep: "Review the video in YouTube Studio. This tool always uploads as PRIVATE and does not publish automatically.",
+          }, null, 2),
+        }],
+      };
+    },
+  );
+
+  server.registerTool(
     "youtube_channel_analytics",
     {
       description: "Read the authorized owner's YouTube Analytics summary for a date range. Requires Google OAuth connection first.",
@@ -633,7 +759,7 @@ export default new OAuthProvider<Env>({
     fetch(request: Request, env: Env): Promise<Response> {
       const url = new URL(request.url);
       if (url.pathname === "/health") {
-        return Promise.resolve(Response.json({ ok: true, service: "youtube-ai-mcp", version: "0.4.2", oauth: true }));
+        return Promise.resolve(Response.json({ ok: true, service: "youtube-ai-mcp", version: "0.5.0", oauth: true }));
       }
       if (url.pathname === "/authorize") return authorize(request, env);
       if (url.pathname === "/google/connect") return googleConnect(request, env);

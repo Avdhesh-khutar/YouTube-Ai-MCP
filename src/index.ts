@@ -362,7 +362,7 @@ async function automatedPrivateUpload(request: Request, env: Env): Promise<Respo
   const init = await safeFetch("https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status", {
     method: "POST",
     headers: {
-      authorization: \`Bearer \${accessToken}\`,
+      authorization: `Bearer ${accessToken}`,
       "content-type": "application/json; charset=UTF-8",
       "x-upload-content-type": video.type || "video/mp4",
       "x-upload-content-length": String(video.size),
@@ -372,7 +372,7 @@ async function automatedPrivateUpload(request: Request, env: Env): Promise<Respo
   if (!init) return Response.json({ error: "Could not reach YouTube upload service. Check Studio before retrying." }, { status: 502 });
   if (!init.ok) {
     const detail = (await init.text().catch(() => "")).slice(0, 400);
-    return Response.json({ error: \`YouTube upload initialization failed (HTTP \${init.status}). \${detail}\` }, { status: 502 });
+    return Response.json({ error: `YouTube upload initialization failed (HTTP ${init.status}). ${detail}` }, { status: 502 });
   }
   const uploadUrl = init.headers.get("location");
   if (!uploadUrl || !uploadUrl.startsWith("https://")) {
@@ -381,20 +381,20 @@ async function automatedPrivateUpload(request: Request, env: Env): Promise<Respo
   const bytes = await video.arrayBuffer();
   const uploaded = await safeFetch(uploadUrl, {
     method: "PUT",
-    headers: { authorization: \`Bearer \${accessToken}\`, "content-type": video.type || "video/mp4", "content-length": String(bytes.byteLength) },
+    headers: { authorization: `Bearer ${accessToken}`, "content-type": video.type || "video/mp4", "content-length": String(bytes.byteLength) },
     body: bytes,
   });
   if (!uploaded) return Response.json({ error: "Upload connection failed. Check YouTube Studio before retrying to avoid duplicates." }, { status: 502 });
   const data = await safeJson<{ id?: string; snippet?: { title?: string }; status?: { privacyStatus?: string } }>(uploaded);
   if (!uploaded.ok || !data?.id) {
-    return Response.json({ error: \`YouTube upload failed (HTTP \${uploaded.status}).\`, detail: data }, { status: 502 });
+    return Response.json({ error: `YouTube upload failed (HTTP ${uploaded.status}).`, detail: data }, { status: 502 });
   }
   return Response.json({
     uploaded: true,
     videoId: data.id,
     title: data.snippet?.title ?? title,
     privacyStatus: data.status?.privacyStatus ?? "private",
-    url: \`https://www.youtube.com/watch?v=\${data.id}\`,
+    url: `https://www.youtube.com/watch?v=${data.id}`,
     nextStep: "Review in YouTube Studio. This endpoint always uploads as PRIVATE.",
   }, { headers: { "cache-control": "no-store", "x-content-type-options": "nosniff" } });
 }

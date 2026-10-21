@@ -39,6 +39,12 @@ const GOOGLE_SCOPES = [
 
 type GoogleTokenSet = { access_token?: string; refresh_token?: string };
 
+function isValidDateOnly(value: string): boolean {
+  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(value)) return false;
+  const date = new Date(`${value}T00:00:00.000Z`);
+  return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+
 function htmlMessage(title: string, message: string, status = 200): Response {
   return page(title, `<p>${escapeHtml(message)}</p>`, status);
 }
@@ -170,27 +176,35 @@ async function getGoogleAccessToken(env: Env): Promise<string | null> {
   if (!env.GOOGLE_OAUTH_CLIENT_ID || !env.GOOGLE_OAUTH_CLIENT_SECRET) return null;
   const refreshToken = await env.OAUTH_KV.get("youtube-google-refresh-token");
   if (!refreshToken) return null;
-  const response = await fetch("https://oauth2.googleapis.com/token", {
-    method: "POST",
-    headers: { "content-type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      client_id: env.GOOGLE_OAUTH_CLIENT_ID,
-      client_secret: env.GOOGLE_OAUTH_CLIENT_SECRET,
-      refresh_token: refreshToken,
-      grant_type: "refresh_token",
-    }),
-  });
-  if (!response.ok) return null;
-  const tokens = await response.json() as GoogleTokenSet;
-  return tokens.access_token ?? null;
+  try {
+    const response = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        client_id: env.GOOGLE_OAUTH_CLIENT_ID,
+        client_secret: env.GOOGLE_OAUTH_CLIENT_SECRET,
+        refresh_token: refreshToken,
+        grant_type: "refresh_token",
+      }),
+    });
+    if (!response.ok) return null;
+    const tokens = await response.json() as GoogleTokenSet;
+    return tokens.access_token ?? null;
+  } catch {
+    return null;
+  }
 }
 
 async function fetchAnalyticsReport(accessToken: string, params: Record<string, string>): Promise<{ ok: boolean; status: number; data: unknown }> {
   const url = new URL("https://youtubeanalytics.googleapis.com/v2/reports");
   for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value);
-  const response = await fetch(url, { headers: { authorization: `Bearer ${accessToken}` } });
-  const data = await response.json().catch(() => ({}));
-  return { ok: response.ok, status: response.status, data };
+  try {
+    const response = await fetch(url, { headers: { authorization: `Bearer ${accessToken}` } });
+    const data = await response.json().catch(() => ({}));
+    return { ok: response.ok, status: response.status, data };
+  } catch {
+    return { ok: false, status: 0, data: { error: "network_error" } };
+  }
 }
 
 function consentPage(details: ConsentDescription, handle: string): Response {
@@ -486,14 +500,21 @@ function createServer(env: Env): McpServer {
       }),
     },
     async ({ startDate, endDate }) => {
+      if (!isValidDateOnly(startDate) || !isValidDateOnly(endDate)) {
+        return { content: [{ type: "text", text: "Dates must be real calendar dates in YYYY-MM-DD format." }], isError: true };
+      }
       if (startDate > endDate) return { content: [{ type: "text", text: "startDate must be on or before endDate." }], isError: true };
+      const todayUtc = new Date().toISOString().slice(0, 10);
+      if (endDate > todayUtc) {
+        return { content: [{ type: "text", text: `endDate cannot be in the future. Use ${todayUtc} or an earlier date.` }], isError: true };
+      }
       const accessToken = await getGoogleAccessToken(env);
       if (!accessToken) return { content: [{ type: "text", text: "YouTube channel not connected. Open https://youtube-ai-mcp.mkkhutar2.workers.dev/google/connect and complete Google authorization first." }], isError: true };
       const report = await fetchAnalyticsReport(accessToken, {
         ids: "channel==MINE", startDate, endDate,
         metrics: "views,estimatedMinutesWatched,averageViewDuration,subscribersGained,subscribersLost",
       });
-      if (!report.ok) return { content: [{ type: "text", text: `YouTube Analytics API returned HTTP ${report.status}. Confirm YouTube Analytics API is enabled and the authorized Google account owns or manages a channel.` }], isError: true };
+      if (!report.ok) return { content: [{ type: "text", text: report.status === 0 ? "Could not reach YouTube Analytics API. Check network/service status and retry later." : `YouTube Analytics API returned HTTP ${report.status}. Confirm YouTube Analytics API is enabled and the authorized Google account owns or manages a channel.` }], isError: true };
       return { content: [{ type: "text", text: JSON.stringify({ startDate, endDate, report: report.data }, null, 2) }] };
     },
   );

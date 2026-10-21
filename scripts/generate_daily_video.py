@@ -136,6 +136,17 @@ for i, phrase in enumerate(voice_texts, start=1):
     subprocess.run(["espeak-ng", "-v", "hi", "-s", "145", "-w", str(wav), phrase], check=True)
     audio_parts.append(wav)
 
+# Create a gentle synthesized ambient bed locally; no external music asset or paid API required.
+music = OUT / "background-music.wav"
+subprocess.run([
+    "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+    "-f", "lavfi", "-i", "sine=frequency=110:duration=600",
+    "-f", "lavfi", "-i", "sine=frequency=164.81:duration=600",
+    "-f", "lavfi", "-i", "sine=frequency=220:duration=600",
+    "-filter_complex", "[0:a]volume=0.10[a0];[1:a]volume=0.055[a1];[2:a]volume=0.025[a2];[a0][a1][a2]amix=inputs=3:normalize=0,lowpass=f=700,afade=t=in:d=2,afade=t=out:st=590:d=10",
+    "-t", "600", str(music)
+], check=True)
+
 # Match each scene's display time to its narration duration.
 segments = []
 for i, (slide, audio) in enumerate(zip(slides, audio_parts), start=1):
@@ -147,7 +158,7 @@ for i, (slide, audio) in enumerate(zip(slides, audio_parts), start=1):
     duration = max(3.0, float(probe.stdout.strip()) + 0.4)
     subprocess.run([
         "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
-        "-loop", "1", "-framerate", "25", "-i", str(slide), "-i", str(audio),
+        "-loop", "1", "-framerate", "25", "-i", str(slide), "-i", str(audio), "-i", str(music),
         "-t", f"{duration:.2f}", "-vf", f"zoompan=z='min(zoom+0.0008,1.06)':d=1:s=1280x720:fps=25,format=yuv420p",
         "-c:v", "libx264", "-preset", "veryfast", "-c:a", "aac", "-b:a", "128k",
         "-shortest", "-movflags", "+faststart", str(segment)
@@ -167,6 +178,7 @@ subprocess.run([
 
 # Reuse first slide as thumbnail; produce script and metadata.
 (OUT / "thumbnail.png").write_bytes(slides[0].read_bytes())
+Image.open(OUT / "thumbnail.png").convert("RGB").save(OUT / "thumbnail.jpg", quality=92, optimize=True)
 Image.open(OUT / "thumbnail.png").convert("RGB").save(OUT / "thumbnail.jpg", quality=92, optimize=True)
 (OUT / "script.txt").write_text(topic["voice"] + "\n\n" + "\n".join(topic["points"]), encoding="utf-8")
 (OUT / "metadata.json").write_text(__import__("json").dumps({

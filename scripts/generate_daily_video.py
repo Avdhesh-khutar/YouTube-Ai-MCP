@@ -242,7 +242,7 @@ td.ellipse((700, -180, 1430, 600), fill=(20, 65, 125))
 td.ellipse((-260, 420, 520, 1120), fill=(75, 20, 70))
 td.rectangle((0, 0, 26, 720), fill=(255, 185, 45))
 td.rounded_rectangle((64, 54, 520, 118), radius=18, fill=(255, 185, 45))
-td.text((90, 67), "YOUTUBE CREATOR GUIDE", font=font(font_candidates, 26), fill=(10, 17, 35))
+td.text((90, 67), "YOUTUBE CREATOR GUIDE", font=font(["/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", "/usr/share/fonts/truetype/liberation2/LiberationSans-Bold.ttf"], 26), fill=(10, 17, 35))
 headline_font = font(font_candidates, 76)
 thumb_title = "दर्शक वीडियो\nक्यों छोड़ते हैं?"
 for line_no, line in enumerate(thumb_title.split("\n")):
@@ -256,7 +256,7 @@ td.polygon([(978, 292), (978, 418), (1070, 355)], fill=(8, 18, 40))
 for j, bar_h in enumerate([95, 150, 110, 205, 165]):
     x = 785 + j*76
     td.rounded_rectangle((x, 565-bar_h, x+42, 565), radius=9, fill=(95, 174, 255))
-td.text((1000, 615), "WATCH TIME", font=font(font_candidates, 22), fill=(180, 205, 240))
+td.text((1000, 615), "WATCH TIME", font=font(["/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", "/usr/share/fonts/truetype/liberation2/LiberationSans-Bold.ttf"], 22), fill=(180, 205, 240))
 thumb.save(OUT / "thumbnail.png")
 thumb.save(OUT / "thumbnail.jpg", quality=94, optimize=True)
 (OUT / "script.txt").write_text("\n\n".join(voice_texts), encoding="utf-8")

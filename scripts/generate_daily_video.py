@@ -145,7 +145,10 @@ voice_texts = [
 audio_parts = []
 elevenlabs_key = os.environ.get("ELEVENLABS_API_KEY", "").strip()
 elevenlabs_voice_id = os.environ.get("ELEVENLABS_VOICE_ID", "").strip()
-use_elevenlabs = bool(elevenlabs_key and elevenlabs_voice_id)
+use_elevenlabs = (
+    os.environ.get("ELEVENLABS_USE_API", "false").strip().lower() == "true"
+    and bool(elevenlabs_key and elevenlabs_voice_id)
+)
 
 for i, phrase in enumerate(voice_texts, start=1):
     if use_elevenlabs:
@@ -210,6 +213,31 @@ for i, phrase in enumerate(voice_texts, start=1):
     audio_parts.append(audio)
 
 print("Narration provider: " + ("ElevenLabs" if use_elevenlabs else "offline eSpeak fallback"))
+
+# Create a simple SRT caption file aligned to each narration scene.
+def srt_timestamp(seconds):
+    millis = int(round(seconds * 1000))
+    hours, millis = divmod(millis, 3_600_000)
+    minutes, millis = divmod(millis, 60_000)
+    secs, millis = divmod(millis, 1000)
+    return f"{hours:02d}:{minutes:02d}:{secs:02d},{millis:03d}"
+
+caption_blocks = []
+cursor = 0.0
+for index, audio in enumerate(audio_parts, start=1):
+    probe = subprocess.run(
+        ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+         "-of", "default=noprint_wrappers=1:nokey=1", str(audio)],
+        check=True, capture_output=True, text=True
+    )
+    duration = max(3.0, float(probe.stdout.strip()) + 0.4)
+    caption_blocks.append(
+        f"{index}\\n{srt_timestamp(cursor)} --> {srt_timestamp(cursor + duration)}\\n"
+        + voice_texts[index - 1] + "\\n"
+    )
+    cursor += duration
+(OUT / "captions.srt").write_text("\\n".join(caption_blocks), encoding="utf-8")
+
 
 # Create a gentle synthesized ambient bed locally; no external music asset or paid API required.
 music = OUT / "background-music.wav"

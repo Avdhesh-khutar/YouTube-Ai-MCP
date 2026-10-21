@@ -43,6 +43,24 @@ After a GitHub-triggered Cloudflare deployment succeeds:
 
 `https://youtube-ai-mcp.mkkhutar2.workers.dev/health`
 
+## Connect your own YouTube channel (private Analytics)
+
+The Worker now includes a separate Google OAuth flow for the channel owner and the `youtube_channel_analytics` tool. This is separate from Claude's MCP connector authorization.
+
+1. In Google Cloud project `Youtube-Claude`, enable **YouTube Analytics API** (YouTube Data API v3 should remain enabled for public research tools).
+2. Configure the OAuth consent screen. If the app is in Testing mode, add the Google account that owns/manages the channel as a test user.
+3. Create an OAuth Client ID of type **Web application**.
+4. Add this exact Authorized redirect URI:
+   `https://youtube-ai-mcp.mkkhutar2.workers.dev/google/callback`
+5. In Cloudflare → Workers & Pages → `youtube-ai-mcp` → Settings → Variables and Secrets, add these as secrets:
+   - `GOOGLE_OAUTH_CLIENT_ID` — the OAuth client ID from Google Cloud.
+   - `GOOGLE_OAUTH_CLIENT_SECRET` — the matching OAuth client secret.
+   Keep the existing `OAUTH_ADMIN_PASSWORD` and `OAUTH_KV` binding configured.
+6. Deploy the latest Worker. Open `https://youtube-ai-mcp.mkkhutar2.workers.dev/google/connect`, enter the **Worker admin password** (not your Google password), and then sign in on Google's own page to grant read-only access.
+7. In Claude, call `youtube_channel_analytics` with `startDate` and `endDate` in `YYYY-MM-DD` format.
+
+The tool reports channel-level views, estimated minutes watched, average view duration, subscribers gained, and subscribers lost for the requested date range. Access depends on the signed-in Google account's channel permissions and available Analytics data. The Google refresh token is stored in the configured Cloudflare KV namespace; never share it. Revoke access from your Google Account permissions page if you want to disconnect.
+
 ## Important limits
 
 - This service does not guarantee views, automate uploads, or publish videos.

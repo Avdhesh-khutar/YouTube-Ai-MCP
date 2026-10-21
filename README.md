@@ -28,6 +28,18 @@ Important limitations:
 - YouTube upload needs a secure file handoff plus OAuth credentials in a protected runtime. Do not place the Google refresh token in the public repository.
 - For fully AI-generated scenes and natural voice, a suitable model/service or a local model is required; free availability and quotas vary.
 
+## Enable scheduled private uploads
+
+The daily workflow uploads only when a repository Actions secret named `YOUTUBE_PRIVATE_UPLOAD_TOKEN` is configured. The Worker endpoint also requires the same value as the Cloudflare Worker secret `DAILY_UPLOAD_TOKEN`.
+
+1. Generate a strong random token using a password manager. Do not send it in chat or commit it.
+2. In Cloudflare Dashboard → Workers & Pages → `youtube-ai-mcp` → Settings → Variables and Secrets, add a **secret** named `DAILY_UPLOAD_TOKEN` with that token, then deploy the Worker.
+3. In GitHub → repository Settings → Secrets and variables → Actions, create repository secret `YOUTUBE_PRIVATE_UPLOAD_TOKEN` with the exact same token.
+4. Run the `Daily video package` workflow manually once from Actions → Daily video package → Run workflow.
+5. Confirm the result is `uploaded: true` and `privacyStatus: private`, then review the draft in YouTube Studio.
+
+Without both secrets, the workflow still generates and stores a downloadable review artifact, but skips YouTube upload. The endpoint accepts video files up to 47 MB and always sets privacy to `private`. Never enable public publishing in this workflow.
+
 ## Automated video creation limits and next step
 
 This Worker does **not** generate a finished video, voiceover, captions, or thumbnail by itself. The free-budget workflow still needs a video-generation/rendering service or a local renderer that produces a direct HTTPS video file. The upload tool is the first publishing component; a daily unattended pipeline is not complete until a renderer, persistent job scheduler, failure notifications, and a secure source-file handoff are configured. Do not describe this as fully automatic until those parts have been tested.

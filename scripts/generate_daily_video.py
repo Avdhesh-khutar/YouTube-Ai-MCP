@@ -65,10 +65,12 @@ TOPICS = [
 
 topic = TOPICS[date.today().toordinal() % len(TOPICS)]
 font_candidates = [
+    "/usr/share/fonts/truetype/noto/NotoSansDevanagari-Bold.ttf",
     "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
     "/usr/share/fonts/truetype/liberation2/LiberationSans-Bold.ttf",
 ]
 regular_candidates = [
+    "/usr/share/fonts/truetype/noto/NotoSansDevanagari-Regular.ttf",
     "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
     "/usr/share/fonts/truetype/liberation2/LiberationSans-Regular.ttf",
 ]
@@ -111,10 +113,10 @@ def draw_slide(index, heading, lines, footer):
     im.save(path)
     slides.append(path)
 
-draw_slide(1, topic["title"], [topic["subtitle"], "Practical tips for growing creators"], "Educational explainer • Verify details before publishing")
+draw_slide(1, topic["title"], [topic["subtitle"], "हिंदी में पूरी जानकारी"], "हिंदी क्रिएटर मास्टरक्लास • सीखें और लागू करें")
 for i, point in enumerate(topic["points"], start=2):
-    draw_slide(i, f"TIP {i-1}", [point, "Keep it clear • Make it useful • Improve each upload"], "YouTube growth is a process, not a guarantee")
-draw_slide(7, "YOUR NEXT STEP", ["Choose one tip and apply it today", "Subscribe for more creator education"], "Comment with the next topic you want")
+    draw_slide(i, f"TIP {i-1}", [point, "Keep it clear • Make it useful • Improve each upload"], "सही सीख • लगातार अभ्यास • बेहतर वीडियो")
+draw_slide(7, "अब आपकी बारी", ["आज एक बदलाव लागू करें", "ऐसी और हिंदी गाइड के लिए जुड़े रहें"], "लगातार सीखें और सुधार करें")
 
 voice_texts = [
     topic["voice"],
@@ -169,7 +171,7 @@ Image.open(OUT / "thumbnail.png").convert("RGB").save(OUT / "thumbnail.jpg", qua
 (OUT / "metadata.json").write_text(__import__("json").dumps({
     "date": TODAY,
     "title": topic["title"].title() + " | Hindi Creator Masterclass",
-    "description": topic["subtitle"] + "\n\nDaily creator education. Growth is not guaranteed; test strategies with your own analytics.",
+    "description": topic["subtitle"] + "\n\nहिंदी में क्रिएटर एजुकेशन। अपनी analytics से सीखें। सफलता की गारंटी नहीं है।",
     "tags": ["YouTubeGrowth", "CreatorTips", "YouTubeAnalytics"],
     "privacyStatus": "private",
     "note": "Offline-rendered animated motion-card explainer with generated narration; review language, duration, audio, and content before upload."

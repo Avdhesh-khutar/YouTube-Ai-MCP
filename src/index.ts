@@ -5,7 +5,7 @@ import OAuthProvider, {
   type OAuthHelpers,
   type ConsentDescription,
 } from "@cloudflare/workers-oauth-provider";
-import { z } from "zod";
+import { z } from "zod/v4";
 
 interface Env {
   OAUTH_KV: KVNamespace;

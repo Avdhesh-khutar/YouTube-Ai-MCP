@@ -27,7 +27,7 @@ function escapeHtml(value: string): string {
 function page(title: string, body: string, status = 200): Response {
   return new Response(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)}</title><style>body{font:16px system-ui;max-width:620px;margin:48px auto;padding:0 18px;color:#172033}main{border:1px solid #ddd;border-radius:14px;padding:24px}input{box-sizing:border-box;width:100%;padding:12px;margin:8px 0 18px}button{padding:12px 18px;border:0;border-radius:8px;background:#155eef;color:white;font-weight:600}small{color:#555}</style></head><body><main><h1>${escapeHtml(title)}</h1>${body}</main></body></html>`, {
     status,
-    headers: { "content-type": "text/html; charset=utf-8", "x-content-type-options": "nosniff", "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'", "referrer-policy": "no-referrer" },
+    headers: { "content-type": "text/html; charset=utf-8", "x-content-type-options": "nosniff", "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'", "referrer-policy": "no-referrer" },
   });
 }
 
@@ -51,11 +51,44 @@ async function googleConnect(request: Request, env: Env): Promise<Response> {
     return page("Connect your YouTube channel", `
       <p>This starts Google's official authorization flow for the channel owner.</p>
       <p>Requested access is read-only YouTube channel data and YouTube Analytics reports.</p>
-      <form method="post" action="/google/connect">
+      <form id="google-connect-form" method="post" action="/google/connect">
         <label for="password">Worker admin password</label>
         <input id="password" name="password" type="password" autocomplete="current-password" required>
-        <button type="submit">Continue to Google</button>
+        <button id="google-connect-button" type="submit">Continue to Google</button>
+        <p id="connect-status" role="status" aria-live="polite"></p>
       </form>
+      <script>
+        const form = document.getElementById("google-connect-form");
+        const button = document.getElementById("google-connect-button");
+        const status = document.getElementById("connect-status");
+        form.addEventListener("submit", async (event) => {
+          event.preventDefault();
+          button.disabled = true;
+          button.textContent = "Connecting...";
+          status.textContent = "Contacting the authorization service...";
+          try {
+            const response = await fetch(form.action, {
+              method: "POST",
+              body: new FormData(form),
+              headers: { "Accept": "application/json" },
+              redirect: "manual"
+            });
+            if (response.type === "opaqueredirect") {
+              status.textContent = "Opening Google...";
+              window.location.href = "https://youtube-ai-mcp.mkkhutar2.workers.dev/google/connect";
+              return;
+            }
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(data.error || "Request failed (HTTP " + response.status + ").");
+            if (!data.authorizationUrl) throw new Error("Authorization link was not returned. Please retry.");
+            window.location.assign(data.authorizationUrl);
+          } catch (error) {
+            status.textContent = error instanceof Error ? error.message : "Could not connect. Please retry.";
+            button.disabled = false;
+            button.textContent = "Continue to Google";
+          }
+        });
+      </script>
       <p><small>Do not enter your Google account password here. You will sign in only on Google's website.</small></p>
     `);
   }
@@ -82,6 +115,11 @@ async function googleConnect(request: Request, env: Env): Promise<Response> {
   authUrl.searchParams.set("state", state);
   authUrl.searchParams.set("code_challenge", challenge);
   authUrl.searchParams.set("code_challenge_method", "S256");
+  if (request.headers.get("accept")?.includes("application/json")) {
+    return Response.json({ authorizationUrl: authUrl.toString() }, {
+      headers: { "cache-control": "no-store", "x-content-type-options": "nosniff" },
+    });
+  }
   return Response.redirect(authUrl.toString(), 302);
 }
 

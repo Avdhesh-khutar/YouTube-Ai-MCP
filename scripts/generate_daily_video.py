@@ -140,77 +140,34 @@ voice_texts = [
     "अंत में याद रखें कि बेहतर YouTube वीडियो बनाने का कोई जादुई शॉर्टकट नहीं है। रिसर्च, स्पष्ट हिंदी narration, उपयोगी उदाहरण, अच्छे दृश्य और नियमित समीक्षा मिलकर गुणवत्ता बेहतर कर सकते हैं। अपनी अगली वीडियो में एक सुधार लागू कीजिए। वीडियो देखने के लिए धन्यवाद। सीखते रहिए और दर्शकों के भरोसे को प्राथमिकता दीजिए।"
 ]
 
-# Prefer ElevenLabs Hindi narration when repository secrets are configured.
-# If not configured, keep the free offline eSpeak fallback.
+# Prefer a natural Hindi neural voice (Microsoft Edge TTS, no API key).
+# If the runner cannot reach the service, fall back to offline speech.
 audio_parts = []
-elevenlabs_key = os.environ.get("ELEVENLABS_API_KEY", "").strip()
-elevenlabs_voice_id = os.environ.get("ELEVENLABS_VOICE_ID", "").strip()
-use_elevenlabs = (
-    os.environ.get("ELEVENLABS_USE_API", "false").strip().lower() == "true"
-    and bool(elevenlabs_key and elevenlabs_voice_id)
-)
-
+narration_provider = "Microsoft Edge Hindi neural voice"
 for i, phrase in enumerate(voice_texts, start=1):
-    if use_elevenlabs:
-        import json
-        import urllib.error
-        import urllib.request
-
-        audio = OUT / f"voice-{i:02d}.mp3"
-        endpoint = (
-            "https://api.elevenlabs.io/v1/text-to-speech/"
-            + elevenlabs_voice_id
-            + "?output_format=mp3_44100_128"
+    audio = OUT / f"voice-{i:02d}.mp3"
+    edge_ok = False
+    try:
+        subprocess.run(
+            ["edge-tts", "--voice", "hi-IN-MadhurNeural", "--rate=-8%",
+             "--text", phrase, "--write-media", str(audio)],
+            check=True, capture_output=True, text=True, timeout=90
         )
-        payload = json.dumps({
-            "text": phrase,
-            "model_id": "eleven_multilingual_v2",
-            "voice_settings": {
-                "stability": 0.55,
-                "similarity_boost": 0.75
-            }
-        }).encode("utf-8")
-        request = urllib.request.Request(
-            endpoint,
-            data=payload,
-            headers={
-                "xi-api-key": elevenlabs_key,
-                "Content-Type": "application/json",
-                "Accept": "audio/mpeg"
-            },
-            method="POST"
-        )
-        try:
-            with urllib.request.urlopen(request, timeout=90) as response:
-                audio.write_bytes(response.read())
-            print(f"Generated ElevenLabs narration segment {i}/{len(voice_texts)}")
-        except urllib.error.HTTPError as error:
-            detail = error.read().decode("utf-8", errors="replace")[:500]
-            if error.code == 402 and "paid_plan_required" in detail:
-                # Some ElevenLabs library voices require a paid API plan.
-                # Keep the daily pipeline working without repeated rejected API calls.
-                print(
-                    "ElevenLabs voice requires a paid API plan; switching to "
-                    "offline eSpeak for this and remaining segments."
-                )
-                use_elevenlabs = False
-                audio = OUT / f"voice-{i:02d}.wav"
-                subprocess.run(
-                    ["espeak-ng", "-v", "hi", "-s", "145", "-w", str(audio), phrase],
-                    check=True
-                )
-            else:
-                raise RuntimeError(
-                    f"ElevenLabs TTS failed for narration segment {i} "
-                    f"(HTTP {error.code}): {detail}"
-                ) from error
-    else:
+        if audio.exists() and audio.stat().st_size > 1000:
+            edge_ok = True
+            print(f"Generated natural Hindi narration segment {i}/{len(voice_texts)}")
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError) as error:
+        print(f"Neural Hindi voice unavailable for segment {i}; using offline fallback ({type(error).__name__}).")
+    if not edge_ok:
+        narration_provider = "offline eSpeak fallback"
         audio = OUT / f"voice-{i:02d}.wav"
         subprocess.run(
-            ["espeak-ng", "-v", "hi", "-s", "145", "-w", str(audio), phrase],
+            ["espeak-ng", "-v", "hi", "-s", "132", "-p", "42", "-w", str(audio), phrase],
             check=True
         )
     audio_parts.append(audio)
+
+print("Narration provider: " + narration_provider)
 
 print("Narration provider: " + ("ElevenLabs" if use_elevenlabs else "offline eSpeak fallback"))
 
@@ -280,15 +237,36 @@ subprocess.run([
 
 (OUT / "script.txt").write_text("\n\n".join(voice_texts), encoding="utf-8")
 
-# Reuse first slide as thumbnail; produce script and metadata.
-(OUT / "thumbnail.png").write_bytes(slides[0].read_bytes())
-Image.open(OUT / "thumbnail.png").convert("RGB").save(OUT / "thumbnail.jpg", quality=92, optimize=True)
+# Build a dedicated high-contrast thumbnail instead of reusing a mostly empty slide.
+thumb = Image.new("RGB", (1280, 720), (5, 10, 25))
+td = ImageDraw.Draw(thumb)
+td.ellipse((700, -180, 1430, 600), fill=(20, 65, 125))
+td.ellipse((-260, 420, 520, 1120), fill=(75, 20, 70))
+td.rectangle((0, 0, 26, 720), fill=(255, 185, 45))
+td.rounded_rectangle((64, 54, 520, 118), radius=18, fill=(255, 185, 45))
+td.text((90, 67), "YOUTUBE CREATOR GUIDE", font=font(font_candidates, 26), fill=(10, 17, 35))
+headline_font = font(font_candidates, 76)
+thumb_title = "दर्शक वीडियो\nक्यों छोड़ते हैं?"
+for line_no, line in enumerate(thumb_title.split("\n")):
+    td.text((70, 190 + line_no*100), line, font=headline_font, fill=(255, 255, 255), stroke_width=2, stroke_fill=(5, 10, 25))
+td.rounded_rectangle((72, 430, 635, 500), radius=18, fill=(224, 48, 55))
+td.text((100, 445), "ये 5 गलतियाँ सुधारें", font=font(font_candidates, 34), fill=(255, 255, 255))
+td.text((74, 610), "हिंदी में आसान और उपयोगी गाइड", font=font(font_candidates, 28), fill=(215, 226, 245))
+# Simple play symbol and retention bars add a visual focal point.
+td.ellipse((890, 235, 1130, 475), fill=(255, 185, 45), outline=(255,255,255), width=6)
+td.polygon([(978, 292), (978, 418), (1070, 355)], fill=(8, 18, 40))
+for j, bar_h in enumerate([95, 150, 110, 205, 165]):
+    x = 785 + j*76
+    td.rounded_rectangle((x, 565-bar_h, x+42, 565), radius=9, fill=(95, 174, 255))
+td.text((1000, 615), "WATCH TIME", font=font(font_candidates, 22), fill=(180, 205, 240))
+thumb.save(OUT / "thumbnail.png")
+thumb.save(OUT / "thumbnail.jpg", quality=94, optimize=True)
 (OUT / "script.txt").write_text("\n\n".join(voice_texts), encoding="utf-8")
 (OUT / "metadata.json").write_text(__import__("json").dumps({
     "date": TODAY,
-    "title": topic["title"].title() + " | Hindi Creator Masterclass",
-    "description": topic["subtitle"] + "\n\nहिंदी में क्रिएटर एजुकेशन। अपनी analytics से सीखें। सफलता की गारंटी नहीं है।",
-    "tags": ["YouTubeGrowth", "HindiCreator", "YouTubeAnalytics", "HindiTutorial"],
+    "title": "दर्शक वीडियो क्यों छोड़ते हैं? | 5 YouTube Tips",
+    "description": "दर्शक आपकी वीडियो जल्दी क्यों छोड़ देते हैं? इस हिंदी गाइड में वीडियो की शुरुआत, उपयोगी जानकारी, स्पष्ट आवाज़, स्क्रीन टेक्स्ट और दर्शक बनाए रखने के व्यावहारिक सुझाव जानें।\n\nवीडियो को बेहतर बनाने के लिए एक-एक सुझाव अगली वीडियो में लागू करें।",
+    "tags": ["YouTube Tips Hindi", "YouTube Growth", "Audience Retention", "Hindi Creator", "YouTube Tutorial"],
     "privacyStatus": "private",
     "note": "Offline-rendered motion-card explainer; captions.srt is included. Review pronunciation, visuals, duration, audio, and content before upload."
 }, ensure_ascii=False, indent=2), encoding="utf-8")

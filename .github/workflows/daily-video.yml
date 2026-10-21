@@ -62,7 +62,8 @@ jobs:
       - name: Upload as PRIVATE to connected YouTube channel
         env:
           UPLOAD_TOKEN: ${{ secrets.YOUTUBE_PRIVATE_UPLOAD_TOKEN }}
-        if: env.UPLOAD_TOKEN != ''
+        # Temporarily prevent repeated uploads of the draft while visual/audio quality is being improved.
+        if: false
         run: |
           set -euo pipefail
           size=$(stat -c%s dist/daily-youtube-video.mp4)

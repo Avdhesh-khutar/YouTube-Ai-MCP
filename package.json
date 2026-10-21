@@ -7,7 +7,8 @@
     "build": "node -e \"console.log('Wrangler bundles the Worker during deploy.')\"",
     "typecheck": "tsc --noEmit",
     "deploy": "wrangler deploy",
-    "dev": "wrangler dev"
+    "dev": "wrangler dev",
+    "test": "npm run typecheck && wrangler deploy --dry-run"
   },
   "dependencies": {
     "@cloudflare/workers-oauth-provider": "^1.2.3",

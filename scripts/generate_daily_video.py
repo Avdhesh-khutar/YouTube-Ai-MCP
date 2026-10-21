@@ -141,12 +141,62 @@ voice_texts = [
     "अंत में याद रखें कि बेहतर YouTube वीडियो बनाने का कोई जादुई शॉर्टकट नहीं है। रिसर्च, स्पष्ट हिंदी narration, उपयोगी उदाहरण, अच्छे दृश्य और नियमित समीक्षा मिलकर गुणवत्ता बेहतर कर सकते हैं। अपनी अगली वीडियो में एक सुधार लागू कीजिए। वीडियो देखने के लिए धन्यवाद। सीखते रहिए और दर्शकों के भरोसे को प्राथमिकता दीजिए।"
 ]
 
-# Offline Hindi voice generation, one narration segment per scene.
+# Prefer ElevenLabs Hindi narration when repository secrets are configured.
+# If not configured, keep the free offline eSpeak fallback.
 audio_parts = []
+elevenlabs_key = os.environ.get("ELEVENLABS_API_KEY", "").strip()
+elevenlabs_voice_id = os.environ.get("ELEVENLABS_VOICE_ID", "").strip()
+use_elevenlabs = bool(elevenlabs_key and elevenlabs_voice_id)
+
 for i, phrase in enumerate(voice_texts, start=1):
-    wav = OUT / f"voice-{i:02d}.wav"
-    subprocess.run(["espeak-ng", "-v", "hi", "-s", "145", "-w", str(wav), phrase], check=True)
-    audio_parts.append(wav)
+    if use_elevenlabs:
+        import json
+        import urllib.error
+        import urllib.request
+
+        audio = OUT / f"voice-{i:02d}.mp3"
+        endpoint = (
+            "https://api.elevenlabs.io/v1/text-to-speech/"
+            + elevenlabs_voice_id
+            + "?output_format=mp3_44100_128"
+        )
+        payload = json.dumps({
+            "text": phrase,
+            "model_id": "eleven_multilingual_v2",
+            "voice_settings": {
+                "stability": 0.55,
+                "similarity_boost": 0.75
+            }
+        }).encode("utf-8")
+        request = urllib.request.Request(
+            endpoint,
+            data=payload,
+            headers={
+                "xi-api-key": elevenlabs_key,
+                "Content-Type": "application/json",
+                "Accept": "audio/mpeg"
+            },
+            method="POST"
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=90) as response:
+                audio.write_bytes(response.read())
+        except urllib.error.HTTPError as error:
+            detail = error.read().decode("utf-8", errors="replace")[:500]
+            raise RuntimeError(
+                f"ElevenLabs TTS failed for narration segment {i} "
+                f"(HTTP {error.code}): {detail}"
+            ) from error
+        print(f"Generated ElevenLabs narration segment {i}/{len(voice_texts)}")
+    else:
+        audio = OUT / f"voice-{i:02d}.wav"
+        subprocess.run(
+            ["espeak-ng", "-v", "hi", "-s", "145", "-w", str(audio), phrase],
+            check=True
+        )
+    audio_parts.append(audio)
+
+print("Narration provider: " + ("ElevenLabs" if use_elevenlabs else "offline eSpeak fallback"))
 
 # Create a gentle synthesized ambient bed locally; no external music asset or paid API required.
 music = OUT / "background-music.wav"

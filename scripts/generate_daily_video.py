@@ -109,6 +109,16 @@ for i, point in enumerate(topic["points"], start=2):
     draw_slide(i, f"TIP {i-1}", [point, "Keep it clear • Make it useful • Improve each upload"], "YouTube growth is a process, not a guarantee")
 draw_slide(7, "YOUR NEXT STEP", ["Choose one tip and apply it today", "Subscribe for more creator education"], "Comment with the next topic you want")
 
+voice_texts = [
+    topic["voice"],
+    f"Tip one: {topic['points'][0]}. Focus on one clear audience and one useful promise.",
+    f"Tip two: {topic['points'][1]}. Keep the message honest and easy to understand on a phone.",
+    f"Tip three: {topic['points'][2]}. Give viewers value quickly and remove unnecessary pauses.",
+    f"Tip four: {topic['points'][3]}. Use examples viewers can apply to their own channel.",
+    f"Tip five: {topic['points'][4]}. Review results and improve one thing in the next upload.",
+    "Thanks for watching. Growth is not guaranteed. Keep learning from your audience and analytics."
+]
+
 # Offline Hindi voice generation, one narration segment per scene.
 audio_parts = []
 for i, phrase in enumerate(voice_texts, start=1):

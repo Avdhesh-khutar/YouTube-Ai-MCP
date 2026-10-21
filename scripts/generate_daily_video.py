@@ -94,7 +94,7 @@ def font(candidates, size):
 
 title_font = font(font_candidates, 64)
 body_font = font(regular_candidates, 34)
-small_font = font(regular_candidates, 22)
+small_font = font(font_candidates, 22)
 
 slides = []
 def draw_slide(index, heading, lines, footer):
@@ -108,7 +108,6 @@ def draw_slide(index, heading, lines, footer):
     im = Image.alpha_composite(im.convert("RGBA"), glow).convert("RGB")
     d = ImageDraw.Draw(im)
     d.rounded_rectangle((48, 48, W-48, H-48), radius=30, outline=(57, 85, 150), width=3)
-    d.text((90, 80), "हिंदी वीडियो गाइड", font=small_font, fill=(117, 190, 255))
     d.text((90, 150), heading, font=title_font, fill=(255, 255, 255), stroke_width=1)
     y = 260
     for line in lines:

@@ -108,7 +108,7 @@ def draw_slide(index, heading, lines, footer):
         y += 14
     d.line((90, H-118, W-90, H-118), fill=(57, 85, 150), width=2)
     d.text((90, H-100), footer, font=small_font, fill=(163, 181, 213))
-    d.text((W-210, H-100), f"{index:02d} / 07", font=small_font, fill=(117, 190, 255))
+    d.text((W-210, H-100), f"{index:02d} / 08", font=small_font, fill=(117, 190, 255))
     path = OUT / f"slide-{index:02d}.png"
     im.save(path)
     slides.append(path)
@@ -116,7 +116,7 @@ def draw_slide(index, heading, lines, footer):
 draw_slide(1, topic["title"], [topic["subtitle"], "हिंदी में पूरी जानकारी"], "हिंदी क्रिएटर मास्टरक्लास • सीखें और लागू करें")
 for i, point in enumerate(topic["points"], start=2):
     draw_slide(i, f"TIP {i-1}", [point, "Keep it clear • Make it useful • Improve each upload"], "सही सीख • लगातार अभ्यास • बेहतर वीडियो")
-draw_slide(7, "अब आपकी बारी", ["आज एक बदलाव लागू करें", "ऐसी और हिंदी गाइड के लिए जुड़े रहें"], "लगातार सीखें और सुधार करें")
+draw_slide(8, "अब आपकी बारी", ["आज एक बदलाव लागू करें", "ऐसी और हिंदी गाइड के लिए जुड़े रहें"], "लगातार सीखें और सुधार करें")
 
 voice_texts = [
     topic["voice"] + " अब इस विषय को चरण दर चरण समझते हैं। सबसे पहले अपने लक्ष्य को स्पष्ट कीजिए। उसके बाद एक छोटा व्यावहारिक उदाहरण चुनिए और दर्शक को बताइए कि वह इसे कैसे लागू कर सकता है।",
@@ -160,7 +160,8 @@ for i, (slide, audio) in enumerate(zip(slides, audio_parts), start=1):
         "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
         "-loop", "1", "-framerate", "25", "-i", str(slide), "-i", str(audio), "-i", str(music),
         "-t", f"{duration:.2f}", "-vf", f"zoompan=z='min(zoom+0.0008,1.06)':d=1:s=1280x720:fps=25,format=yuv420p",
-        "-c:v", "libx264", "-preset", "veryfast", "-c:a", "aac", "-b:a", "128k",
+        "-filter_complex", "[2:a]volume=0.12[bg];[1:a][bg]amix=inputs=2:duration=first:dropout_transition=2,alimiter=limit=0.92[a]",
+        "-map", "0:v", "-map", "[a]", "-c:v", "libx264", "-preset", "veryfast", "-c:a", "aac", "-b:a", "160k",
         "-shortest", "-movflags", "+faststart", str(segment)
     ], check=True)
     segments.append(segment)
@@ -178,7 +179,6 @@ subprocess.run([
 
 # Reuse first slide as thumbnail; produce script and metadata.
 (OUT / "thumbnail.png").write_bytes(slides[0].read_bytes())
-Image.open(OUT / "thumbnail.png").convert("RGB").save(OUT / "thumbnail.jpg", quality=92, optimize=True)
 Image.open(OUT / "thumbnail.png").convert("RGB").save(OUT / "thumbnail.jpg", quality=92, optimize=True)
 (OUT / "script.txt").write_text(topic["voice"] + "\n\n" + "\n".join(topic["points"]), encoding="utf-8")
 (OUT / "metadata.json").write_text(__import__("json").dumps({

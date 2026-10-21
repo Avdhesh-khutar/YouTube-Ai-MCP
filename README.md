@@ -1,38 +1,58 @@
 # YouTube AI MCP
 
-Cloudflare Worker hosting an OAuth-protected MCP endpoint for Claude.
+OAuth-protected Model Context Protocol (MCP) server for Claude, hosted on Cloudflare Workers.
 
 ## Current tools
-- `youtube_video_research`: searches public YouTube videos by keyword with YouTube Data API v3.
-- `youtube_training_video_outline`: drafts video outlines and title ideas.
 
-## Important limits
-Private channel analytics, editing existing videos, uploading, and publishing are not implemented yet. They require Google OAuth and explicit YouTube channel permissions. This service does not guarantee views and does not automatically publish content.
+- `youtube_video_research`: searches public YouTube videos by keyword, ordered by view count. Uses YouTube Data API v3.
+- `youtube_training_video_outline`: creates a draft video outline, title ideas, and production checklist. Does not publish videos.
+- `youtube_competitor_analysis`: compares public search results and available public video statistics (views, likes, comments), calculates simple engagement rates, and suggests content opportunities. It does not access private competitor analytics.
+
+## YouTube API quota awareness
+
+- YouTube Data API quota is separate from Cloudflare Workers usage.
+- The search endpoint is quota-expensive compared with video statistics. Avoid repeatedly running research or competitor-analysis tools for the same query.
+- Competitor analysis normally makes one `search.list` request and, when search results contain video IDs, one `videos.list` request for statistics. The statistics request batches the returned IDs.
+- Use a small `maxResults` value (default 5) unless more results are genuinely needed.
+- Public statistics can be unavailable or change after retrieval. Missing values are returned as `null`; they must not be interpreted as zero.
+- `viewsPerDay` is a rough lifetime average since publication, not recent daily view velocity and not a forecast.
+- Engagement rates are descriptive ratios only; they do not prove why a video performed well or predict future views.
 
 ## Cloudflare setup
-The repository uses a Cloudflare KV namespace bound as `OAUTH_KV`.
 
-Add these as **Worker secrets** in Cloudflare → Workers & Pages → youtube-ai-mcp → Settings → Variables and Secrets:
-- `OAUTH_ADMIN_PASSWORD`: a long, unique password used only for the Claude connector authorization screen. Do not use your Google password.
-- `YOUTUBE_API_KEY`: Google API key restricted to YouTube Data API v3.
+The Worker uses a Cloudflare KV namespace bound as `OAUTH_KV`.
 
-The previous `MCP_ACCESS_TOKEN` is no longer used by the OAuth flow. Do not share any secret in chat or commit it to GitHub.
+Configure these as Worker secrets in Cloudflare → Workers & Pages → `youtube-ai-mcp` → Settings → Variables and Secrets:
+
+- `OAUTH_ADMIN_PASSWORD`: a long, unique password used only for the connector authorization page. Never use your Google password.
+- `YOUTUBE_API_KEY`: a Google API key restricted to YouTube Data API v3.
+
+The previous `MCP_ACCESS_TOKEN` is not used by this OAuth flow. Do not share secrets in chat or commit them to GitHub.
 
 ## Connect Claude
-After the latest GitHub-triggered Cloudflare deployment succeeds:
-1. Add a custom remote MCP connector in Claude.
-2. URL: `https://youtube-ai-mcp.mkkhutar2.workers.dev/mcp`
-3. Select OAuth / sign in when Claude detects authorization.
-4. The browser should open the YouTube AI MCP authorization page. Enter the `OAUTH_ADMIN_PASSWORD` secret you created in Cloudflare and approve only if the client and redirect host match the Claude connection you just started.
-5. After connection, test `youtube_video_research` with a topic.
 
-If Claude does not open the authorization page or the Cloudflare deployment fails, do not disable OAuth or expose the endpoint publicly. Check the Cloudflare build/deployment logs.
+After a GitHub-triggered Cloudflare deployment succeeds:
+
+1. Add or open the custom remote MCP connector.
+2. Endpoint: `https://youtube-ai-mcp.mkkhutar2.workers.dev/mcp`
+3. Use OAuth when Claude requests authorization.
+4. Enter the `OAUTH_ADMIN_PASSWORD` only on the connector's authorization page, after verifying the client and redirect host.
+5. Approve individual tool calls as appropriate.
 
 ## Health check
+
 `https://youtube-ai-mcp.mkkhutar2.workers.dev/health`
 
+## Important limits
+
+- This service does not guarantee views, automate uploads, or publish videos.
+- Private channel analytics and private competitor analytics are not implemented.
+- The tools use public YouTube metadata/statistics and can return incomplete results.
+- A successful deployment does not by itself prove that every API request or edge case works; avoid unnecessary live tests because they consume quota.
+
 ## Security
-- OAuth tokens are issued by Cloudflare Workers OAuth Provider and stored through the `OAUTH_KV` binding.
-- Use a unique strong `OAUTH_ADMIN_PASSWORD`; never paste it into chat.
-- Keep the Google API key restricted to YouTube Data API v3.
-- OAuth to this MCP service is separate from Google OAuth for private channel access.
+
+- OAuth tokens are managed by Cloudflare Workers OAuth Provider and stored using `OAUTH_KV`.
+- Keep `OAUTH_ADMIN_PASSWORD` strong and unique; never paste it into chat.
+- Restrict the YouTube API key to YouTube Data API v3 and monitor quota in Google Cloud Console.
+- OAuth for this MCP connector is separate from Google OAuth for accessing a user's own private channel data.

@@ -313,7 +313,7 @@ async function authorize(request: Request, env: Env): Promise<Response> {
 
 function createServer(env: Env): McpServer {
   const youtubeApiKey = env.YOUTUBE_API_KEY;
-  const server = new McpServer({ name: "youtube-ai-mcp", version: "0.4.1" });
+  const server = new McpServer({ name: "youtube-ai-mcp", version: "0.4.2" });
 
   server.registerTool(
     "youtube_video_research",
@@ -583,7 +583,7 @@ export default new OAuthProvider<Env>({
     fetch(request: Request, env: Env): Promise<Response> {
       const url = new URL(request.url);
       if (url.pathname === "/health") {
-        return Promise.resolve(Response.json({ ok: true, service: "youtube-ai-mcp", version: "0.4.1", oauth: true }));
+        return Promise.resolve(Response.json({ ok: true, service: "youtube-ai-mcp", version: "0.4.2", oauth: true }));
       }
       if (url.pathname === "/authorize") return authorize(request, env);
       if (url.pathname === "/google/connect") return googleConnect(request, env);

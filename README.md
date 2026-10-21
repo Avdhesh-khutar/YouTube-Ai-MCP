@@ -18,6 +18,16 @@ OAuth-protected Model Context Protocol (MCP) server for Claude, hosted on Cloudf
 - Google OAuth now requests `https://www.googleapis.com/auth/youtube.upload` in addition to the existing read-only scopes. After this deploy, the owner must reconnect at `/google/connect` and approve the new permission. Do not share credentials in chat.
 - Before retrying an upload after a network error, check YouTube Studio to avoid duplicate videos.
 
+## Daily video package starter
+
+A GitHub Actions workflow at `.github/workflows/daily-video.yml` runs daily at 04:30 UTC (10:00 AM India time) and can also be started manually. It uses free Ubuntu packages (FFmpeg + eSpeak NG) and Pillow to render a short motion-card video, thumbnail, script, and metadata into a downloadable workflow artifact.
+
+Important limitations:
+- This is a **starter motion-card video**, not generative AI footage. The offline Hindi voice is synthetic and must be reviewed for pronunciation and quality.
+- The workflow does **not** upload to YouTube automatically. The artifact is a private-review handoff; no public publishing occurs.
+- YouTube upload needs a secure file handoff plus OAuth credentials in a protected runtime. Do not place the Google refresh token in the public repository.
+- For fully AI-generated scenes and natural voice, a suitable model/service or a local model is required; free availability and quotas vary.
+
 ## Automated video creation limits and next step
 
 This Worker does **not** generate a finished video, voiceover, captions, or thumbnail by itself. The free-budget workflow still needs a video-generation/rendering service or a local renderer that produces a direct HTTPS video file. The upload tool is the first publishing component; a daily unattended pipeline is not complete until a renderer, persistent job scheduler, failure notifications, and a secure source-file handoff are configured. Do not describe this as fully automatic until those parts have been tested.

@@ -344,12 +344,15 @@ async function automatedPrivateUpload(request: Request, env: Env): Promise<Respo
   } catch {
     return Response.json({ error: "Expected multipart form data with a video file." }, { status: 400 });
   }
-  const videoValue = form.get("video");
-  if (!videoValue || typeof videoValue === "string" || typeof videoValue.arrayBuffer !== "function" ||
-      videoValue.size < 1 || videoValue.size > 47 * 1024 * 1024 || !videoValue.type.startsWith("video/")) {
+  const videoValue = form.get("video") as unknown;
+  if (!videoValue || typeof videoValue !== "object") {
     return Response.json({ error: "Provide a video file no larger than 47 MB." }, { status: 400 });
   }
-  const video = videoValue;
+  const video = videoValue as File;
+  if (typeof video.arrayBuffer !== "function" || video.size < 1 ||
+      video.size > 47 * 1024 * 1024 || !video.type.startsWith("video/")) {
+    return Response.json({ error: "Provide a video file no larger than 47 MB." }, { status: 400 });
+  }
   const title = String(form.get("title") ?? "Daily YouTube explainer").trim().slice(0, 100);
   const description = String(form.get("description") ?? "Automatically generated draft. Please review in YouTube Studio.").slice(0, 5000);
   const tags = String(form.get("tags") ?? "YouTubeGrowth,CreatorTips").split(",").map((tag) => tag.trim()).filter(Boolean).slice(0, 15);

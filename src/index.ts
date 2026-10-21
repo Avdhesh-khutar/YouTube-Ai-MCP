@@ -29,6 +29,14 @@ async function safeFetch(input: RequestInfo | URL, init?: RequestInit): Promise<
   }
 }
 
+async function safeJson<T>(response: Response): Promise<T | null> {
+  try {
+    return await response.json() as T;
+  } catch {
+    return null;
+  }
+}
+
 function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, (char) => `&#${char.charCodeAt(0)};`);
 }
@@ -342,7 +350,10 @@ function createServer(env: Env): McpServer {
       if (!response.ok) {
         return { content: [{ type: "text", text: `YouTube API returned HTTP ${response.status}. Check the API key, YouTube Data API v3 enablement, restrictions, and quota.` }], isError: true };
       }
-      const data = await response.json() as { items?: Array<{ id?: { videoId?: string }; snippet?: { title?: string; channelTitle?: string; publishedAt?: string; description?: string } }> };
+      const data = await safeJson<{ items?: Array<{ id?: { videoId?: string }; snippet?: { title?: string; channelTitle?: string; publishedAt?: string; description?: string } }> }>(response);
+      if (!data) {
+        return { content: [{ type: "text", text: "YouTube API returned an unreadable response. Please retry later." }], isError: true };
+      }
       const videos = (data.items ?? []).map((item) => ({
         videoId: item.id?.videoId ?? "",
         title: item.snippet?.title ?? "",
@@ -409,12 +420,15 @@ function createServer(env: Env): McpServer {
         return { content: [{ type: "text", text: `YouTube search API returned HTTP ${searchResponse.status}. Check the API key, YouTube Data API v3 enablement, restrictions, and quota.` }], isError: true };
       }
 
-      const searchData = await searchResponse.json() as {
+      const searchData = await safeJson<{
         items?: Array<{
           id?: { videoId?: string };
           snippet?: { title?: string; channelTitle?: string; publishedAt?: string; description?: string };
         }>;
-      };
+      }>(searchResponse);
+      if (!searchData) {
+        return { content: [{ type: "text", text: "YouTube search API returned an unreadable response. Please retry later." }], isError: true };
+      }
       const items = (searchData.items ?? []).filter((item) => item.id?.videoId);
       const ids = items.map((item) => item.id!.videoId!).join(",");
       let statisticsById: Record<string, { viewCount?: string; likeCount?: string; commentCount?: string }> = {};
@@ -427,11 +441,15 @@ function createServer(env: Env): McpServer {
         statsUrl.searchParams.set("key", youtubeApiKey);
         const statsResponse = await safeFetch(statsUrl);
         if (statsResponse?.ok) {
-          const statsData = await statsResponse.json() as {
+          const statsData = await safeJson<{
             items?: Array<{ id?: string; statistics?: { viewCount?: string; likeCount?: string; commentCount?: string } }>;
-          };
-          for (const item of statsData.items ?? []) {
-            if (item.id) statisticsById[item.id] = item.statistics ?? {};
+          }>(statsResponse);
+          if (statsData) {
+            for (const item of statsData.items ?? []) {
+              if (item.id) statisticsById[item.id] = item.statistics ?? {};
+            }
+          } else {
+            statisticsWarning = "YouTube video statistics API returned an unreadable response; counts may be unavailable.";
           }
         } else {
           statisticsWarning = statsResponse

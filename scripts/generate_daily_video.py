@@ -283,13 +283,13 @@ subprocess.run([
 # Reuse first slide as thumbnail; produce script and metadata.
 (OUT / "thumbnail.png").write_bytes(slides[0].read_bytes())
 Image.open(OUT / "thumbnail.png").convert("RGB").save(OUT / "thumbnail.jpg", quality=92, optimize=True)
-(OUT / "script.txt").write_text(topic["voice"] + "\n\n" + "\n".join(topic["points"]), encoding="utf-8")
+(OUT / "script.txt").write_text("\n\n".join(voice_texts), encoding="utf-8")
 (OUT / "metadata.json").write_text(__import__("json").dumps({
     "date": TODAY,
     "title": topic["title"].title() + " | Hindi Creator Masterclass",
     "description": topic["subtitle"] + "\n\nहिंदी में क्रिएटर एजुकेशन। अपनी analytics से सीखें। सफलता की गारंटी नहीं है।",
     "tags": ["YouTubeGrowth", "HindiCreator", "YouTubeAnalytics", "HindiTutorial"],
     "privacyStatus": "private",
-    "note": "Offline-rendered animated motion-card explainer with generated narration; review language, duration, audio, and content before upload."
+    "note": "Offline-rendered motion-card explainer; captions.srt is included. Review pronunciation, visuals, duration, audio, and content before upload."
 }, ensure_ascii=False, indent=2), encoding="utf-8")
 print(f"Created daily video package for {TODAY}: {topic['title']}")

@@ -29,7 +29,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ffmpeg espeak-ng fonts-noto-core
           python -m pip install --upgrade pip
-          pip install Pillow edge-tts
+          pip install Pillow
+          pip install edge-tts || echo 'Edge TTS install unavailable; renderer will use offline Hindi speech'
       - name: Render daily video package
         env:
           ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}

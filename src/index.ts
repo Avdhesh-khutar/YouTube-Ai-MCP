@@ -12,6 +12,8 @@ interface Env {
   OAUTH_PROVIDER: OAuthHelpers;
   OAUTH_ADMIN_PASSWORD?: string;
   YOUTUBE_API_KEY?: string;
+  GOOGLE_OAUTH_CLIENT_ID?: string;
+  GOOGLE_OAUTH_CLIENT_SECRET?: string;
 }
 
 const MCP_PATH = "/mcp";
@@ -27,6 +29,130 @@ function page(title: string, body: string, status = 200): Response {
     status,
     headers: { "content-type": "text/html; charset=utf-8", "x-content-type-options": "nosniff", "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'", "referrer-policy": "no-referrer" },
   });
+}
+
+const GOOGLE_REDIRECT_URI = "https://youtube-ai-mcp.mkkhutar2.workers.dev/google/callback";
+const GOOGLE_SCOPES = [
+  "https://www.googleapis.com/auth/yt-analytics.readonly",
+  "https://www.googleapis.com/auth/youtube.readonly",
+].join(" ");
+
+type GoogleTokenSet = { access_token?: string; refresh_token?: string };
+
+function htmlMessage(title: string, message: string, status = 200): Response {
+  return page(title, \`<p>\${escapeHtml(message)}</p>\`, status);
+}
+
+async function googleConnect(request: Request, env: Env): Promise<Response> {
+  if (!env.OAUTH_ADMIN_PASSWORD || !env.GOOGLE_OAUTH_CLIENT_ID || !env.GOOGLE_OAUTH_CLIENT_SECRET) {
+    return htmlMessage("Google OAuth setup required", "Configure OAUTH_ADMIN_PASSWORD, GOOGLE_OAUTH_CLIENT_ID, and GOOGLE_OAUTH_CLIENT_SECRET as Cloudflare Worker secrets.", 503);
+  }
+  if (request.method === "GET") {
+    return page("Connect your YouTube channel", \`
+      <p>This starts Google's official authorization flow for the channel owner.</p>
+      <p>Requested access is read-only YouTube channel data and YouTube Analytics reports.</p>
+      <form method="post" action="/google/connect">
+        <label for="password">Worker admin password</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" required>
+        <button type="submit">Continue to Google</button>
+      </form>
+      <p><small>Do not enter your Google account password here. You will sign in only on Google's website.</small></p>
+    \`);
+  }
+  if (request.method !== "POST") return new Response("Method Not Allowed", { status: 405, headers: { allow: "GET, POST" } });
+  const form = await request.formData();
+  if (String(form.get("password") ?? "") !== env.OAUTH_ADMIN_PASSWORD) {
+    return htmlMessage("Sign-in failed", "The Worker admin password was incorrect.", 401);
+  }
+  const state = crypto.randomUUID();
+  const verifierBytes = crypto.getRandomValues(new Uint8Array(32));
+  const verifier = btoa(String.fromCharCode(...verifierBytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier));
+  const challenge = btoa(String.fromCharCode(...new Uint8Array(digest))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+  await env.OAUTH_KV.put(\`google-oauth-state:\${state}\`, JSON.stringify({ verifier, createdAt: Date.now() }), { expirationTtl: 600 });
+
+  const authUrl = new URL("https://accounts.google.com/o/oauth2/v2/auth");
+  authUrl.searchParams.set("client_id", env.GOOGLE_OAUTH_CLIENT_ID);
+  authUrl.searchParams.set("redirect_uri", GOOGLE_REDIRECT_URI);
+  authUrl.searchParams.set("response_type", "code");
+  authUrl.searchParams.set("scope", GOOGLE_SCOPES);
+  authUrl.searchParams.set("access_type", "offline");
+  authUrl.searchParams.set("prompt", "consent");
+  authUrl.searchParams.set("include_granted_scopes", "true");
+  authUrl.searchParams.set("state", state);
+  authUrl.searchParams.set("code_challenge", challenge);
+  authUrl.searchParams.set("code_challenge_method", "S256");
+  return Response.redirect(authUrl.toString(), 302);
+}
+
+async function googleCallback(request: Request, env: Env): Promise<Response> {
+  if (!env.GOOGLE_OAUTH_CLIENT_ID || !env.GOOGLE_OAUTH_CLIENT_SECRET) {
+    return htmlMessage("Google OAuth setup required", "Configure Google OAuth client ID and client secret in Cloudflare.", 503);
+  }
+  const url = new URL(request.url);
+  const googleError = url.searchParams.get("error");
+  if (googleError) return htmlMessage("Google authorization cancelled", \`Google returned: \${googleError}\`, 400);
+  const code = url.searchParams.get("code");
+  const state = url.searchParams.get("state");
+  if (!code || !state) return htmlMessage("Invalid callback", "Google callback is missing the required code or state.", 400);
+
+  const stateKey = \`google-oauth-state:\${state}\`;
+  const stateValue = await env.OAUTH_KV.get(stateKey);
+  if (!stateValue) return htmlMessage("Expired authorization", "This authorization request is invalid or expired. Start again from /google/connect.", 400);
+  await env.OAUTH_KV.delete(stateKey);
+  const stateData = JSON.parse(stateValue) as { verifier: string; createdAt: number };
+  if (Date.now() - stateData.createdAt > 600_000) return htmlMessage("Expired authorization", "This authorization request expired. Start again from /google/connect.", 400);
+
+  const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      code,
+      client_id: env.GOOGLE_OAUTH_CLIENT_ID,
+      client_secret: env.GOOGLE_OAUTH_CLIENT_SECRET,
+      redirect_uri: GOOGLE_REDIRECT_URI,
+      grant_type: "authorization_code",
+      code_verifier: stateData.verifier,
+    }),
+  });
+  if (!tokenResponse.ok) return htmlMessage("Google token exchange failed", \`Google returned HTTP \${tokenResponse.status}. Check the OAuth client and exact callback URL.\`, 502);
+  const tokens = await tokenResponse.json() as GoogleTokenSet;
+  if (!tokens.refresh_token) {
+    return htmlMessage("Refresh token missing", "Google did not return a refresh token. Remove this app's access from your Google Account and reconnect to grant consent again.", 502);
+  }
+  await env.OAUTH_KV.put("youtube-google-refresh-token", tokens.refresh_token);
+  await env.OAUTH_KV.put("youtube-google-connected-at", new Date().toISOString());
+  return page("YouTube authorization completed", \`
+    <p>Google authorization succeeded. The refresh token is stored in Cloudflare KV and is not displayed.</p>
+    <p>You can close this page and return to Claude.</p>
+  \`);
+}
+
+async function getGoogleAccessToken(env: Env): Promise<string | null> {
+  if (!env.GOOGLE_OAUTH_CLIENT_ID || !env.GOOGLE_OAUTH_CLIENT_SECRET) return null;
+  const refreshToken = await env.OAUTH_KV.get("youtube-google-refresh-token");
+  if (!refreshToken) return null;
+  const response = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      client_id: env.GOOGLE_OAUTH_CLIENT_ID,
+      client_secret: env.GOOGLE_OAUTH_CLIENT_SECRET,
+      refresh_token: refreshToken,
+      grant_type: "refresh_token",
+    }),
+  });
+  if (!response.ok) return null;
+  const tokens = await response.json() as GoogleTokenSet;
+  return tokens.access_token ?? null;
+}
+
+async function fetchAnalyticsReport(accessToken: string, params: Record<string, string>): Promise<{ ok: boolean; status: number; data: unknown }> {
+  const url = new URL("https://youtubeanalytics.googleapis.com/v2/reports");
+  for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value);
+  const response = await fetch(url, { headers: { authorization: \`Bearer \${accessToken}\` } });
+  const data = await response.json().catch(() => ({}));
+  return { ok: response.ok, status: response.status, data };
 }
 
 function consentPage(details: ConsentDescription, handle: string): Response {
@@ -112,7 +238,8 @@ async function authorize(request: Request, env: Env): Promise<Response> {
   }
 }
 
-function createServer(youtubeApiKey?: string): McpServer {
+function createServer(env: Env): McpServer {
+  const youtubeApiKey = env.YOUTUBE_API_KEY;
   const server = new McpServer({ name: "youtube-ai-mcp", version: "0.4.0" });
 
   server.registerTool(
@@ -310,13 +437,35 @@ function createServer(youtubeApiKey?: string): McpServer {
       };
     },
   );
+
+  server.registerTool(
+    "youtube_channel_analytics",
+    {
+      description: "Read the authorized owner's YouTube Analytics summary for a date range. Requires Google OAuth connection first.",
+      inputSchema: z.object({
+        startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).describe("Start date YYYY-MM-DD"),
+        endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).describe("End date YYYY-MM-DD"),
+      }),
+    },
+    async ({ startDate, endDate }) => {
+      if (startDate > endDate) return { content: [{ type: "text", text: "startDate must be on or before endDate." }], isError: true };
+      const accessToken = await getGoogleAccessToken(env);
+      if (!accessToken) return { content: [{ type: "text", text: "YouTube channel not connected. Open https://youtube-ai-mcp.mkkhutar2.workers.dev/google/connect and complete Google authorization first." }], isError: true };
+      const report = await fetchAnalyticsReport(accessToken, {
+        ids: "channel==MINE", startDate, endDate,
+        metrics: "views,estimatedMinutesWatched,averageViewDuration,subscribersGained,subscribersLost",
+      });
+      if (!report.ok) return { content: [{ type: "text", text: \`YouTube Analytics API returned HTTP \${report.status}. Confirm YouTube Analytics API is enabled and the authorized Google account owns or manages a channel.\` }], isError: true };
+      return { content: [{ type: "text", text: JSON.stringify({ startDate, endDate, report: report.data }, null, 2) }] };
+    },
+  );
   return server;
 }
 
 const mcpHandler = {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     try {
-      return await createMcpHandler(() => createServer(env.YOUTUBE_API_KEY), {
+      return await createMcpHandler(() => createServer(env), {
         onerror(error) {
           console.error("MCP protocol handler error", {
             errorName: error instanceof Error ? error.name : "UnknownError",
@@ -349,6 +498,8 @@ export default new OAuthProvider<Env>({
         return Promise.resolve(Response.json({ ok: true, service: "youtube-ai-mcp", version: "0.4.0", oauth: true }));
       }
       if (url.pathname === "/authorize") return authorize(request, env);
+      if (url.pathname === "/google/connect") return googleConnect(request, env);
+      if (url.pathname === "/google/callback") return googleCallback(request, env);
       return Promise.resolve(Response.json({ error: "Not found", mcpEndpoint: MCP_PATH }, { status: 404 }));
     },
   },

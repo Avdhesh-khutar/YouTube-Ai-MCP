@@ -212,6 +212,7 @@ function createServer(youtubeApiKey?: string): McpServer {
       const items = (searchData.items ?? []).filter((item) => item.id?.videoId);
       const ids = items.map((item) => item.id!.videoId!).join(",");
       let statisticsById: Record<string, { viewCount?: string; likeCount?: string; commentCount?: string }> = {};
+      let statisticsWarning: string | null = null;
 
       if (ids) {
         const statsUrl = new URL("https://www.googleapis.com/youtube/v3/videos");
@@ -226,6 +227,8 @@ function createServer(youtubeApiKey?: string): McpServer {
           for (const item of statsData.items ?? []) {
             if (item.id) statisticsById[item.id] = item.statistics ?? {};
           }
+        } else {
+          statisticsWarning = `YouTube video statistics API returned HTTP ${statsResponse.status}; counts may be unavailable.`;
         }
       }
 
@@ -251,10 +254,10 @@ function createServer(youtubeApiKey?: string): McpServer {
           comments,
           viewsPerDay: views !== null && ageDays !== null ? Math.round(views / ageDays) : null,
           likeRatePercent: views !== null && views > 0 && likes !== null
-            ? Number(((likes / views) * 100).toFixed(2))
+            ? Number(((likes / views) * 100).toFixed(4))
             : null,
           commentRatePercent: views !== null && views > 0 && comments !== null
-            ? Number(((comments / views) * 100).toFixed(2))
+            ? Number(((comments / views) * 100).toFixed(4))
             : null,
           description: (item.snippet?.description ?? "").slice(0, 220),
           url: `https://www.youtube.com/watch?v=${id}`,
@@ -284,6 +287,7 @@ function createServer(youtubeApiKey?: string): McpServer {
           text: JSON.stringify({
             query,
             statisticsRetrievedAt,
+            statisticsWarning,
             dataSource: "YouTube Data API v3 public search and video statistics endpoints",
             analysis: {
               videosCompared: videos.length,
@@ -294,7 +298,8 @@ function createServer(youtubeApiKey?: string): McpServer {
               opportunityTips: [
                 "Treat views, likes, and comments as a snapshot captured at statisticsRetrievedAt; they can change.",
                 "viewsPerDay is a rough lifetime average, not recent daily views or a prediction.",
-                "Like and comment rates are calculated only when the relevant public count and a positive view count are available.",
+                "Like and comment rates are percentages of public counts divided by views, rounded to four decimal places so small rates are not incorrectly displayed as 0%.",
+                "A statisticsWarning means the statistics endpoint failed; unavailable counts must not be interpreted as zero.",
                 "Compare titles and descriptions to find unanswered beginner questions; content opportunities are suggestions, not measured facts."
               ],
             },

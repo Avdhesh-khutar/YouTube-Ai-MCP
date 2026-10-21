@@ -11,7 +11,7 @@ import subprocess
 import textwrap
 import os
 
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
 W, H = 1280, 720
 OUT = Path("dist")
@@ -84,10 +84,17 @@ small_font = font(regular_candidates, 22)
 
 slides = []
 def draw_slide(index, heading, lines, footer):
-    im = Image.new("RGB", (W, H), (12, 19, 38))
+    # Cinematic layered background with subtle glows, vignette, and framing.
+    im = Image.new("RGB", (W, H), (7, 12, 28))
+    glow = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    gd = ImageDraw.Draw(glow)
+    gd.ellipse((W*0.42, -220, W*1.15, 480), fill=(18, 78, 150, 90))
+    gd.ellipse((-280, H*0.45, W*0.52, H*1.3), fill=(130, 48, 120, 45))
+    glow = glow.filter(ImageFilter.GaussianBlur(90))
+    im = Image.alpha_composite(im.convert("RGBA"), glow).convert("RGB")
     d = ImageDraw.Draw(im)
     d.rounded_rectangle((48, 48, W-48, H-48), radius=30, outline=(57, 85, 150), width=3)
-    d.text((90, 80), "CREATOR LAB  •  DAILY EXPLAINER", font=small_font, fill=(117, 190, 255))
+    d.text((90, 80), "CREATOR LAB  •  HINDI MASTERCLASS", font=small_font, fill=(117, 190, 255))
     d.text((90, 150), heading, font=title_font, fill=(255, 255, 255), stroke_width=1)
     y = 260
     for line in lines:
@@ -138,7 +145,7 @@ for i, (slide, audio) in enumerate(zip(slides, audio_parts), start=1):
     subprocess.run([
         "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
         "-loop", "1", "-framerate", "25", "-i", str(slide), "-i", str(audio),
-        "-t", f"{duration:.2f}", "-vf", "scale=1280:720,format=yuv420p",
+        "-t", f"{duration:.2f}", "-vf", f"zoompan=z='min(zoom+0.0008,1.06)':d=1:s=1280x720:fps=25,format=yuv420p",
         "-c:v", "libx264", "-preset", "veryfast", "-c:a", "aac", "-b:a", "128k",
         "-shortest", "-movflags", "+faststart", str(segment)
     ], check=True)
@@ -157,13 +164,14 @@ subprocess.run([
 
 # Reuse first slide as thumbnail; produce script and metadata.
 (OUT / "thumbnail.png").write_bytes(slides[0].read_bytes())
+Image.open(OUT / "thumbnail.png").convert("RGB").save(OUT / "thumbnail.jpg", quality=92, optimize=True)
 (OUT / "script.txt").write_text(topic["voice"] + "\n\n" + "\n".join(topic["points"]), encoding="utf-8")
 (OUT / "metadata.json").write_text(__import__("json").dumps({
     "date": TODAY,
-    "title": topic["title"].title() + " | Practical YouTube Growth Tips",
+    "title": topic["title"].title() + " | Hindi Creator Masterclass",
     "description": topic["subtitle"] + "\n\nDaily creator education. Growth is not guaranteed; test strategies with your own analytics.",
     "tags": ["YouTubeGrowth", "CreatorTips", "YouTubeAnalytics"],
     "privacyStatus": "private",
-    "note": "Offline-rendered motion-card starter; review audio, duration, and content before upload."
+    "note": "Offline-rendered animated motion-card explainer with generated narration; review language, duration, audio, and content before upload."
 }, ensure_ascii=False, indent=2), encoding="utf-8")
 print(f"Created daily video package for {TODAY}: {topic['title']}")

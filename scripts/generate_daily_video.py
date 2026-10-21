@@ -137,14 +137,14 @@ for i, (slide, audio) in enumerate(zip(slides, audio_parts), start=1):
 
 with (OUT / "segments.txt").open("w", encoding="utf-8") as f:
     for p in segments:
-        f.write(f"file '{p.resolve()}\\n'\\n")
+        f.write(f"file '{p.resolve()}'\n")
 subprocess.run([
     "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
     "-f", "concat", "-safe", "0", "-i", str(OUT / "segments.txt"),
     "-c", "copy", "-movflags", "+faststart", str(OUT / "daily-youtube-video.mp4")
 ], check=True)
 
-(OUT / "script.txt").write_text("\\n\\n".join(voice_texts), encoding="utf-8")
+(OUT / "script.txt").write_text("\n\n".join(voice_texts), encoding="utf-8")
 
 # Reuse first slide as thumbnail; produce script and metadata.
 (OUT / "thumbnail.png").write_bytes(slides[0].read_bytes())

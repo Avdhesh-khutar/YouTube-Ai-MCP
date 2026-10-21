@@ -98,28 +98,47 @@ small_font = font(font_candidates, 22)
 
 slides = []
 def draw_slide(index, heading, lines, footer):
-    # Cinematic layered background with subtle glows, vignette, and framing.
-    im = Image.new("RGB", (W, H), (7, 12, 28))
+    # Layered editorial frame with scene-specific geometry and strong visual hierarchy.
+    palette = [
+        ((7, 12, 28), (20, 88, 150), (255, 185, 45)),
+        ((10, 12, 32), (95, 32, 112), (255, 190, 70)),
+        ((6, 20, 30), (20, 112, 116), (95, 205, 255)),
+        ((18, 10, 28), (125, 45, 58), (255, 184, 80)),
+    ]
+    base, glow_color, accent = palette[(index - 1) % len(palette)]
+    im = Image.new("RGB", (W, H), base)
     glow = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     gd = ImageDraw.Draw(glow)
-    gd.ellipse((W*0.42, -220, W*1.15, 480), fill=(18, 78, 150, 90))
-    gd.ellipse((-280, H*0.45, W*0.52, H*1.3), fill=(130, 48, 120, 45))
-    glow = glow.filter(ImageFilter.GaussianBlur(90))
+    gd.ellipse((W*0.45, -220 + (index % 3)*35, W*1.18, 490), fill=(*glow_color, 115))
+    gd.ellipse((-310, H*0.48, W*0.50, H*1.28), fill=(accent[0], accent[1]//3, accent[2]//3, 50))
+    glow = glow.filter(ImageFilter.GaussianBlur(95))
     im = Image.alpha_composite(im.convert("RGBA"), glow).convert("RGB")
     d = ImageDraw.Draw(im)
-    d.rounded_rectangle((48, 48, W-48, H-48), radius=30, outline=(57, 85, 150), width=3)
-    d.text((90, 150), heading, font=title_font, fill=(255, 255, 255), stroke_width=1)
-    y = 260
+    # Oversized editorial shapes make each scene feel distinct instead of a plain text card.
+    d.polygon([(850, 110), (1190, 110), (1190, 430), (1030, 520)], fill=(*glow_color, ))
+    d.ellipse((875, 170, 1135, 430), outline=accent, width=8)
+    d.arc((900, 195, 1110, 405), start=25*index, end=300+25*index, fill=(255,255,255), width=5)
+    for bar_i, bar_h in enumerate([75, 125, 95, 170, 145]):
+        x = 790 + bar_i*65
+        d.rounded_rectangle((x, 540-bar_h, x+34, 540), radius=9, fill=accent)
+    d.rounded_rectangle((48, 48, W-48, H-48), radius=30, outline=(*glow_color,), width=3)
+    d.rounded_rectangle((82, 86, 370, 130), radius=14, fill=accent)
+    d.text((102, 94), f"सीखें  •  भाग {index}", font=font(font_candidates, 22), fill=(8, 12, 28))
+    d.text((90, 165), heading, font=title_font, fill=(255, 255, 255), stroke_width=1)
+    y = 275
     for line in lines:
-        wrapped = textwrap.wrap(line, width=46)
+        wrapped = textwrap.wrap(line, width=34)
         for part in wrapped:
-            d.rounded_rectangle((90, y+4, 104, y+42), radius=5, fill=(255, 190, 64))
-            d.text((132, y), part, font=body_font, fill=(226, 234, 249))
+            d.rounded_rectangle((90, y+5, 106, y+43), radius=5, fill=accent)
+            d.text((132, y), part, font=body_font, fill=(238, 242, 252))
             y += 55
-        y += 14
-    d.line((90, H-118, W-90, H-118), fill=(57, 85, 150), width=2)
-    d.text((90, H-100), footer, font=small_font, fill=(163, 181, 213))
-    d.text((W-210, H-100), f"{index:02d} / 08", font=small_font, fill=(117, 190, 255))
+        y += 12
+    d.line((90, H-118, W-90, H-118), fill=(*glow_color,), width=2)
+    d.text((90, H-100), footer, font=small_font, fill=(196, 210, 236))
+    d.text((W-210, H-100), f"{index:02d} / 08", font=small_font, fill=(255, 210, 105))
+    # Small progress rail
+    d.rounded_rectangle((90, H-65, W-90, H-57), radius=4, fill=(35, 47, 70))
+    d.rounded_rectangle((90, H-65, 90 + int((W-180)*index/8), H-57), radius=4, fill=accent)
     path = OUT / f"slide-{index:02d}.png"
     im.save(path)
     slides.append(path)

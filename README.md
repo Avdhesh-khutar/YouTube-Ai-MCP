@@ -7,6 +7,7 @@ OAuth-protected Model Context Protocol (MCP) server for Claude, hosted on Cloudf
 - `youtube_video_research`: searches public YouTube videos by keyword, ordered by view count. Uses YouTube Data API v3.
 - `youtube_training_video_outline`: creates a draft video outline, title ideas, and production checklist. Does not publish videos.
 - `youtube_competitor_analysis`: compares public search results and available public video statistics (views, likes, comments), calculates simple engagement rates, and suggests content opportunities. It does not access private competitor analytics.
+- `youtube_channel_analytics`: reads the authorized channel owner's private YouTube Analytics summary for a date range. Requires completing Google OAuth at `/google/connect`; uses the Cloudflare KV refresh token and read-only YouTube scopes.
 
 ## YouTube API quota awareness
 

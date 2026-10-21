@@ -63,7 +63,7 @@ TOPICS = [
     },
 ]
 
-topic = TOPICS[date.today().toordinal() % len(TOPICS)]
+topic = next(item for item in TOPICS if item["title"] == "AUDIENCE RETENTION")
 # Replace the initial English/romanized drafts with proper Devanagari Hindi before rendering.
 HINDI_TOPICS = {
     "YOUTUBE GROWTH": ("यूट्यूब चैनल कैसे बढ़ाएँ", "चैनल ग्रोथ की पूरी हिंदी गाइड", "नमस्कार दोस्तों। आज हम समझेंगे कि YouTube चैनल को बेहतर बनाने के लिए क्या करना चाहिए। केवल रोज वीडियो डालना सफलता की गारंटी नहीं है। सबसे पहले अपने दर्शकों की जरूरत समझिए। हर वीडियो में एक स्पष्ट समस्या का समाधान दीजिए। शुरुआत में बताइए कि दर्शक क्या सीखेंगे, फिर उदाहरणों के साथ सीधे उपयोगी जानकारी पर आइए। शीर्षक और थंबनेल आकर्षक हों, लेकिन वीडियो की वास्तविक सामग्री से मेल खाने चाहिए। वीडियो प्रकाशित होने के बाद क्लिक थ्रू रेट, देखने का औसत समय और दर्शक किस जगह वीडियो छोड़ते हैं, इन संकेतों को समझिए। हर अगले वीडियो में एक सुधार लागू कीजिए। चैनल बढ़ाना लगातार सीखने की प्रक्रिया है; कोई भी तरीका निश्चित सफलता की गारंटी नहीं देता।", ["दर्शकों की जरूरत पहचानें", "शुरुआत में फायदा बताएं", "शीर्षक और थंबनेल स्पष्ट रखें", "दर्शकों का रिटेंशन समझें", "हर वीडियो में सुधार करें"]),
@@ -156,7 +156,7 @@ for i, phrase in enumerate(voice_texts, start=1):
         if audio.exists() and audio.stat().st_size > 1000:
             edge_ok = True
             print(f"Generated natural Hindi narration segment {i}/{len(voice_texts)}")
-    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError) as error:
+    except Exception as error:
         print(f"Neural Hindi voice unavailable for segment {i}; using offline fallback ({type(error).__name__}).")
     if not edge_ok:
         narration_provider = "offline eSpeak fallback"
@@ -242,7 +242,7 @@ td.ellipse((700, -180, 1430, 600), fill=(20, 65, 125))
 td.ellipse((-260, 420, 520, 1120), fill=(75, 20, 70))
 td.rectangle((0, 0, 26, 720), fill=(255, 185, 45))
 td.rounded_rectangle((64, 54, 520, 118), radius=18, fill=(255, 185, 45))
-td.text((90, 67), "YOUTUBE CREATOR GUIDE", font=font(["/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", "/usr/share/fonts/truetype/liberation2/LiberationSans-Bold.ttf"], 26), fill=(10, 17, 35))
+td.text((90, 67), "HINDI VIDEO GUIDE", font=font(["/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", "/usr/share/fonts/truetype/liberation2/LiberationSans-Bold.ttf"], 26), fill=(10, 17, 35))
 headline_font = font(font_candidates, 76)
 thumb_title = "दर्शक वीडियो\nक्यों छोड़ते हैं?"
 for line_no, line in enumerate(thumb_title.split("\n")):

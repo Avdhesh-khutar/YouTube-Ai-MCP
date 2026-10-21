@@ -9,6 +9,12 @@ OAuth-protected Model Context Protocol (MCP) server for Claude, hosted on Cloudf
 - `youtube_competitor_analysis`: compares public search results and available public video statistics (views, likes, comments), calculates simple engagement rates, and suggests content opportunities. It does not access private competitor analytics.
 - `youtube_channel_analytics`: reads the authorized channel owner's private YouTube Analytics summary for a date range. Requires completing Google OAuth at `/google/connect`; uses the Cloudflare KV refresh token and read-only YouTube scopes.
 
+## Validation and CI
+
+- `npm test` runs unit tests for strict calendar-date validation, TypeScript type-checking, and a Wrangler deployment dry run.
+- Analytics date inputs must be real calendar dates, ordered start-to-end, and must not end in the future.
+- Google token refresh and Analytics API network failures are handled without returning credentials.
+
 ## YouTube API quota awareness
 
 - YouTube Data API quota is separate from Cloudflare Workers usage.

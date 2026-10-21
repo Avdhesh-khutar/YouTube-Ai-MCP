@@ -79,7 +79,6 @@ def font(candidates, size):
     return ImageFont.load_default()
 
 title_font = font(font_candidates, 64)
-sub_font = font(34 if os.getenv("VIDEO_LANGUAGE", "hi") == "hi" else 30, 30)
 body_font = font(regular_candidates, 34)
 small_font = font(regular_candidates, 22)
 

@@ -8,7 +8,7 @@
     "typecheck": "tsc --noEmit",
     "deploy": "wrangler deploy",
     "dev": "wrangler dev",
-    "test": "npm run typecheck && wrangler deploy --dry-run"
+    "test": "node --experimental-strip-types --test tests/*.test.ts && npm run typecheck && wrangler deploy --dry-run"
   },
   "dependencies": {
     "@cloudflare/workers-oauth-provider": "^1.2.3",

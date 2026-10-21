@@ -1,6 +1,11 @@
 name: Daily video package
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/generate_daily_video.py"
+      - ".github/workflows/daily-video.yml"
   schedule:
     - cron: "30 4 * * *"
   workflow_dispatch:

@@ -56,6 +56,7 @@ jobs:
             -X POST "https://youtube-ai-mcp.mkkhutar2.workers.dev/automation/upload" \
             -H "Authorization: Bearer $UPLOAD_TOKEN" \
             -F "video=@dist/daily-youtube-video.mp4;type=video/mp4" \
+            -F "thumbnail=@dist/thumbnail.jpg;type=image/jpeg" \
             -F "title=$title" \
             -F "description=$description" \
             -F "tags=$tags"

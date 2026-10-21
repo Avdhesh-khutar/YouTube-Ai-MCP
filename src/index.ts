@@ -140,23 +140,40 @@ async function googleCallback(request: Request, env: Env): Promise<Response> {
   const stateValue = await env.OAUTH_KV.get(stateKey);
   if (!stateValue) return htmlMessage("Expired authorization", "This authorization request is invalid or expired. Start again from /google/connect.", 400);
   await env.OAUTH_KV.delete(stateKey);
-  const stateData = JSON.parse(stateValue) as { verifier: string; createdAt: number };
-  if (Date.now() - stateData.createdAt > 600_000) return htmlMessage("Expired authorization", "This authorization request expired. Start again from /google/connect.", 400);
+  let stateData: { verifier: string; createdAt: number };
+  try {
+    stateData = JSON.parse(stateValue) as { verifier: string; createdAt: number };
+  } catch {
+    return htmlMessage("Invalid authorization state", "This authorization request is invalid. Start again from /google/connect.", 400);
+  }
+  if (!stateData.verifier || !Number.isFinite(stateData.createdAt) || Date.now() - stateData.createdAt > 600_000) {
+    return htmlMessage("Expired authorization", "This authorization request expired. Start again from /google/connect.", 400);
+  }
 
-  const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
-    method: "POST",
-    headers: { "content-type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      code,
-      client_id: env.GOOGLE_OAUTH_CLIENT_ID,
-      client_secret: env.GOOGLE_OAUTH_CLIENT_SECRET,
-      redirect_uri: GOOGLE_REDIRECT_URI,
-      grant_type: "authorization_code",
-      code_verifier: stateData.verifier,
-    }),
-  });
+  let tokenResponse: Response;
+  try {
+    tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        code,
+        client_id: env.GOOGLE_OAUTH_CLIENT_ID,
+        client_secret: env.GOOGLE_OAUTH_CLIENT_SECRET,
+        redirect_uri: GOOGLE_REDIRECT_URI,
+        grant_type: "authorization_code",
+        code_verifier: stateData.verifier,
+      }),
+    });
+  } catch {
+    return htmlMessage("Google connection unavailable", "Could not reach Google's token service. Please start the connection again later.", 502);
+  }
   if (!tokenResponse.ok) return htmlMessage("Google token exchange failed", `Google returned HTTP ${tokenResponse.status}. Check the OAuth client and exact callback URL.`, 502);
-  const tokens = await tokenResponse.json() as GoogleTokenSet;
+  let tokens: GoogleTokenSet;
+  try {
+    tokens = await tokenResponse.json() as GoogleTokenSet;
+  } catch {
+    return htmlMessage("Google token response invalid", "Google returned an unreadable token response. Please reconnect.", 502);
+  }
   if (!tokens.refresh_token) {
     return htmlMessage("Refresh token missing", "Google did not return a refresh token. Remove this app's access from your Google Account and reconnect to grant consent again.", 502);
   }

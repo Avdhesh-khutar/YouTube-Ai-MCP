@@ -7,7 +7,20 @@ OAuth-protected Model Context Protocol (MCP) server for Claude, hosted on Cloudf
 - `youtube_video_research`: searches public YouTube videos by keyword, ordered by view count. Uses YouTube Data API v3.
 - `youtube_training_video_outline`: creates a draft video outline, title ideas, and production checklist. Does not publish videos.
 - `youtube_competitor_analysis`: compares public search results and available public video statistics (views, likes, comments), calculates simple engagement rates, and suggests content opportunities. It does not access private competitor analytics.
-- `youtube_channel_analytics`: reads the authorized channel owner's private YouTube Analytics summary for a date range. Requires completing Google OAuth at `/google/connect`; uses the Cloudflare KV refresh token and read-only YouTube scopes.
+- `youtube_channel_analytics`: reads the authorized channel owner's private YouTube Analytics summary for a date range. Requires completing Google OAuth at `/google/connect`.
+- `youtube_upload_video_from_url`: uploads a finished video file from a direct HTTPS URL as PRIVATE. Does not generate videos and requires the YouTube upload OAuth scope.
+
+## Private YouTube video upload
+
+- The `youtube_upload_video_from_url` tool uploads an already-rendered video from a direct public HTTPS URL to the connected owner's channel.
+- It always sets `privacyStatus: private`; it never publishes or schedules a public video.
+- The source URL must not redirect, must return a `video/*` content type, and must be no larger than 50 MB.
+- Google OAuth now requests `https://www.googleapis.com/auth/youtube.upload` in addition to the existing read-only scopes. After this deploy, the owner must reconnect at `/google/connect` and approve the new permission. Do not share credentials in chat.
+- Before retrying an upload after a network error, check YouTube Studio to avoid duplicate videos.
+
+## Automated video creation limits and next step
+
+This Worker does **not** generate a finished video, voiceover, captions, or thumbnail by itself. The free-budget workflow still needs a video-generation/rendering service or a local renderer that produces a direct HTTPS video file. The upload tool is the first publishing component; a daily unattended pipeline is not complete until a renderer, persistent job scheduler, failure notifications, and a secure source-file handoff are configured. Do not describe this as fully automatic until those parts have been tested.
 
 ## Validation and CI
 

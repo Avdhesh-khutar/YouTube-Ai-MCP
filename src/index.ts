@@ -229,25 +229,46 @@ function createServer(youtubeApiKey?: string): McpServer {
         }
       }
 
+      const statisticsRetrievedAt = new Date().toISOString();
+      const nowMs = Date.now();
       const videos = items.map((item) => {
         const id = item.id!.videoId!;
         const stats = statisticsById[id] ?? {};
+        const publishedAt = item.snippet?.publishedAt ?? "";
+        const views = stats.viewCount !== undefined ? Number(stats.viewCount) : null;
+        const likes = stats.likeCount !== undefined ? Number(stats.likeCount) : null;
+        const comments = stats.commentCount !== undefined ? Number(stats.commentCount) : null;
+        const ageDays = publishedAt && Number.isFinite(Date.parse(publishedAt))
+          ? Math.max(1, (nowMs - Date.parse(publishedAt)) / 86_400_000)
+          : null;
         return {
           videoId: id,
           title: item.snippet?.title ?? "",
           channel: item.snippet?.channelTitle ?? "",
-          publishedAt: item.snippet?.publishedAt ?? "",
-          views: stats.viewCount ? Number(stats.viewCount) : null,
-          likes: stats.likeCount ? Number(stats.likeCount) : null,
-          comments: stats.commentCount ? Number(stats.commentCount) : null,
+          publishedAt,
+          views,
+          likes,
+          comments,
+          viewsPerDay: views !== null && ageDays !== null ? Math.round(views / ageDays) : null,
+          likeRatePercent: views !== null && views > 0 && likes !== null
+            ? Number(((likes / views) * 100).toFixed(2))
+            : null,
+          commentRatePercent: views !== null && views > 0 && comments !== null
+            ? Number(((comments / views) * 100).toFixed(2))
+            : null,
           description: (item.snippet?.description ?? "").slice(0, 220),
           url: `https://www.youtube.com/watch?v=${id}`,
+          statisticsAvailable: stats.viewCount !== undefined,
         };
       });
 
-      const measuredViews = videos.map((video) => video.views).filter((value): value is number => value !== null);
+      const measuredViews = videos.map((video) => video.views).filter((value): value is number => value !== null && Number.isFinite(value));
       const averageViews = measuredViews.length
         ? Math.round(measuredViews.reduce((sum, value) => sum + value, 0) / measuredViews.length)
+        : null;
+      const measuredLikeRates = videos.map((video) => video.likeRatePercent).filter((value): value is number => value !== null);
+      const averageLikeRatePercent = measuredLikeRates.length
+        ? Number((measuredLikeRates.reduce((sum, value) => sum + value, 0) / measuredLikeRates.length).toFixed(2))
         : null;
       const repeatedChannels = videos.reduce<Record<string, number>>((counts, video) => {
         counts[video.channel] = (counts[video.channel] ?? 0) + 1;
@@ -262,18 +283,23 @@ function createServer(youtubeApiKey?: string): McpServer {
           type: "text",
           text: JSON.stringify({
             query,
+            statisticsRetrievedAt,
+            dataSource: "YouTube Data API v3 public search and video statistics endpoints",
             analysis: {
               videosCompared: videos.length,
-              averageViewsOfReturnedVideos: averageViews,
+              videosWithPublicStatistics: videos.filter((video) => video.statisticsAvailable).length,
+              averageViewsOfVideosWithAvailableStatistics: averageViews,
+              averageLikeRatePercentOfVideosWithAvailableStatistics: averageLikeRatePercent,
               repeatedChannelsInResults: channelPatterns,
               opportunityTips: [
-                "Compare the top titles and make your title specific to one audience and outcome.",
-                "Look for unanswered beginner questions in the descriptions and create a clear step-by-step video.",
-                "Use the view counts as a snapshot only; they are not a prediction of future performance."
+                "Treat views, likes, and comments as a snapshot captured at statisticsRetrievedAt; they can change.",
+                "viewsPerDay is a rough lifetime average, not recent daily views or a prediction.",
+                "Like and comment rates are calculated only when the relevant public count and a positive view count are available.",
+                "Compare titles and descriptions to find unanswered beginner questions; content opportunities are suggestions, not measured facts."
               ],
             },
             videos,
-            limitations: "This is a lightweight analysis of public search results, not private competitor analytics. Search results and public statistics can change; likes or comments may be unavailable for some videos."
+            limitations: "Uses public search results and public video statistics only; it does not access private channel analytics. Statistics can be hidden or unavailable, in which case fields are null. Results are not an exhaustive list of competitors, and engagement rates do not establish causation or predict future performance."
           }, null, 2)
         }]
       };

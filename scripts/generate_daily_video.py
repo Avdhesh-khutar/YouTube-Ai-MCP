@@ -169,8 +169,6 @@ for i, phrase in enumerate(voice_texts, start=1):
 
 print("Narration provider: " + narration_provider)
 
-print("Narration provider: " + ("ElevenLabs" if use_elevenlabs else "offline eSpeak fallback"))
-
 # Create a simple SRT caption file aligned to each narration scene.
 def srt_timestamp(seconds):
     millis = int(round(seconds * 1000))

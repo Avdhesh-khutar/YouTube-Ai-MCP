@@ -110,42 +110,41 @@ for i, point in enumerate(topic["points"], start=2):
     draw_slide(i, f"TIP {i-1}", [point, "Keep it clear • Make it useful • Improve each upload"], "YouTube growth is a process, not a guarantee")
 draw_slide(7, "YOUR NEXT STEP", ["Choose one tip and apply it today", "Subscribe for more creator education"], "Comment with the next topic you want")
 
-# Offline Hindi voice generation. eSpeak voices vary by runner; fail clearly if unavailable.
+# Offline Hindi voice generation, one narration segment per scene.
 audio_parts = []
-voice_texts = [topic["voice"]] * 7
 for i, phrase in enumerate(voice_texts, start=1):
     wav = OUT / f"voice-{i:02d}.wav"
     subprocess.run(["espeak-ng", "-v", "hi", "-s", "145", "-w", str(wav), phrase], check=True)
     audio_parts.append(wav)
 
-with (OUT / "slides.txt").open("w", encoding="utf-8") as f:
-    for p in slides:
-        f.write(f"file '{p.resolve()}'\n")
+# Match each scene's display time to its narration duration.
+segments = []
+for i, (slide, audio) in enumerate(zip(slides, audio_parts), start=1):
+    segment = OUT / f"segment-{i:02d}.mp4"
+    probe = subprocess.run(
+        ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", str(audio)],
+        check=True, capture_output=True, text=True,
+    )
+    duration = max(3.0, float(probe.stdout.strip()) + 0.4)
+    subprocess.run([
+        "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+        "-loop", "1", "-framerate", "25", "-i", str(slide), "-i", str(audio),
+        "-t", f"{duration:.2f}", "-vf", "scale=1280:720,format=yuv420p",
+        "-c:v", "libx264", "-preset", "veryfast", "-c:a", "aac", "-b:a", "128k",
+        "-shortest", "-movflags", "+faststart", str(segment)
+    ], check=True)
+    segments.append(segment)
+
+with (OUT / "segments.txt").open("w", encoding="utf-8") as f:
+    for p in segments:
+        f.write(f"file '{p.resolve()}\\n'\\n")
 subprocess.run([
     "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
-    "-f", "concat", "-safe", "0", "-i", str(OUT / "slides.txt"),
-    "-vf", "scale=1280:720,format=yuv420p", "-r", "1/5",
-    "-c:v", "libx264", "-t", "35", str(OUT / "visuals.mp4")
+    "-f", "concat", "-safe", "0", "-i", str(OUT / "segments.txt"),
+    "-c", "copy", "-movflags", "+faststart", str(OUT / "daily-youtube-video.mp4")
 ], check=True)
 
-# Concatenate generated speech into one track.
-with (OUT / "audio.txt").open("w", encoding="utf-8") as f:
-    for p in audio_parts:
-        f.write(f"file '{p.resolve()}'\n")
-subprocess.run([
-    "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
-    "-f", "concat", "-safe", "0", "-i", str(OUT / "audio.txt"),
-    "-ar", "44100", "-ac", "2", str(OUT / "voice.wav")
-], check=True)
-
-# Build final video with a looped slide track and offline speech.
-subprocess.run([
-    "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
-    "-stream_loop", "-1", "-i", str(OUT / "visuals.mp4"), "-i", str(OUT / "voice.wav"),
-    "-shortest", "-vf", "scale=1280:720,format=yuv420p", "-c:v", "libx264",
-    "-preset", "veryfast", "-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart",
-    str(OUT / "daily-youtube-video.mp4")
-], check=True)
+(OUT / "script.txt").write_text("\\n\\n".join(voice_texts), encoding="utf-8")
 
 # Reuse first slide as thumbnail; produce script and metadata.
 (OUT / "thumbnail.png").write_bytes(slides[0].read_bytes())

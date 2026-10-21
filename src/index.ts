@@ -21,6 +21,14 @@ const MCP_PATH = "/mcp";
 const MCP_RESOURCE = "https://youtube-ai-mcp.mkkhutar2.workers.dev/mcp";
 const SCOPES = ["mcp:read"];
 
+async function safeFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response | null> {
+  try {
+    return await fetch(input, init);
+  } catch {
+    return null;
+  }
+}
+
 function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, (char) => `&#${char.charCodeAt(0)};`);
 }
@@ -327,7 +335,10 @@ function createServer(env: Env): McpServer {
       url.searchParams.set("q", query);
       url.searchParams.set("maxResults", String(maxResults ?? 5));
       url.searchParams.set("key", youtubeApiKey);
-      const response = await fetch(url);
+      const response = await safeFetch(url);
+      if (!response) {
+        return { content: [{ type: "text", text: "Could not reach YouTube Data API. Check network/service status and retry later." }], isError: true };
+      }
       if (!response.ok) {
         return { content: [{ type: "text", text: `YouTube API returned HTTP ${response.status}. Check the API key, YouTube Data API v3 enablement, restrictions, and quota.` }], isError: true };
       }
@@ -390,7 +401,10 @@ function createServer(env: Env): McpServer {
       searchUrl.searchParams.set("maxResults", String(maxResults ?? 5));
       searchUrl.searchParams.set("key", youtubeApiKey);
 
-      const searchResponse = await fetch(searchUrl);
+      const searchResponse = await safeFetch(searchUrl);
+      if (!searchResponse) {
+        return { content: [{ type: "text", text: "Could not reach YouTube search API. Check network/service status and retry later." }], isError: true };
+      }
       if (!searchResponse.ok) {
         return { content: [{ type: "text", text: `YouTube search API returned HTTP ${searchResponse.status}. Check the API key, YouTube Data API v3 enablement, restrictions, and quota.` }], isError: true };
       }
@@ -411,8 +425,8 @@ function createServer(env: Env): McpServer {
         statsUrl.searchParams.set("part", "statistics");
         statsUrl.searchParams.set("id", ids);
         statsUrl.searchParams.set("key", youtubeApiKey);
-        const statsResponse = await fetch(statsUrl);
-        if (statsResponse.ok) {
+        const statsResponse = await safeFetch(statsUrl);
+        if (statsResponse?.ok) {
           const statsData = await statsResponse.json() as {
             items?: Array<{ id?: string; statistics?: { viewCount?: string; likeCount?: string; commentCount?: string } }>;
           };
@@ -420,7 +434,9 @@ function createServer(env: Env): McpServer {
             if (item.id) statisticsById[item.id] = item.statistics ?? {};
           }
         } else {
-          statisticsWarning = `YouTube video statistics API returned HTTP ${statsResponse.status}; counts may be unavailable.`;
+          statisticsWarning = statsResponse
+            ? `YouTube video statistics API returned HTTP ${statsResponse.status}; counts may be unavailable.`
+            : "Could not reach YouTube video statistics API; counts may be unavailable.";
         }
       }
 

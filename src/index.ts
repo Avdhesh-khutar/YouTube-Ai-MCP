@@ -6,6 +6,7 @@ import OAuthProvider, {
   type ConsentDescription,
 } from "@cloudflare/workers-oauth-provider";
 import { z } from "zod/v4";
+import { isValidDateOnly } from "./date-validation";
 
 interface Env {
   OAUTH_KV: KVNamespace;
@@ -39,11 +40,6 @@ const GOOGLE_SCOPES = [
 
 type GoogleTokenSet = { access_token?: string; refresh_token?: string };
 
-function isValidDateOnly(value: string): boolean {
-  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(value)) return false;
-  const date = new Date(`${value}T00:00:00.000Z`);
-  return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
-}
 
 function htmlMessage(title: string, message: string, status = 200): Response {
   return page(title, `<p>${escapeHtml(message)}</p>`, status);

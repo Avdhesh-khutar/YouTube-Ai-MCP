@@ -276,8 +276,19 @@ for j, bar_h in enumerate([95, 150, 110, 205, 165]):
     x = 785 + j*76
     td.rounded_rectangle((x, 565-bar_h, x+42, 565), radius=9, fill=(95, 174, 255))
 td.text((1000, 615), "WATCH TIME", font=font(["/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", "/usr/share/fonts/truetype/liberation2/LiberationSans-Bold.ttf"], 22), fill=(180, 205, 240))
+# Export a contact sheet of all eight scenes so visual QA can catch repeated/empty cards.
 thumb.save(OUT / "thumbnail.png")
 thumb.save(OUT / "thumbnail.jpg", quality=94, optimize=True)
+contact = Image.new("RGB", (1280, 900), (12, 17, 31))
+cd = ImageDraw.Draw(contact)
+for k, slide_path in enumerate(slides[:8]):
+    shot = Image.open(slide_path).convert("RGB")
+    shot.thumbnail((400, 225))
+    x = 24 + (k % 3) * 418
+    y = 24 + (k // 3) * 285
+    contact.paste(shot, (x, y))
+    cd.text((x, y + 230), f"दृश्य {k+1}", font=font(font_candidates, 22), fill=(245, 245, 250))
+contact.save(OUT / "scene-contact-sheet.jpg", quality=92, optimize=True)
 (OUT / "script.txt").write_text("\n\n".join(voice_texts), encoding="utf-8")
 (OUT / "metadata.json").write_text(__import__("json").dumps({
     "date": TODAY,

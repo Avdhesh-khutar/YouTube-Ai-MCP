@@ -40,7 +40,7 @@ const GOOGLE_SCOPES = [
 type GoogleTokenSet = { access_token?: string; refresh_token?: string };
 
 function htmlMessage(title: string, message: string, status = 200): Response {
-  return page(title, \`<p>\${escapeHtml(message)}</p>\`, status);
+  return page(title, `<p>${escapeHtml(message)}</p>`, status);
 }
 
 async function googleConnect(request: Request, env: Env): Promise<Response> {
@@ -48,7 +48,7 @@ async function googleConnect(request: Request, env: Env): Promise<Response> {
     return htmlMessage("Google OAuth setup required", "Configure OAUTH_ADMIN_PASSWORD, GOOGLE_OAUTH_CLIENT_ID, and GOOGLE_OAUTH_CLIENT_SECRET as Cloudflare Worker secrets.", 503);
   }
   if (request.method === "GET") {
-    return page("Connect your YouTube channel", \`
+    return page("Connect your YouTube channel", `
       <p>This starts Google's official authorization flow for the channel owner.</p>
       <p>Requested access is read-only YouTube channel data and YouTube Analytics reports.</p>
       <form method="post" action="/google/connect">
@@ -57,7 +57,7 @@ async function googleConnect(request: Request, env: Env): Promise<Response> {
         <button type="submit">Continue to Google</button>
       </form>
       <p><small>Do not enter your Google account password here. You will sign in only on Google's website.</small></p>
-    \`);
+    `);
   }
   if (request.method !== "POST") return new Response("Method Not Allowed", { status: 405, headers: { allow: "GET, POST" } });
   const form = await request.formData();
@@ -69,7 +69,7 @@ async function googleConnect(request: Request, env: Env): Promise<Response> {
   const verifier = btoa(String.fromCharCode(...verifierBytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier));
   const challenge = btoa(String.fromCharCode(...new Uint8Array(digest))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
-  await env.OAUTH_KV.put(\`google-oauth-state:\${state}\`, JSON.stringify({ verifier, createdAt: Date.now() }), { expirationTtl: 600 });
+  await env.OAUTH_KV.put(`google-oauth-state:${state}`, JSON.stringify({ verifier, createdAt: Date.now() }), { expirationTtl: 600 });
 
   const authUrl = new URL("https://accounts.google.com/o/oauth2/v2/auth");
   authUrl.searchParams.set("client_id", env.GOOGLE_OAUTH_CLIENT_ID);
@@ -91,12 +91,12 @@ async function googleCallback(request: Request, env: Env): Promise<Response> {
   }
   const url = new URL(request.url);
   const googleError = url.searchParams.get("error");
-  if (googleError) return htmlMessage("Google authorization cancelled", \`Google returned: \${googleError}\`, 400);
+  if (googleError) return htmlMessage("Google authorization cancelled", `Google returned: ${googleError}`, 400);
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
   if (!code || !state) return htmlMessage("Invalid callback", "Google callback is missing the required code or state.", 400);
 
-  const stateKey = \`google-oauth-state:\${state}\`;
+  const stateKey = `google-oauth-state:${state}`;
   const stateValue = await env.OAUTH_KV.get(stateKey);
   if (!stateValue) return htmlMessage("Expired authorization", "This authorization request is invalid or expired. Start again from /google/connect.", 400);
   await env.OAUTH_KV.delete(stateKey);
@@ -115,17 +115,17 @@ async function googleCallback(request: Request, env: Env): Promise<Response> {
       code_verifier: stateData.verifier,
     }),
   });
-  if (!tokenResponse.ok) return htmlMessage("Google token exchange failed", \`Google returned HTTP \${tokenResponse.status}. Check the OAuth client and exact callback URL.\`, 502);
+  if (!tokenResponse.ok) return htmlMessage("Google token exchange failed", `Google returned HTTP ${tokenResponse.status}. Check the OAuth client and exact callback URL.`, 502);
   const tokens = await tokenResponse.json() as GoogleTokenSet;
   if (!tokens.refresh_token) {
     return htmlMessage("Refresh token missing", "Google did not return a refresh token. Remove this app's access from your Google Account and reconnect to grant consent again.", 502);
   }
   await env.OAUTH_KV.put("youtube-google-refresh-token", tokens.refresh_token);
   await env.OAUTH_KV.put("youtube-google-connected-at", new Date().toISOString());
-  return page("YouTube authorization completed", \`
+  return page("YouTube authorization completed", `
     <p>Google authorization succeeded. The refresh token is stored in Cloudflare KV and is not displayed.</p>
     <p>You can close this page and return to Claude.</p>
-  \`);
+  `);
 }
 
 async function getGoogleAccessToken(env: Env): Promise<string | null> {
@@ -150,7 +150,7 @@ async function getGoogleAccessToken(env: Env): Promise<string | null> {
 async function fetchAnalyticsReport(accessToken: string, params: Record<string, string>): Promise<{ ok: boolean; status: number; data: unknown }> {
   const url = new URL("https://youtubeanalytics.googleapis.com/v2/reports");
   for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value);
-  const response = await fetch(url, { headers: { authorization: \`Bearer \${accessToken}\` } });
+  const response = await fetch(url, { headers: { authorization: `Bearer ${accessToken}` } });
   const data = await response.json().catch(() => ({}));
   return { ok: response.ok, status: response.status, data };
 }
@@ -455,7 +455,7 @@ function createServer(env: Env): McpServer {
         ids: "channel==MINE", startDate, endDate,
         metrics: "views,estimatedMinutesWatched,averageViewDuration,subscribersGained,subscribersLost",
       });
-      if (!report.ok) return { content: [{ type: "text", text: \`YouTube Analytics API returned HTTP \${report.status}. Confirm YouTube Analytics API is enabled and the authorized Google account owns or manages a channel.\` }], isError: true };
+      if (!report.ok) return { content: [{ type: "text", text: `YouTube Analytics API returned HTTP ${report.status}. Confirm YouTube Analytics API is enabled and the authorized Google account owns or manages a channel.` }], isError: true };
       return { content: [{ type: "text", text: JSON.stringify({ startDate, endDate, report: report.data }, null, 2) }] };
     },
   );

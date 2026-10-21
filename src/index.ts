@@ -175,6 +175,110 @@ function createServer(youtubeApiKey?: string): McpServer {
       return { content: [{ type: "text", text: JSON.stringify(outline, null, 2) }] };
     },
   );
+
+  server.registerTool(
+    "youtube_competitor_analysis",
+    {
+      description: "Analyze public YouTube videos in a niche using video metadata and public statistics. Provides competitor patterns and content opportunities; does not access private analytics or guarantee views.",
+      inputSchema: z.object({
+        query: z.string().min(2).max(120).describe("Niche, topic, or competitor keyword"),
+        maxResults: z.number().int().min(3).max(10).optional().describe("Number of public videos to compare, default 5"),
+      }),
+    },
+    async ({ query, maxResults }) => {
+      if (!youtubeApiKey) {
+        return { content: [{ type: "text", text: "Not configured: add YOUTUBE_API_KEY as a Cloudflare Worker secret." }], isError: true };
+      }
+
+      const searchUrl = new URL("https://www.googleapis.com/youtube/v3/search");
+      searchUrl.searchParams.set("part", "snippet");
+      searchUrl.searchParams.set("type", "video");
+      searchUrl.searchParams.set("order", "viewCount");
+      searchUrl.searchParams.set("q", query);
+      searchUrl.searchParams.set("maxResults", String(maxResults ?? 5));
+      searchUrl.searchParams.set("key", youtubeApiKey);
+
+      const searchResponse = await fetch(searchUrl);
+      if (!searchResponse.ok) {
+        return { content: [{ type: "text", text: `YouTube search API returned HTTP ${searchResponse.status}. Check the API key, YouTube Data API v3 enablement, restrictions, and quota.` }], isError: true };
+      }
+
+      const searchData = await searchResponse.json() as {
+        items?: Array<{
+          id?: { videoId?: string };
+          snippet?: { title?: string; channelTitle?: string; publishedAt?: string; description?: string };
+        }>;
+      };
+      const items = (searchData.items ?? []).filter((item) => item.id?.videoId);
+      const ids = items.map((item) => item.id!.videoId!).join(",");
+      let statisticsById: Record<string, { viewCount?: string; likeCount?: string; commentCount?: string }> = {};
+
+      if (ids) {
+        const statsUrl = new URL("https://www.googleapis.com/youtube/v3/videos");
+        statsUrl.searchParams.set("part", "statistics");
+        statsUrl.searchParams.set("id", ids);
+        statsUrl.searchParams.set("key", youtubeApiKey);
+        const statsResponse = await fetch(statsUrl);
+        if (statsResponse.ok) {
+          const statsData = await statsResponse.json() as {
+            items?: Array<{ id?: string; statistics?: { viewCount?: string; likeCount?: string; commentCount?: string } }>;
+          };
+          for (const item of statsData.items ?? []) {
+            if (item.id) statisticsById[item.id] = item.statistics ?? {};
+          }
+        }
+      }
+
+      const videos = items.map((item) => {
+        const id = item.id!.videoId!;
+        const stats = statisticsById[id] ?? {};
+        return {
+          videoId: id,
+          title: item.snippet?.title ?? "",
+          channel: item.snippet?.channelTitle ?? "",
+          publishedAt: item.snippet?.publishedAt ?? "",
+          views: stats.viewCount ? Number(stats.viewCount) : null,
+          likes: stats.likeCount ? Number(stats.likeCount) : null,
+          comments: stats.commentCount ? Number(stats.commentCount) : null,
+          description: (item.snippet?.description ?? "").slice(0, 220),
+          url: `https://www.youtube.com/watch?v=${id}`,
+        };
+      });
+
+      const measuredViews = videos.map((video) => video.views).filter((value): value is number => value !== null);
+      const averageViews = measuredViews.length
+        ? Math.round(measuredViews.reduce((sum, value) => sum + value, 0) / measuredViews.length)
+        : null;
+      const repeatedChannels = videos.reduce<Record<string, number>>((counts, video) => {
+        counts[video.channel] = (counts[video.channel] ?? 0) + 1;
+        return counts;
+      }, {});
+      const channelPatterns = Object.entries(repeatedChannels)
+        .filter(([, count]) => count > 1)
+        .map(([channel, count]) => ({ channel, matchingVideos: count }));
+
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify({
+            query,
+            analysis: {
+              videosCompared: videos.length,
+              averageViewsOfReturnedVideos: averageViews,
+              repeatedChannelsInResults: channelPatterns,
+              opportunityTips: [
+                "Compare the top titles and make your title specific to one audience and outcome.",
+                "Look for unanswered beginner questions in the descriptions and create a clear step-by-step video.",
+                "Use the view counts as a snapshot only; they are not a prediction of future performance."
+              ],
+            },
+            videos,
+            limitations: "This is a lightweight analysis of public search results, not private competitor analytics. Search results and public statistics can change; likes or comments may be unavailable for some videos."
+          }, null, 2)
+        }]
+      };
+    },
+  );
   return server;
 }
 

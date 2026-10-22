@@ -32,14 +32,17 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f7f9fc;padding:16px;
 <label for="notes">Extra instructions (optional)</label>
 <textarea id="notes" rows="3" maxlength="1000" placeholder="Tone, region, facts to verify, etc."></textarea>
 <button type="submit">Production package banao</button>
-<button class="secondary" id="copy" type="button">Package copy karo</button>\n<button class="secondary" id="copy-script" type="button">Sirf script prompt copy</button>\n<button class="secondary" id="copy-scenes" type="button">12 visual prompts copy</button>
+<button class="secondary" id="copy" type="button">Package copy karo</button>
+<button class="secondary" id="copy-script" type="button">Sirf script prompt copy</button>
+<button class="secondary" id="copy-scenes" type="button">12 visual prompts copy</button>
 </form>
 <h2>Production package</h2>
 <pre id="output">Topic enter karke “Production package banao” dabayein.</pre>
 <p class="muted">Fact-check every factual claim. YouTube publishing policy: Private only; public publishing disabled.</p>
 </main>
 <script>
-const form=document.getElementById('planner'), output=document.getElementById('output');\nlet latestScriptPrompt='', latestScenePrompts=[];
+const form=document.getElementById('planner'), output=document.getElementById('output');
+let latestScriptPrompt='', latestScenePrompts=[];
 async function copyText(text,button){if(!text){button.textContent='Pehle package banayein';return;}try{await navigator.clipboard.writeText(text);button.textContent='Copied';}catch(e){button.textContent='Copy unavailable — output se text select karein';}}
 form.addEventListener('submit',e=>{
  e.preventDefault();

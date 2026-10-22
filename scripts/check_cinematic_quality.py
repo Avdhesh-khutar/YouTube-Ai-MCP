@@ -47,6 +47,7 @@ def validate_srt(text: str) -> tuple[int, float, list[str]]:
             return None
         return ((hours * 60 + minutes) * 60 + seconds) * 1000 + ms
     previous_start = -1
+    previous_end = -1
     last_end = 0
     for number, block in enumerate(blocks, start=1):
         lines = block.splitlines()
@@ -65,9 +66,11 @@ def validate_srt(text: str) -> tuple[int, float, list[str]]:
             continue
         if start < previous_start:
             errors.append(f"Caption block {number} is out of chronological order.")
+        if previous_end >= 0 and start < previous_end:
+            errors.append(f"Caption block {number} overlaps the previous caption.")
         if not any(line.strip() for line in lines[2:]):
             errors.append(f"Caption block {number} has no text.")
-        previous_start, last_end = start, max(last_end, end)
+        previous_start, previous_end, last_end = start, end, max(last_end, end)
     return len(blocks), last_end / 1000.0, errors
 
 

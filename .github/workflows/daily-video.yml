@@ -54,6 +54,12 @@ jobs:
           python -c "import sys; assert float(sys.argv[1]) >= 60, 'Video is unexpectedly short'" "$duration"
           test "$width" = "1280"
           test "$height" = "720"
+          # Validate thumbnail dimensions and required metadata/captions.
+          thumb_width=$(identify -format '%w' dist/thumbnail.jpg)
+          thumb_height=$(identify -format '%h' dist/thumbnail.jpg)
+          test "$thumb_width" = "1280"
+          test "$thumb_height" = "720"
+          python -c 'import json; from pathlib import Path; m=json.loads(Path("dist/metadata.json").read_text(encoding="utf-8")); assert m.get("title", "").strip(), "Missing title"; assert m.get("description", "").strip(), "Missing description"; assert isinstance(m.get("tags"), list) and m["tags"], "Missing tags"; s=Path("dist/captions.srt").read_text(encoding="utf-8"); assert s.count("-->") >= 8, "Captions missing/incomplete"; assert len(Path("dist/script.txt").read_text(encoding="utf-8").strip()) >= 500, "Script too short"; print("Metadata, captions, script and thumbnail checks passed.")'
       - name: Upload private-review package as workflow artifact
         uses: actions/upload-artifact@v4
         with:

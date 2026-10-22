@@ -87,6 +87,16 @@ jobs:
               assert any(line.strip() for line in lines[2:]), "Empty caption cue"
               previous_end = end
           print(f"Audio stream present; {len(blocks)} ordered, non-empty SRT cues validated.")
+          # Check mobile subtitle layout and ensure metadata is safe for a review-only package.
+          for block in blocks:
+              cue_lines = block.splitlines()[2:]
+              assert len(cue_lines) <= 2, "Caption cue exceeds two display lines"
+              assert all(len(line) <= 40 for line in cue_lines), "Caption line is too long for mobile review"
+          import json
+          metadata = json.loads(Path("dist/metadata.json").read_text(encoding="utf-8"))
+          assert metadata.get("privacyStatus") == "private", "Review metadata must remain private"
+          assert len(metadata["title"]) <= 100, "YouTube title exceeds 100 characters"
+          print("Mobile caption layout and private-review metadata validated.")
           PY
       - name: Upload private-review package as workflow artifact
         uses: actions/upload-artifact@v4

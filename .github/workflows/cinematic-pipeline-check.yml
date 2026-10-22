@@ -26,9 +26,10 @@ jobs:
         with:
           python-version: "3.12"
       - name: Compile pipeline scripts
-        run: python -m py_compile scripts/generate_cinematic_video.py scripts/plan_cinematic_scenes.py scripts/comfyui_generate_assets.py
+        run: python -m py_compile scripts/generate_cinematic_video.py scripts/plan_cinematic_scenes.py scripts/comfyui_generate_assets.py scripts/generate_daily_video.py
       - name: Check CLI help
         run: |
           python scripts/generate_cinematic_video.py --help
           python scripts/plan_cinematic_scenes.py --help
           python scripts/comfyui_generate_assets.py --help
+          python scripts/generate_daily_video.py --help

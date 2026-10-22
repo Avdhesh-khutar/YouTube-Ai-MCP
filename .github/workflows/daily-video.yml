@@ -57,6 +57,37 @@ jobs:
           # Validate thumbnail dimensions and required metadata/captions.
           python -c 'from PIL import Image; im=Image.open("dist/thumbnail.jpg"); assert im.size == (1280, 720), f"Unexpected thumbnail size: {im.size}"'
           python -c 'import json; from pathlib import Path; m=json.loads(Path("dist/metadata.json").read_text(encoding="utf-8")); assert m.get("title", "").strip(), "Missing title"; assert m.get("description", "").strip(), "Missing description"; assert isinstance(m.get("tags"), list) and m["tags"], "Missing tags"; s=Path("dist/captions.srt").read_text(encoding="utf-8"); assert s.count("-->") >= 8, "Captions missing/incomplete"; assert len(Path("dist/script.txt").read_text(encoding="utf-8").strip()) >= 500, "Script too short"; print("Metadata, captions, script and thumbnail checks passed.")'
+          # Confirm the rendered file has an audio stream and SRT cues are valid and ordered.
+          python - <<'PY'
+          import re, subprocess
+          from pathlib import Path
+          probe = subprocess.run(
+              ["ffprobe", "-v", "error", "-select_streams", "a:0",
+               "-show_entries", "stream=codec_type", "-of", "csv=p=0",
+               "dist/daily-youtube-video.mp4"],
+              check=True, capture_output=True, text=True,
+          )
+          assert "audio" in probe.stdout, "Rendered video has no audio stream"
+          srt = Path("dist/captions.srt").read_text(encoding="utf-8").strip()
+          blocks = re.split(r"\\n\\s*\\n", srt)
+          previous_end = 0
+          def to_ms(stamp):
+              h, m, rest = stamp.split(":")
+              sec, ms = rest.split(",")
+              return ((int(h)*60 + int(m))*60 + int(sec))*1000 + int(ms)
+          for block in blocks:
+              lines = block.splitlines()
+              assert len(lines) >= 3, f"Malformed SRT block: {block[:80]}"
+              assert lines[0].strip().isdigit(), "SRT cue index is not numeric"
+              match = re.fullmatch(r"(\\d{2}:\\d{2}:\\d{2},\\d{3}) --> (\\d{2}:\\d{2}:\\d{2},\\d{3})", lines[1].strip())
+              assert match, f"Malformed SRT timestamp: {lines[1]}"
+              start, end = map(to_ms, match.groups())
+              assert start < end, "SRT cue has zero/negative duration"
+              assert start >= previous_end, "SRT cues overlap or are out of order"
+              assert any(line.strip() for line in lines[2:]), "Empty caption cue"
+              previous_end = end
+          print(f"Audio stream present; {len(blocks)} ordered, non-empty SRT cues validated.")
+          PY
       - name: Upload private-review package as workflow artifact
         uses: actions/upload-artifact@v4
         with:

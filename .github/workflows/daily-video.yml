@@ -97,6 +97,15 @@ jobs:
           assert metadata.get("privacyStatus") == "private", "Review metadata must remain private"
           assert len(metadata["title"]) <= 100, "YouTube title exceeds 100 characters"
           print("Mobile caption layout and private-review metadata validated.")
+          # Ensure captions preserve every narration word in the original order.
+          script_text = " ".join(Path("dist/script.txt").read_text(encoding="utf-8").split())
+          caption_text = " ".join(
+              " ".join(block.splitlines()[2:]).strip()
+              for block in blocks
+          )
+          caption_text = " ".join(caption_text.split())
+          assert caption_text == script_text, "Caption text differs from narration script"
+          print("Caption text matches narration script exactly (whitespace-normalized).")
           PY
       - name: Upload private-review package as workflow artifact
         uses: actions/upload-artifact@v4

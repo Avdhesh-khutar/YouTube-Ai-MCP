@@ -2,7 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.check_cinematic_quality import check
+from scripts.check_cinematic_quality import check, validate_srt
 
 
 class CinematicQualityTests(unittest.TestCase):
@@ -29,6 +29,22 @@ class CinematicQualityTests(unittest.TestCase):
             self.assertEqual(report["checks"]["video_file"], "pass")
             self.assertEqual(report["checks"]["subtitles"], "pass")
             self.assertFalse(report["upload_performed"])
+
+    def test_srt_rejects_reversed_timestamp(self):
+        count, end, errors = validate_srt(
+            "1\\n00:00:03,000 --> 00:00:01,000\\nगलत समय\\n"
+        )
+        self.assertEqual(count, 1)
+        self.assertTrue(errors)
+
+    def test_srt_reports_caption_end_time(self):
+        count, end, errors = validate_srt(
+            "1\\n00:00:00,000 --> 00:00:02,500\\nनमस्ते\\n\\n"
+            "2\\n00:00:02,500 --> 00:00:04,000\\nदुनिया\\n"
+        )
+        self.assertEqual(count, 2)
+        self.assertEqual(end, 4.0)
+        self.assertEqual(errors, [])
 
     def test_empty_subtitle_fails(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -63,7 +63,7 @@ def render(scenes_dir: Path, output_dir: Path, seconds_per_scene: float = 5.0,
         except (OSError, json.JSONDecodeError, ScenePlanError) as exc:
             raise ValueError(f"Scene plan validation failed: {exc}") from exc
         for scene in plan["scenes"]:
-            match = re.fullmatch(r"scene[-_](\\d+)", scene["scene_id"], re.IGNORECASE)
+            match = re.fullmatch(r"scene[-_](\d+)", scene["scene_id"], re.IGNORECASE)
             if not match:
                 raise ValueError(f"Scene plan ID must match scene-NN format: {scene['scene_id']}")
             number = int(match.group(1))
@@ -71,7 +71,7 @@ def render(scenes_dir: Path, output_dir: Path, seconds_per_scene: float = 5.0,
                 raise ValueError(f"Duplicate scene number in plan: {number}")
             planned_durations[number] = float(scene["duration_seconds"])
         image_numbers = {
-            int(re.fullmatch(r"scene[-_](\\d+)", image.stem, re.IGNORECASE).group(1))
+            int(re.fullmatch(r"scene[-_](\d+)", image.stem, re.IGNORECASE).group(1))
             for image in images
         }
         if image_numbers != set(planned_durations):
@@ -88,7 +88,7 @@ def render(scenes_dir: Path, output_dir: Path, seconds_per_scene: float = 5.0,
     for index, image in enumerate(images, start=1):
         clip = image.with_suffix(".mp4")
         segment = output_dir / f"segment-{index:03d}.mp4"
-        scene_number = int(re.fullmatch(r"scene[-_](\\d+)", image.stem, re.IGNORECASE).group(1))
+        scene_number = int(re.fullmatch(r"scene[-_](\d+)", image.stem, re.IGNORECASE).group(1))
         duration = planned_durations.get(scene_number, max(2.0, seconds_per_scene))
         if clip.exists():
             # Use a prepared image-to-video clip when available; otherwise animate the still.

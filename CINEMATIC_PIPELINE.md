@@ -50,3 +50,22 @@ After adding the assets to the feature branch, open **Actions → Cinematic vide
 - GitHub-hosted runners do not provide a dependable GPU for open-source video generation; generate the assets locally, then render the final cut in Actions.
 - Review the output for visual glitches, scene continuity, Hindi pronunciation, caption timing, music rights, and thumbnail readability.
 - No upload or public publishing is implemented or enabled by this workflow. Do not add upload secrets or publishing steps without explicit approval.
+
+
+## 0. Turn a Hindi script into image prompts
+
+Save your narration as UTF-8 text at `assets/cinematic-scenes/script.txt`, then run:
+
+```bash
+python scripts/plan_cinematic_scenes.py --max-scenes 12
+```
+
+It creates `dist-cinematic/scene-prompts.md` and `scene-prompts.json`. Each scene has a visual prompt and negative prompt. These are prompt drafts, not generated images. Use them in your local image model and export each image in scene order.
+
+Suggested local-first workflow:
+1. Generate scene images with a local Stable Diffusion/SDXL-compatible UI or workflow.
+2. For 2–4 key scenes, optionally generate image-to-video clips with a compatible local video model (hardware needs vary).
+3. Add a reviewed voice-over and matching SRT subtitles.
+4. Run the cinematic renderer and inspect the MP4 before considering any upload.
+
+The GitHub Actions runner is for rendering, not GPU-based image/video generation. Do not put model credentials or private tokens into the repository.

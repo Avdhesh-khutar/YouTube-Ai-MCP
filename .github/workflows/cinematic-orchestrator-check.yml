@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "scripts/orchestrate_cinematic_workflow.py"
+      - "scripts/plan_cinematic_scenes.py"
       - "scripts/check_cinematic_quality.py"
       - "scripts/check_comfyui_endpoint.py"
       - "scripts/cinematic_provider_contract.py"
@@ -25,7 +26,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Compile workflow scripts
-        run: python -m py_compile scripts/orchestrate_cinematic_workflow.py scripts/check_cinematic_quality.py scripts/check_comfyui_endpoint.py scripts/cinematic_provider_contract.py scripts/validate_scene_plan.py
+        run: python -m py_compile scripts/orchestrate_cinematic_workflow.py scripts/plan_cinematic_scenes.py scripts/check_cinematic_quality.py scripts/check_comfyui_endpoint.py scripts/cinematic_provider_contract.py scripts/validate_scene_plan.py
       - name: Validate configuration and private-only policy
         run: python scripts/orchestrate_cinematic_workflow.py --topic "प्राचीन भारत के रहस्य" --jobs-dir /tmp/cinematic-jobs
       - name: Run all unit tests

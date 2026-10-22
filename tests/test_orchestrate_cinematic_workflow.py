@@ -77,6 +77,24 @@ class WorkflowOrchestratorTests(unittest.TestCase):
             saved = json.loads((job / "research-manifest.json").read_text(encoding="utf-8"))
             self.assertEqual(saved["claims"][0]["source_ids"], ["s1"])
 
+
+    def test_rejects_research_manifest_for_different_topic(self):
+        config = self.base_config()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            config_path = root / "config.json"
+            config_path.write_text(json.dumps(config), encoding="utf-8")
+            research_path = root / "research.json"
+            research_path.write_text(json.dumps({
+                "topic": "अलग विषय",
+                "sources": [{"id": "s1", "title": "Report", "url": "https://example.org/report"}],
+                "claims": [{"id": "c1", "text": "Claim", "source_ids": ["s1"]}],
+            }, ensure_ascii=False), encoding="utf-8")
+            jobs_dir = root / "jobs"
+            with self.assertRaisesRegex(WorkflowError, "topic must exactly match"):
+                create_job("प्राचीन भारत के रहस्य", config_path, jobs_dir, research_path)
+            self.assertFalse(jobs_dir.exists())
+
     def test_rejects_too_short_topic(self):
         with tempfile.TemporaryDirectory() as tmp:
             tmp = Path(tmp)

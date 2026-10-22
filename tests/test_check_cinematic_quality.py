@@ -41,8 +41,8 @@ class CinematicQualityTests(unittest.TestCase):
 
     def test_srt_rejects_overlapping_caption_intervals(self):
         count, end, errors = validate_srt(
-            "1\\n00:00:00,000 --> 00:00:03,000\\nपहला कैप्शन\\n\\n"
-            "2\\n00:00:02,500 --> 00:00:04,000\\nदूसरा कैप्शन\\n"
+            "1\n00:00:00,000 --> 00:00:03,000\nपहला कैप्शन\n\n"
+            "2\n00:00:02,500 --> 00:00:04,000\nदूसरा कैप्शन\n"
         )
         self.assertEqual(count, 2)
         self.assertEqual(end, 4.0)

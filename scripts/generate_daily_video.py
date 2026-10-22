@@ -64,6 +64,7 @@ TOPICS = [
 ]
 
 topic = TOPICS[date.today().toordinal() % len(TOPICS)]
+topic_key = topic["title"]  # Keep the stable English key for matching thumbnail/metadata variants.
 # Replace the initial English/romanized drafts with proper Devanagari Hindi before rendering.
 HINDI_TOPICS = {
     "YOUTUBE GROWTH": ("यूट्यूब चैनल कैसे बढ़ाएँ", "चैनल ग्रोथ की पूरी हिंदी गाइड", "नमस्कार दोस्तों। आज हम समझेंगे कि YouTube चैनल को बेहतर बनाने के लिए क्या करना चाहिए। केवल रोज वीडियो डालना सफलता की गारंटी नहीं है। सबसे पहले अपने दर्शकों की जरूरत समझिए। हर वीडियो में एक स्पष्ट समस्या का समाधान दीजिए। शुरुआत में बताइए कि दर्शक क्या सीखेंगे, फिर उदाहरणों के साथ सीधे उपयोगी जानकारी पर आइए। शीर्षक और थंबनेल आकर्षक हों, लेकिन वीडियो की वास्तविक सामग्री से मेल खाने चाहिए। वीडियो प्रकाशित होने के बाद क्लिक थ्रू रेट, देखने का औसत समय और दर्शक किस जगह वीडियो छोड़ते हैं, इन संकेतों को समझिए। हर अगले वीडियो में एक सुधार लागू कीजिए। चैनल बढ़ाना लगातार सीखने की प्रक्रिया है; कोई भी तरीका निश्चित सफलता की गारंटी नहीं देता।", ["दर्शकों की जरूरत पहचानें", "शुरुआत में फायदा बताएं", "शीर्षक और थंबनेल स्पष्ट रखें", "दर्शकों का रिटेंशन समझें", "हर वीडियो में सुधार करें"]),
@@ -272,11 +273,11 @@ thumbnail_titles = {
     "CREATOR WORKFLOW": ("वीडियो बनाने का", "प्रोफेशनल तरीका"),
     "YOUTUBE GROWTH": ("YouTube चैनल", "कैसे बढ़ाएँ?"),
 }
-thumb_title = "\n".join(thumbnail_titles.get(topic["title"], ("YouTube वीडियो", "बेहतर कैसे बनाएँ?")))
+thumb_title = "\n".join(thumbnail_titles.get(topic_key, ("YouTube वीडियो", "बेहतर कैसे बनाएँ?")))
 for line_no, line in enumerate(thumb_title.split("\n")):
     td.text((70, 190 + line_no*100), line, font=headline_font, fill=(255, 255, 255), stroke_width=2, stroke_fill=(5, 10, 25))
 td.rounded_rectangle((72, 430, 635, 500), radius=18, fill=(224, 48, 55))
-td.text((100, 445), {"AUDIENCE RETENTION": "दर्शक क्यों रुकें?", "BETTER VIDEO IDEAS": "सही विषय चुनें", "THUMBNAIL BASICS": "डिजाइन को बेहतर करें", "CONSISTENT CREATION": "टिकाऊ शेड्यूल रखें", "YOUTUBE ANALYTICS": "डेटा से सीखें", "CREATOR WORKFLOW": "हर चरण जांचें", "YOUTUBE GROWTH": "आज से सुधार करें"}.get(topic["title"], "आज से सुधार करें"), font=font(font_candidates, 34), fill=(255, 255, 255))
+td.text((100, 445), {"AUDIENCE RETENTION": "दर्शक क्यों रुकें?", "BETTER VIDEO IDEAS": "सही विषय चुनें", "THUMBNAIL BASICS": "डिजाइन को बेहतर करें", "CONSISTENT CREATION": "टिकाऊ शेड्यूल रखें", "YOUTUBE ANALYTICS": "डेटा से सीखें", "CREATOR WORKFLOW": "हर चरण जांचें", "YOUTUBE GROWTH": "आज से सुधार करें"}.get(topic_key, "आज से सुधार करें"), font=font(font_candidates, 34), fill=(255, 255, 255))
 td.text((74, 610), "हिंदी में आसान और उपयोगी गाइड", font=font(font_candidates, 28), fill=(215, 226, 245))
 # Simple play symbol and retention bars add a visual focal point.
 td.ellipse((890, 235, 1130, 475), fill=(255, 185, 45), outline=(255,255,255), width=6)
@@ -309,7 +310,7 @@ contact.save(OUT / "scene-contact-sheet.jpg", quality=92, optimize=True)
         "YOUTUBE ANALYTICS": "YouTube Analytics आसान हिंदी में",
         "CREATOR WORKFLOW": "YouTube वीडियो बनाने का प्रोफेशनल तरीका",
         "YOUTUBE GROWTH": "YouTube चैनल कैसे बढ़ाएँ? | Hindi Guide",
-    }.get(topic["title"], topic["title"] + " | Hindi YouTube Guide"),
+    }.get(topic_key, topic["title"] + " | Hindi YouTube Guide"),
     "description": topic["subtitle"] + "\n\n" + topic["voice"] + "\n\nवीडियो को बेहतर बनाने के लिए एक-एक सुझाव अगली वीडियो में लागू करें.",
     "tags": ["YouTube Tips Hindi", "YouTube Growth", "Audience Retention", "Hindi Creator", "YouTube Tutorial"],
     "privacyStatus": "private",

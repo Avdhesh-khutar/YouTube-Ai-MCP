@@ -102,6 +102,17 @@ def create_job(topic: str, config_path: Path, jobs_dir: Path) -> Path:
         ]
     }
     (job_dir / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    # Provide a structured research handoff immediately; claims remain unverified
+    # until a researcher/provider supplies source-backed evidence and review notes.
+    (job_dir / "research-manifest.json").write_text(
+        json.dumps({
+            "topic": topic,
+            "sources": [],
+            "claims": [],
+            "instructions": "Add HTTPS source records and link every factual claim to source_ids. Keep status as needs_review until the claim is checked against its cited source. Structural validation does not establish factual accuracy."
+        }, ensure_ascii=False, indent=2) + "\\n",
+        encoding="utf-8",
+    )
     (job_dir / "NEXT_STEPS.md").write_text(
         "# Job handoff\n\n"
         f"**Topic:** {topic}\n\n"

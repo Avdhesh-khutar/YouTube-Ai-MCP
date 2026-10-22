@@ -17,7 +17,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from scripts.validate_research_manifest import ManifestError, validate_manifest
+try:
+    from scripts.validate_research_manifest import ManifestError, validate_manifest
+except ModuleNotFoundError:  # Support direct execution as `python scripts/orchestrate...`
+    from validate_research_manifest import ManifestError, validate_manifest
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_CONFIG = ROOT / "config" / "cinematic-workflow.example.json"

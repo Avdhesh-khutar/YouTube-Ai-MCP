@@ -6,7 +6,7 @@
 <title>Calcuside — Browser Cinematic Planner</title>
 <style>
 :root{font-family:system-ui,-apple-system,"Noto Sans Devanagari",sans-serif;color:#18212f;background:#f4f6fa}
-body{margin:0;padding:24px;max-width:900px;margin-inline:auto}
+body{margin:0;padding:24px;max-width:960px;margin-inline:auto}
 main{background:white;border:1px solid #dce2ec;border-radius:18px;padding:clamp(18px,4vw,32px);box-shadow:0 8px 30px #1725540d}
 h1{margin-top:0}p{line-height:1.55}.muted{color:#536174;font-size:.95rem}
 label{display:block;font-weight:650;margin:18px 0 7px}
@@ -20,8 +20,8 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f7f9fc;padding:16px;
 <body>
 <main>
 <h1>Calcuside — Browser Cinematic Planner</h1>
-<p class="muted">Topic se Hindi 8–10 minute cinematic video ki planning. Yeh page browser mein hi chalta hai; koi installation, API key ya paid service call nahi karta.</p>
-<div class="notice"><strong>Saaf baat:</strong> Yeh abhi planning tool hai, video generator nahi. Yeh khud AI images/video/voice create ya YouTube upload nahi karta. Koi paid service automatically use nahi hogi.</div>
+<p class="muted">Topic se Hindi 8–10 minute cinematic video ka production package plan karein. Browser-only: koi installation, API key, remote script ya paid service call nahi.</p>
+<div class="notice"><strong>Honest status:</strong> Yeh detailed planning package banata hai, actual AI video nahi. Images, video clips, voice, render aur YouTube upload abhi is page mein implemented nahi hain.</div>
 <form id="planner">
 <label for="topic">Video ka topic</label>
 <input id="topic" required maxlength="180" placeholder="Jaise: Prachin Bharat ke mandiron ke rahasya">
@@ -31,12 +31,12 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f7f9fc;padding:16px;
 <select id="style"><option>Cinematic documentary</option><option>Mystery and suspense</option><option>Educational explainer</option><option>Historical storytelling</option></select>
 <label for="notes">Extra instructions (optional)</label>
 <textarea id="notes" rows="3" maxlength="1000" placeholder="Tone, region, facts to verify, etc."></textarea>
-<button type="submit">Planning brief banao</button>
-<button class="secondary" id="copy" type="button">Brief copy karo</button>
+<button type="submit">Production package banao</button>
+<button class="secondary" id="copy" type="button">Package copy karo</button>
 </form>
-<h2>Planning brief</h2>
-<pre id="output">Topic enter karke “Planning brief banao” dabayein.</pre>
-<p class="muted">Safety: factual claims ko sources se verify karein. YouTube publishing policy: Private only; public upload disabled.</p>
+<h2>Production package</h2>
+<pre id="output">Topic enter karke “Production package banao” dabayein.</pre>
+<p class="muted">Fact-check every factual claim. YouTube publishing policy: Private only; public publishing disabled.</p>
 </main>
 <script>
 const form=document.getElementById('planner'), output=document.getElementById('output');
@@ -47,21 +47,32 @@ form.addEventListener('submit',e=>{
  const style=document.getElementById('style').value;
  const notes=document.getElementById('notes').value.trim()||'Koi extra instruction nahi.';
  const scenes=[
-  ['Hook','0:00–0:30','Ek dilchasp sawal ya hairan karne wala verified fact.'],
-  ['Context','0:30–1:30','Topic ka parichay aur zaroori background.'],
-  ['Research','1:30–3:30','Reliable sources se saboot aur context; har claim verify karein.'],
-  ['Deep dive','3:30–6:30','3–5 cinematic scenes, har scene ka ek clear point.'],
-  ['Discovery','6:30–8:30','Key insight, competing explanations aur uncertainties.'],
-  ['Conclusion','8:30–9:00','Short recap aur audience ke liye ek sawal.']
+  ['Cold open','0:00–0:25','A compelling question; do not invent a shocking fact.'],
+  ['Promise and context','0:25–1:00','Explain why the topic matters and what viewers will learn.'],
+  ['Background','1:00–1:45','Introduce time, place, people, and essential definitions.'],
+  ['Question one','1:45–2:30','First key question with source-backed evidence.'],
+  ['Visual evidence','2:30–3:15','Show a relevant location, artifact, diagram, or archival visual.'],
+  ['Question two','3:15–4:00','Second question; distinguish confirmed facts from theories.'],
+  ['Deep dive','4:00–4:50','Explain mechanisms, context, or the timeline clearly.'],
+  ['Counterpoint','4:50–5:40','Present credible alternative interpretations or limits.'],
+  ['Human story','5:40–6:30','Use a grounded example; avoid invented quotes or events.'],
+  ['What evidence says','6:30–7:25','Summarize strongest evidence and remaining uncertainty.'],
+  ['Key takeaway','7:25–8:20','Connect the discoveries and answer the opening question.'],
+  ['Conclusion','8:20–9:00','Recap, invite a thoughtful comment, and end cleanly.']
  ];
- output.textContent=[
- 'CALCUSIDE — VIDEO PLANNING BRIEF','Topic: '+topic,'Target duration: 8–10 minutes','Language: Hindi','Audience: '+audience,'Style: '+style,'Extra instructions: '+notes,'',
- 'SCRIPT PROMPT','Is topic par 8–10 minute ki natural Hindi documentary script ka draft banayein. Opening hook, clear narrative, transitions aur conclusion dein. Har factual claim ke liye source notes/URLs aur confidence label dein. Unknown details ko fact ki tarah na likhein. Script ko publish karne se pehle human fact-check zaroor karein.','',
- 'SCENE OUTLINE',...scenes.map((s,i)=>(i+1)+'. '+s[0]+' ('+s[1]+')\n   '+s[2]+'\n   Visual direction: '+style+'; topic ke mutabiq ek clear cinematic shot.'),
+ const scriptPrompt='Write a natural, engaging Hindi documentary narration for the topic "'+topic+'", aimed at '+audience+'. Target 8–10 minutes. Style: '+style+'. Build a coherent story with a hook, transitions and a conclusion. Never invent facts, quotes, citations or sources. Mark uncertain claims and include source URLs/notes for fact-checking. Extra instructions: '+notes;
+ const lines=[
+ 'CALCUSIDE — PRODUCTION PACKAGE','Topic: '+topic,'Duration target: 8–10 minutes','Language: Hindi','Audience: '+audience,'Style: '+style,'Extra instructions: '+notes,'',
+ '1) SCRIPT GENERATION BRIEF',scriptPrompt,'',
+ '2) 12-SCENE SHOT LIST',
+ ...scenes.map((s,i)=>(i+1)+'. '+s[0]+' | '+s[1]+'\nPurpose: '+s[2]+'\nVisual prompt template: Cinematic documentary frame about "'+topic+'"; '+style+'; shot purpose: '+s[0]+'. Authentic details, coherent visual continuity, natural lighting, carefully composed 16:9 frame, no text, no watermark. Verify historical/cultural accuracy before use.\nMotion direction: slow push-in or gentle lateral camera move; keep subject stable and avoid fast cuts.'),
  '',
- 'ASSET CHECKLIST','[ ] Verified Hindi script','[ ] Scene-by-scene image prompts','[ ] Licensed images / generated images','[ ] Video clips','[ ] Hindi voiceover','[ ] Licensed music/SFX','[ ] Hindi subtitles (SRT)','[ ] Thumbnail and metadata','[ ] Final render + duration/audio/subtitle checks','[ ] Owner review','[ ] YouTube upload: PRIVATE only','',
- 'CURRENT LIMITATION','Yeh browser page sirf planning brief banata hai. Yeh AI media generate, video render, cloud storage, ya YouTube upload nahi karta. Aage ka har provider free terms, quota, privacy aur license verify hone ke baad hi integrate hoga.'
- ].join('\n');
+ '3) AUDIO AND EDIT PLAN','[ ] Record/generate Hindi narration and review pronunciation','[ ] Use only music/SFX with a verified licence for YouTube','[ ] Keep narration clearly louder than background music','[ ] Create Hindi SRT subtitles and check timing manually','[ ] Use consistent color grade, restrained transitions, and scene continuity','',
+ '4) THUMBNAIL AND METADATA','Thumbnail concept: one clear subject related to "'+topic+'", high contrast, readable short Hindi title added during design; do not imply unsupported claims.','Title: concise Hindi title accurately representing the verified video.','Description: 2–3 sentence summary plus sources/credits and licence notes.','',
+ '5) FINAL QUALITY GATE','[ ] Every factual claim checked against reliable sources','[ ] Image/video/music usage rights verified','[ ] Full 8–10 minute duration verified','[ ] Audio has no clipping or long unintended silence','[ ] Hindi subtitles checked against narration','[ ] Thumbnail and title are accurate','[ ] Owner approval before upload','[ ] YouTube privacyStatus must be PRIVATE','[ ] Public publishing remains disabled','',
+ 'CURRENT LIMITATION','This package is created locally in the browser using templates. It does not call an AI model, research the web, generate actual media, render MP4, save to cloud, or upload to YouTube. No file is downloaded automatically.'
+ ];
+ output.textContent=lines.join('\n');
 });
 document.getElementById('copy').addEventListener('click',async()=>{
  try{await navigator.clipboard.writeText(output.textContent);document.getElementById('copy').textContent='Copied';}

@@ -54,7 +54,7 @@ After adding the assets to the feature branch, open **Actions → Cinematic vide
 
 ## 0. Turn a Hindi script into image prompts
 
-Save your narration as UTF-8 text at `assets/cinematic-scenes/script.txt`, then run:
+Copy `assets/cinematic-scenes/script.example.txt` to `assets/cinematic-scenes/script.txt` and edit it with your own narration. Then run:
 
 ```bash
 python scripts/plan_cinematic_scenes.py --max-scenes 12

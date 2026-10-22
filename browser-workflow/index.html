@@ -39,7 +39,8 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f7f9fc;padding:16px;
 <p class="muted">Fact-check every factual claim. YouTube publishing policy: Private only; public publishing disabled.</p>
 </main>
 <script>
-const form=document.getElementById('planner'), output=document.getElementById('output');\nlet latestScriptPrompt='', latestScenePrompts=[];\nasync function copyText(text,button){if(!text){button.textContent='Pehle package banayein';return;}try{await navigator.clipboard.writeText(text);button.textContent='Copied';}catch(e){button.textContent='Copy unavailable — output se text select karein';}}
+const form=document.getElementById('planner'), output=document.getElementById('output');\nlet latestScriptPrompt='', latestScenePrompts=[];
+async function copyText(text,button){if(!text){button.textContent='Pehle package banayein';return;}try{await navigator.clipboard.writeText(text);button.textContent='Copied';}catch(e){button.textContent='Copy unavailable — output se text select karein';}}
 form.addEventListener('submit',e=>{
  e.preventDefault();
  const topic=document.getElementById('topic').value.trim();
@@ -61,7 +62,9 @@ form.addEventListener('submit',e=>{
   ['Conclusion','8:20–9:00','Recap, invite a thoughtful comment, and end cleanly.']
  ];
  const scriptPrompt='Write a natural, engaging Hindi documentary narration for the topic "'+topic+'", aimed at '+audience+'. Target 8–10 minutes. Style: '+style+'. Build a coherent story with a hook, transitions and a conclusion. Never invent facts, quotes, citations or sources. Mark uncertain claims and include source URLs/notes for fact-checking. Extra instructions: '+notes;
- latestScriptPrompt=scriptPrompt;\n latestScenePrompts=scenes.map((s,i)=>(i+1)+'. '+s[0]+'\\nPurpose: '+s[2]+'\\nVisual prompt: Cinematic documentary frame about "'+topic+'"; '+style+'; shot purpose: '+s[0]+'. Authentic details, coherent visual continuity, natural lighting, carefully composed 16:9 frame, no text, no watermark. Verify historical/cultural accuracy before use.\\nMotion: slow push-in or gentle lateral camera move; stable subject, no fast cuts.');\n const lines=[
+ latestScriptPrompt=scriptPrompt;
+ latestScenePrompts=scenes.map((s,i)=>(i+1)+'. '+s[0]+'\\nPurpose: '+s[2]+'\\nVisual prompt: Cinematic documentary frame about "'+topic+'"; '+style+'; shot purpose: '+s[0]+'. Authentic details, coherent visual continuity, natural lighting, carefully composed 16:9 frame, no text, no watermark. Verify historical/cultural accuracy before use.\\nMotion: slow push-in or gentle lateral camera move; stable subject, no fast cuts.');
+ const lines=[
  'CALCUSIDE — PRODUCTION PACKAGE','Topic: '+topic,'Duration target: 8–10 minutes','Language: Hindi','Audience: '+audience,'Style: '+style,'Extra instructions: '+notes,'',
  '1) SCRIPT GENERATION BRIEF',scriptPrompt,'',
  '2) 12-SCENE SHOT LIST',

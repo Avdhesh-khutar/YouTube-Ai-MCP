@@ -24,38 +24,9 @@ jobs:
           sudo apt-get install -y ffmpeg
       - name: Validate cinematic assets
         run: |
-          test -d assets/cinematic-scenes || {
-            echo "Missing assets/cinematic-scenes. Add scene-01.png, scene-02.png, etc."
-            exit 1
-          }
-          find assets/cinematic-scenes -maxdepth 1 -type f -name 'scene-*' | grep -E '\\.(png|jpg|jpeg|webp)
-            echo "No scene images found. Add at least two AI-generated scene images."
-            exit 1
-          }
+          python -c "from pathlib import Path; p=Path('assets/cinematic-scenes'); files=[x for x in p.iterdir() if x.is_file() and x.stem.startswith(('scene-', 'scene_')) and x.suffix.lower() in {'.png','.jpg','.jpeg','.webp'}] if p.exists() else []; assert len(files) >= 2, 'Add at least two AI scene images to assets/cinematic-scenes/ (scene-01.png, scene-02.png, ...)'"
       - name: Render cinematic video
-        run: |
-          python scripts/generate_cinematic_video.py \\
-            --seconds-per-scene "${{ inputs.seconds_per_scene }}"
-      - name: Verify output
-        run: |
-          test -s dist-cinematic/cinematic-video.mp4
-          test -s dist-cinematic/thumbnail.jpg
-          test -s dist-cinematic/render-report.json
-          ffprobe -v error -show_entries stream=codec_type,width,height -of json dist-cinematic/cinematic-video.mp4
-      - name: Save private review artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: cinematic-video-review-${{ github.run_id }}
-          path: dist-cinematic/
-          retention-days: 7
- | grep -q . || {
-            echo "No scene images found. Add at least two AI-generated scene images."
-            exit 1
-          }
-      - name: Render cinematic video
-        run: |
-          python scripts/generate_cinematic_video.py \\
-            --seconds-per-scene "${{ inputs.seconds_per_scene }}"
+        run: python scripts/generate_cinematic_video.py --seconds-per-scene "${{ inputs.seconds_per_scene }}"
       - name: Verify output
         run: |
           test -s dist-cinematic/cinematic-video.mp4

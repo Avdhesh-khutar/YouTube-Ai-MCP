@@ -34,7 +34,7 @@ def probe(path: Path) -> dict[str, Any] | None:
 def validate_srt(text: str) -> tuple[int, float, list[str]]:
     """Validate SRT timestamps, ordering, and non-empty caption text."""
     errors: list[str] = []
-    blocks = [block.strip() for block in re.split(r"\\n\\s*\\n", text.strip()) if block.strip()]
+    blocks = [block.strip() for block in re.split(r"\n\s*\n", text.strip()) if block.strip()]
     if not blocks:
         return 0, 0.0, ["Subtitle file contains no caption blocks."]
     timestamp = re.compile(r"^(\\d{2}):(\\d{2}):(\\d{2}),(\\d{3})$")

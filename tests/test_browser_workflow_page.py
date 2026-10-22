@@ -39,6 +39,8 @@ class BrowserWorkflowPageTests(unittest.TestCase):
         self.assertTrue({"topic", "audience", "style", "notes"} <= self.parser.inputs)
         self.assertIn("output", self.parser.ids)
         self.assertIn("Production package banao", self.html)
+        self.assertIn('id="copy-script"', self.html)
+        self.assertIn('id="copy-scenes"', self.html)
 
     def test_no_remote_scripts_or_api_calls(self):
         self.assertEqual([], self.parser.script_sources)
@@ -59,6 +61,8 @@ class BrowserWorkflowPageTests(unittest.TestCase):
         self.assertIn("Visual prompt template", self.html)
         self.assertIn("FINAL QUALITY GATE", self.html)
         self.assertIn("No file is downloaded automatically", self.html)
+        self.assertIn("latestScriptPrompt", self.html)
+        self.assertIn("latestScenePrompts", self.html)
 
 
 if __name__ == "__main__":

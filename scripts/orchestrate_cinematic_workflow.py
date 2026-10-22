@@ -110,7 +110,7 @@ def create_job(topic: str, config_path: Path, jobs_dir: Path) -> Path:
             "sources": [],
             "claims": [],
             "instructions": "Add HTTPS source records and link every factual claim to source_ids. Keep status as needs_review until the claim is checked against its cited source. Structural validation does not establish factual accuracy."
-        }, ensure_ascii=False, indent=2) + "\\n",
+        }, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
     (job_dir / "NEXT_STEPS.md").write_text(

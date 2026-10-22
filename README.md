@@ -28,17 +28,17 @@ Important limitations:
 - YouTube upload needs a secure file handoff plus OAuth credentials in a protected runtime. Do not place the Google refresh token in the public repository.
 - For fully AI-generated scenes and natural voice, a suitable model/service or a local model is required; free availability and quotas vary.
 
-## Enable scheduled private uploads
+## YouTube upload status (manual, private-only)
 
-The daily workflow uploads only when a repository Actions secret named `YOUTUBE_PRIVATE_UPLOAD_TOKEN` is configured. The Worker endpoint also requires the same value as the Cloudflare Worker secret `DAILY_UPLOAD_TOKEN`.
+**Automatic upload is currently disabled.** The daily workflow's upload step is guarded by `if: false`, so adding secrets alone will not enable uploading. The workflow produces a downloadable review artifact only.
 
-1. Generate a strong random token using a password manager. Do not send it in chat or commit it.
-2. In Cloudflare Dashboard → Workers & Pages → `youtube-ai-mcp` → Settings → Variables and Secrets, add a **secret** named `DAILY_UPLOAD_TOKEN` with that token, then deploy the Worker.
-3. In GitHub → repository Settings → Secrets and variables → Actions, create repository secret `YOUTUBE_PRIVATE_UPLOAD_TOKEN` with the exact same token.
-4. Run the `Daily video package` workflow manually once from Actions → Daily video package → Run workflow.
-5. Confirm the result is `uploaded: true` and `privacyStatus: private`, then review the draft in YouTube Studio.
+To upload a reviewed artifact manually:
+1. Download the video artifact from GitHub Actions and inspect the video, Hindi narration, captions, thumbnail, and metadata.
+2. Open YouTube Studio → Create → Upload videos, select the MP4, and wait for processing.
+3. In Visibility, select **Private**. Do not choose Public or Schedule.
+4. Save, then confirm the video appears as Private in YouTube Studio.
 
-Without both secrets, the workflow still generates and stores a downloadable review artifact, but skips YouTube upload. The endpoint accepts video files up to 47 MB and always sets privacy to `private`. Never enable public publishing in this workflow.
+The MCP tool `youtube_upload_video_from_url` is a separate path for an already-rendered video available at a direct HTTPS URL. It always requests `privacyStatus: private`, but requires working Google OAuth upload permission and a URL meeting its size/content requirements. Do not share OAuth tokens or upload secrets in chat. No upload is considered successful until YouTube confirms it.
 
 ## Automated video creation limits and next step
 

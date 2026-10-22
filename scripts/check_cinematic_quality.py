@@ -30,7 +30,7 @@ def probe(path: Path) -> dict[str, Any] | None:
     return json.loads(result.stdout)
 
 
-def check(video: Path, subtitles: Path | None, narration: Path | None,
+def check(video: Path, subtitles: Path | None, narration: Path | None = None,
           min_minutes: float = 8.0, max_minutes: float = 10.0) -> dict[str, Any]:
     errors: list[str] = []
     warnings: list[str] = []

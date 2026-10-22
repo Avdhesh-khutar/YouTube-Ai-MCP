@@ -38,6 +38,10 @@ class WorkflowOrchestratorTests(unittest.TestCase):
             self.assertEqual(manifest["upload"]["privacy_status"], "private")
             self.assertFalse(manifest["upload"]["public_publish"])
             self.assertTrue((job / "NEXT_STEPS.md").exists())
+            research = json.loads((job / "research-manifest.json").read_text(encoding="utf-8"))
+            self.assertEqual(research["topic"], "प्राचीन भारत के रहस्य")
+            self.assertEqual(research["sources"], [])
+            self.assertEqual(research["claims"], [])
 
     def test_rejects_too_short_topic(self):
         with tempfile.TemporaryDirectory() as tmp:

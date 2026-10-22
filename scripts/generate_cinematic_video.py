@@ -41,7 +41,7 @@ def render(scenes_dir: Path, output_dir: Path, seconds_per_scene: float = 5.0) -
     images = sorted(
         p for p in scenes_dir.iterdir()
         if p.is_file() and p.suffix.lower() in {".png", ".jpg", ".jpeg", ".webp"}
-        and re.fullmatch(r"scene[-_]\\d+", p.stem, flags=re.IGNORECASE)
+        and re.fullmatch(r"scene[-_]\d+", p.stem, flags=re.IGNORECASE)
     ) if scenes_dir.exists() else []
     if not images:
         raise RuntimeError(

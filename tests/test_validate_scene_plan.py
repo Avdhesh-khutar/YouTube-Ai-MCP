@@ -29,7 +29,7 @@ class ScenePlanValidationTests(unittest.TestCase):
             validate_scene_plan({"scenes": []})
 
     def test_rejects_duplicate_scene_ids(self):
-        plan = self.make_plan([240, 240])
+        plan = self.make_plan([120, 120])
         plan["scenes"][1]["scene_id"] = plan["scenes"][0]["scene_id"]
         with self.assertRaisesRegex(ScenePlanError, "duplicate scene_id"):
             validate_scene_plan(plan)

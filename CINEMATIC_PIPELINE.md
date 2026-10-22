@@ -69,3 +69,30 @@ Suggested local-first workflow:
 4. Run the cinematic renderer and inspect the MP4 before considering any upload.
 
 The GitHub Actions runner is for rendering, not GPU-based image/video generation. Do not put model credentials or private tokens into the repository.
+
+
+## 4. Generate assets with local ComfyUI (open-source-first)
+
+The optional `scripts/comfyui_generate_assets.py` adapter connects to a ComfyUI server you run yourself (default `http://127.0.0.1:8188`). It does not call a paid cloud API. Install ComfyUI and the model/workflow nodes you choose separately; model size and GPU/VRAM needs vary.
+
+1. Start ComfyUI locally and confirm its web UI opens.
+2. In ComfyUI, build an image workflow with a text-positive prompt input, a negative prompt input, and a Save Image output. Export it in **API format**.
+3. In that exported JSON, replace the actual positive text field with the literal `__POSITIVE_PROMPT__`, negative text field with `__NEGATIVE_PROMPT__`, and the Save Image filename prefix with `__OUTPUT_PREFIX__`.
+4. Prepare a Hindi script at `assets/cinematic-scenes/script.txt`, then create prompts:
+   ```bash
+   python scripts/plan_cinematic_scenes.py --max-scenes 8
+   ```
+5. Generate the scene images:
+   ```bash
+   python scripts/comfyui_generate_assets.py --image-workflow workflows/comfyui-image-api.json
+   ```
+
+For selected scenes with real motion, export a separate ComfyUI API-format image-to-video workflow. Its Load Image node's image input must be the literal `__INPUT_IMAGE__`; also use the same prompt and output-prefix tokens described above. Then run:
+
+```bash
+python scripts/comfyui_generate_assets.py --image-workflow workflows/comfyui-image-api.json --video-workflow workflows/comfyui-video-api.json --animate-every 3
+```
+
+This attempts animation for every third scene. Confirm your chosen video workflow saves MP4 files. ComfyUI custom nodes and output schemas vary, so the exported workflow must be tested with your installed models. The adapter will report an error rather than silently claiming success when no output image/video is returned.
+
+**Important:** The ComfyUI API workflow JSON files are model/node-specific and are not included in the repository. Do not commit large model weights or secrets. If ComfyUI runs on your own computer, run this script on that computer; a GitHub-hosted runner cannot reach your `127.0.0.1`.

@@ -95,6 +95,42 @@ class WorkflowOrchestratorTests(unittest.TestCase):
                 create_job("प्राचीन भारत के रहस्य", config_path, jobs_dir, research_path)
             self.assertFalse(jobs_dir.exists())
 
+    def test_accepts_and_copies_valid_scene_plan(self):
+        config = self.base_config()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            config_path = root / "config.json"
+            config_path.write_text(json.dumps(config), encoding="utf-8")
+            plan = {
+                "scenes": [
+                    {
+                        "scene_id": f"scene-{index}",
+                        "narration": f"कथा दृश्य {index}",
+                        "visual_prompt": f"दृश्य {index} का सिनेमाई चित्र",
+                        "duration_seconds": 120,
+                    }
+                    for index in range(1, 5)
+                ]
+            }
+            plan_path = root / "scene-plan.json"
+            plan_path.write_text(json.dumps(plan, ensure_ascii=False), encoding="utf-8")
+            job = create_job("प्राचीन भारत के रहस्य", config_path, root / "jobs", scene_plan_path=plan_path)
+            saved = json.loads((job / "scene-plan.json").read_text(encoding="utf-8"))
+            self.assertEqual(saved, plan)
+
+    def test_rejects_invalid_scene_plan_before_creating_job(self):
+        config = self.base_config()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            config_path = root / "config.json"
+            config_path.write_text(json.dumps(config), encoding="utf-8")
+            plan_path = root / "scene-plan.json"
+            plan_path.write_text(json.dumps({"scenes": []}), encoding="utf-8")
+            jobs_dir = root / "jobs"
+            with self.assertRaisesRegex(WorkflowError, "Scene plan validation failed"):
+                create_job("प्राचीन भारत के रहस्य", config_path, jobs_dir, scene_plan_path=plan_path)
+            self.assertFalse(jobs_dir.exists())
+
     def test_rejects_too_short_topic(self):
         with tempfile.TemporaryDirectory() as tmp:
             tmp = Path(tmp)

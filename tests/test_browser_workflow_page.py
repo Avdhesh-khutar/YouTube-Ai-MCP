@@ -38,7 +38,7 @@ class BrowserWorkflowPageTests(unittest.TestCase):
         self.assertTrue(self.parser.form_seen)
         self.assertTrue({"topic", "audience", "style", "notes"} <= self.parser.inputs)
         self.assertIn("output", self.parser.ids)
-        self.assertIn("Planning brief banao", self.html)
+        self.assertIn("Production package banao", self.html)
 
     def test_no_remote_scripts_or_api_calls(self):
         self.assertEqual([], self.parser.script_sources)
@@ -49,10 +49,16 @@ class BrowserWorkflowPageTests(unittest.TestCase):
     def test_browser_only_and_private_upload_disclaimer_present(self):
         self.assertIn("koi installation", self.html.lower())
         self.assertIn("Private only", self.html)
-        self.assertIn("video generator nahi", self.html)
+        self.assertIn("actual AI video nahi", self.html)
 
     def test_topic_is_required_and_length_limited(self):
         self.assertIn('id="topic" required maxlength="180"', self.html)
+
+    def test_twelve_scene_prompts_and_quality_gate_exist(self):
+        self.assertIn("12-SCENE SHOT LIST", self.html)
+        self.assertIn("Visual prompt template", self.html)
+        self.assertIn("FINAL QUALITY GATE", self.html)
+        self.assertIn("No file is downloaded automatically", self.html)
 
 
 if __name__ == "__main__":

@@ -272,11 +272,11 @@ thumbnail_titles = {
     "CREATOR WORKFLOW": ("वीडियो बनाने का", "प्रोफेशनल तरीका"),
     "YOUTUBE GROWTH": ("YouTube चैनल", "कैसे बढ़ाएँ?"),
 }
-thumb_title = "\\n".join(thumbnail_titles.get(topic["title"], ("YouTube वीडियो", "बेहतर कैसे बनाएँ?")))
+thumb_title = "\n".join(thumbnail_titles.get(topic["title"], ("YouTube वीडियो", "बेहतर कैसे बनाएँ?")))
 for line_no, line in enumerate(thumb_title.split("\n")):
     td.text((70, 190 + line_no*100), line, font=headline_font, fill=(255, 255, 255), stroke_width=2, stroke_fill=(5, 10, 25))
 td.rounded_rectangle((72, 430, 635, 500), radius=18, fill=(224, 48, 55))
-td.text((100, 445), "ये 5 गलतियाँ सुधारें", font=font(font_candidates, 34), fill=(255, 255, 255))
+td.text((100, 445), {"AUDIENCE RETENTION": "दर्शक क्यों रुकें?", "BETTER VIDEO IDEAS": "सही विषय चुनें", "THUMBNAIL BASICS": "डिजाइन को बेहतर करें", "CONSISTENT CREATION": "टिकाऊ शेड्यूल रखें", "YOUTUBE ANALYTICS": "डेटा से सीखें", "CREATOR WORKFLOW": "हर चरण जांचें", "YOUTUBE GROWTH": "आज से सुधार करें"}.get(topic["title"], "आज से सुधार करें"), font=font(font_candidates, 34), fill=(255, 255, 255))
 td.text((74, 610), "हिंदी में आसान और उपयोगी गाइड", font=font(font_candidates, 28), fill=(215, 226, 245))
 # Simple play symbol and retention bars add a visual focal point.
 td.ellipse((890, 235, 1130, 475), fill=(255, 185, 45), outline=(255,255,255), width=6)
@@ -310,7 +310,7 @@ contact.save(OUT / "scene-contact-sheet.jpg", quality=92, optimize=True)
         "CREATOR WORKFLOW": "YouTube वीडियो बनाने का प्रोफेशनल तरीका",
         "YOUTUBE GROWTH": "YouTube चैनल कैसे बढ़ाएँ? | Hindi Guide",
     }.get(topic["title"], topic["title"] + " | Hindi YouTube Guide"),
-    "description": topic["subtitle"] + "\\n\\n" + topic["voice"] + "\\n\\nवीडियो को बेहतर बनाने के लिए एक-एक सुझाव अगली वीडियो में लागू करें.",
+    "description": topic["subtitle"] + "\n\n" + topic["voice"] + "\n\nवीडियो को बेहतर बनाने के लिए एक-एक सुझाव अगली वीडियो में लागू करें.",
     "tags": ["YouTube Tips Hindi", "YouTube Growth", "Audience Retention", "Hindi Creator", "YouTube Tutorial"],
     "privacyStatus": "private",
     "note": "Offline-rendered motion-card explainer; captions.srt is included. Review pronunciation, visuals, duration, audio, and content before upload."

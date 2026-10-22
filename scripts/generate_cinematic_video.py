@@ -73,10 +73,10 @@ def render(scenes_dir: Path, output_dir: Path, seconds_per_scene: float = 5.0) -
                 "-vf",
                 f"scale={WIDTH*2}:{HEIGHT*2}:force_original_aspect_ratio=increase,"
                 f"crop={WIDTH*2}:{HEIGHT*2},"
-                f"zoompan=z='min(zoom+0.0007,1.12)':d={frames}:"
+                f"zoompan=z='min(zoom+0.0007,1.12)':d=1:"
                 f"x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':"
                 f"s={WIDTH}x{HEIGHT}:fps={FPS},setsar=1,format=yuv420p",
-                "-frames:v", str(frames), "-an", "-c:v", "libx264",
+                "-t", str(duration), "-an", "-c:v", "libx264",
                 "-preset", "medium", "-crf", "20", str(segment),
             ])
             motion = "cinematic Ken Burns zoom"
@@ -102,7 +102,7 @@ def render(scenes_dir: Path, output_dir: Path, seconds_per_scene: float = 5.0) -
     if narration.exists():
         command = [
             "ffmpeg", "-y", "-i", str(silent_video), "-i", str(narration),
-            "-map", "0:v:0", "-map", "1:a:0", "-c:v", "copy",
+            "-map", "0:v:0", "-map", "1:a:0", "-c:v", "libx264", "-preset", "medium", "-crf", "20",
             "-c:a", "aac", "-b:a", "192k", "-shortest",
         ]
         if captions.exists():
@@ -112,7 +112,7 @@ def render(scenes_dir: Path, output_dir: Path, seconds_per_scene: float = 5.0) -
         command = ["ffmpeg", "-y", "-i", str(silent_video)]
         if captions.exists():
             command += ["-vf", f"subtitles={captions.as_posix()}"]
-        command += ["-c:v", "copy", "-an", "-movflags", "+faststart", str(final_video)]
+        command += ["-c:v", "libx264", "-preset", "medium", "-crf", "20", "-an", "-movflags", "+faststart", str(final_video)]
     run(command)
 
     # Use the first scene as a clean, uncaptioned thumbnail source.
@@ -145,6 +145,8 @@ def main() -> int:
     parser.add_argument("--seconds-per-scene", type=float, default=5.0)
     args = parser.parse_args()
     try:
+        if not 2.0 <= args.seconds_per_scene <= 12.0:
+            raise ValueError("--seconds-per-scene must be between 2 and 12")
         video = render(args.scenes, args.output, args.seconds_per_scene)
     except (RuntimeError, OSError, ValueError) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)

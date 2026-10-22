@@ -22,7 +22,7 @@ class CinematicQualityTests(unittest.TestCase):
             subtitles = root / "captions.srt"
             video.write_bytes(b"test video placeholder")
             subtitles.write_text(
-                "1\\n00:00:00,000 --> 00:00:02,000\\nनमस्ते दुनिया\\n",
+                "1\n00:00:00,000 --> 00:00:02,000\nनमस्ते दुनिया\n",
                 encoding="utf-8",
             )
             report = check(video, subtitles)
@@ -32,15 +32,15 @@ class CinematicQualityTests(unittest.TestCase):
 
     def test_srt_rejects_reversed_timestamp(self):
         count, end, errors = validate_srt(
-            "1\\n00:00:03,000 --> 00:00:01,000\\nगलत समय\\n"
+            "1\n00:00:03,000 --> 00:00:01,000\nगलत समय\n"
         )
         self.assertEqual(count, 1)
         self.assertTrue(errors)
 
     def test_srt_reports_caption_end_time(self):
         count, end, errors = validate_srt(
-            "1\\n00:00:00,000 --> 00:00:02,500\\nनमस्ते\\n\\n"
-            "2\\n00:00:02,500 --> 00:00:04,000\\nदुनिया\\n"
+            "1\n00:00:00,000 --> 00:00:02,500\nनमस्ते\n\n"
+            "2\n00:00:02,500 --> 00:00:04,000\nदुनिया\n"
         )
         self.assertEqual(count, 2)
         self.assertEqual(end, 4.0)

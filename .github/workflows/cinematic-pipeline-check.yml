@@ -34,6 +34,11 @@ jobs:
           python scripts/generate_cinematic_video.py --help
           python scripts/plan_cinematic_scenes.py --help
           python scripts/comfyui_generate_assets.py --help
+          if python scripts/generate_cinematic_video.py --seconds-per-scene 1 >render-validation.log 2>&1; then
+            echo "Expected an invalid scene duration to be rejected."
+            exit 1
+          fi
+          grep -q -- "--seconds-per-scene must be between 2 and 12" render-validation.log
           rm -rf dist
           python scripts/generate_daily_video.py --help
           test ! -e dist

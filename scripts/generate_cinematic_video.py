@@ -16,6 +16,11 @@ import subprocess
 import sys
 from pathlib import Path
 
+try:
+    from scripts.validate_scene_plan import ScenePlanError, validate_scene_plan
+except ModuleNotFoundError:  # Support direct execution as a script
+    from validate_scene_plan import ScenePlanError, validate_scene_plan
+
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_SCENES = ROOT / "assets" / "cinematic-scenes"
 DEFAULT_OUTPUT = ROOT / "dist-cinematic"
@@ -35,7 +40,9 @@ def ffmpeg_available() -> bool:
     return shutil.which("ffmpeg") is not None
 
 
-def render(scenes_dir: Path, output_dir: Path, seconds_per_scene: float = 5.0) -> Path:
+def render(scenes_dir: Path, output_dir: Path, seconds_per_scene: float = 5.0,
+           scene_plan_path: Path | None = None, min_minutes: float = 8.0,
+           max_minutes: float = 10.0) -> Path:
     if not ffmpeg_available():
         raise RuntimeError("FFmpeg is required. Install FFmpeg and retry.")
     images = sorted(
@@ -48,13 +55,41 @@ def render(scenes_dir: Path, output_dir: Path, seconds_per_scene: float = 5.0) -
             f"No scene images found in {scenes_dir}. Add scene-01.png, scene-02.png, etc."
         )
 
+    planned_durations: dict[int, float] = {}
+    if scene_plan_path is not None:
+        try:
+            plan = json.loads(scene_plan_path.read_text(encoding="utf-8"))
+            validate_scene_plan(plan, min_minutes, max_minutes)
+        except (OSError, json.JSONDecodeError, ScenePlanError) as exc:
+            raise ValueError(f"Scene plan validation failed: {exc}") from exc
+        for scene in plan["scenes"]:
+            match = re.fullmatch(r"scene[-_](\\d+)", scene["scene_id"], re.IGNORECASE)
+            if not match:
+                raise ValueError(f"Scene plan ID must match scene-NN format: {scene['scene_id']}")
+            number = int(match.group(1))
+            if number in planned_durations:
+                raise ValueError(f"Duplicate scene number in plan: {number}")
+            planned_durations[number] = float(scene["duration_seconds"])
+        image_numbers = {
+            int(re.fullmatch(r"scene[-_](\\d+)", image.stem, re.IGNORECASE).group(1))
+            for image in images
+        }
+        if image_numbers != set(planned_durations):
+            missing_images = sorted(set(planned_durations) - image_numbers)
+            missing_plan = sorted(image_numbers - set(planned_durations))
+            raise ValueError(
+                f"Scene plan/images do not match. Missing images for {missing_images}; "
+                f"missing plan entries for {missing_plan}."
+            )
+
     output_dir.mkdir(parents=True, exist_ok=True)
     segments: list[Path] = []
     scene_rows = []
     for index, image in enumerate(images, start=1):
         clip = image.with_suffix(".mp4")
         segment = output_dir / f"segment-{index:03d}.mp4"
-        duration = max(2.0, seconds_per_scene)
+        scene_number = int(re.fullmatch(r"scene[-_](\\d+)", image.stem, re.IGNORECASE).group(1))
+        duration = planned_durations.get(scene_number, max(2.0, seconds_per_scene))
         if clip.exists():
             # Use a prepared image-to-video clip when available; otherwise animate the still.
             run([
@@ -143,11 +178,17 @@ def main() -> int:
     parser.add_argument("--scenes", type=Path, default=DEFAULT_SCENES)
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     parser.add_argument("--seconds-per-scene", type=float, default=5.0)
+    parser.add_argument("--scene-plan", type=Path, help="Optional validated scene-plan JSON with per-scene durations")
+    parser.add_argument("--min-minutes", type=float, default=8.0)
+    parser.add_argument("--max-minutes", type=float, default=10.0)
     args = parser.parse_args()
     try:
         if not 2.0 <= args.seconds_per_scene <= 12.0:
             raise ValueError("--seconds-per-scene must be between 2 and 12")
-        video = render(args.scenes, args.output, args.seconds_per_scene)
+        if args.min_minutes <= 0 or args.max_minutes < args.min_minutes:
+            raise ValueError("duration range must satisfy 0 < min-minutes <= max-minutes")
+        video = render(args.scenes, args.output, args.seconds_per_scene,
+                       args.scene_plan, args.min_minutes, args.max_minutes)
     except (RuntimeError, OSError, ValueError) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1

@@ -34,7 +34,10 @@ jobs:
           python scripts/generate_cinematic_video.py --help
           python scripts/plan_cinematic_scenes.py --help
           python scripts/comfyui_generate_assets.py --help
+          rm -rf dist
           python scripts/generate_daily_video.py --help
+          test ! -e dist
+
       - name: Check custom topic length validation
         run: |
           topic="$(python -c 'print("x" * 101)')"

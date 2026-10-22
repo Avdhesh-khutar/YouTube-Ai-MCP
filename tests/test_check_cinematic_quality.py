@@ -55,7 +55,7 @@ class CinematicQualityTests(unittest.TestCase):
             subtitles = root / "captions.srt"
             video.write_bytes(b"test video placeholder")
             subtitles.write_text(
-                "1\\n00:00:00,000 --> 00:00:12,000\\n字幕文本\\n",
+                "1\n00:00:00,000 --> 00:00:12,000\n字幕文本\n",
                 encoding="utf-8",
             )
             with patch("scripts.check_cinematic_quality.probe", return_value={

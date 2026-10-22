@@ -63,7 +63,7 @@ TOPICS = [
     },
 ]
 
-topic = next(item for item in TOPICS if item["title"] == "AUDIENCE RETENTION")
+topic = TOPICS[date.today().toordinal() % len(TOPICS)]
 # Replace the initial English/romanized drafts with proper Devanagari Hindi before rendering.
 HINDI_TOPICS = {
     "YOUTUBE GROWTH": ("यूट्यूब चैनल कैसे बढ़ाएँ", "चैनल ग्रोथ की पूरी हिंदी गाइड", "नमस्कार दोस्तों। आज हम समझेंगे कि YouTube चैनल को बेहतर बनाने के लिए क्या करना चाहिए। केवल रोज वीडियो डालना सफलता की गारंटी नहीं है। सबसे पहले अपने दर्शकों की जरूरत समझिए। हर वीडियो में एक स्पष्ट समस्या का समाधान दीजिए। शुरुआत में बताइए कि दर्शक क्या सीखेंगे, फिर उदाहरणों के साथ सीधे उपयोगी जानकारी पर आइए। शीर्षक और थंबनेल आकर्षक हों, लेकिन वीडियो की वास्तविक सामग्री से मेल खाने चाहिए। वीडियो प्रकाशित होने के बाद क्लिक थ्रू रेट, देखने का औसत समय और दर्शक किस जगह वीडियो छोड़ते हैं, इन संकेतों को समझिए। हर अगले वीडियो में एक सुधार लागू कीजिए। चैनल बढ़ाना लगातार सीखने की प्रक्रिया है; कोई भी तरीका निश्चित सफलता की गारंटी नहीं देता।", ["दर्शकों की जरूरत पहचानें", "शुरुआत में फायदा बताएं", "शीर्षक और थंबनेल स्पष्ट रखें", "दर्शकों का रिटेंशन समझें", "हर वीडियो में सुधार करें"]),
@@ -263,7 +263,16 @@ td.rectangle((0, 0, 26, 720), fill=(255, 185, 45))
 td.rounded_rectangle((64, 54, 520, 118), radius=18, fill=(255, 185, 45))
 td.text((90, 67), "HINDI VIDEO GUIDE", font=font(["/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", "/usr/share/fonts/truetype/liberation2/LiberationSans-Bold.ttf"], 26), fill=(10, 17, 35))
 headline_font = font(font_candidates, 76)
-thumb_title = "दर्शक वीडियो\nक्यों छोड़ते हैं?"
+thumbnail_titles = {
+    "AUDIENCE RETENTION": ("दर्शक वीडियो", "क्यों छोड़ते हैं?"),
+    "BETTER VIDEO IDEAS": ("दमदार वीडियो", "आइडिया कैसे चुनें?"),
+    "THUMBNAIL BASICS": ("प्रोफेशनल", "थंबनेल कैसे बनाएँ?"),
+    "CONSISTENT CREATION": ("YouTube पर", "लगातार कैसे बढ़ें?"),
+    "YOUTUBE ANALYTICS": ("YouTube Analytics", "आसान हिंदी में"),
+    "CREATOR WORKFLOW": ("वीडियो बनाने का", "प्रोफेशनल तरीका"),
+    "YOUTUBE GROWTH": ("YouTube चैनल", "कैसे बढ़ाएँ?"),
+}
+thumb_title = "\\n".join(thumbnail_titles.get(topic["title"], ("YouTube वीडियो", "बेहतर कैसे बनाएँ?")))
 for line_no, line in enumerate(thumb_title.split("\n")):
     td.text((70, 190 + line_no*100), line, font=headline_font, fill=(255, 255, 255), stroke_width=2, stroke_fill=(5, 10, 25))
 td.rounded_rectangle((72, 430, 635, 500), radius=18, fill=(224, 48, 55))
@@ -292,8 +301,16 @@ contact.save(OUT / "scene-contact-sheet.jpg", quality=92, optimize=True)
 (OUT / "script.txt").write_text("\n\n".join(voice_texts), encoding="utf-8")
 (OUT / "metadata.json").write_text(__import__("json").dumps({
     "date": TODAY,
-    "title": "दर्शक वीडियो क्यों छोड़ते हैं? | 5 YouTube Tips",
-    "description": "दर्शक आपकी वीडियो जल्दी क्यों छोड़ देते हैं? इस हिंदी गाइड में वीडियो की शुरुआत, उपयोगी जानकारी, स्पष्ट आवाज़, स्क्रीन टेक्स्ट और दर्शक बनाए रखने के व्यावहारिक सुझाव जानें।\n\nवीडियो को बेहतर बनाने के लिए एक-एक सुझाव अगली वीडियो में लागू करें।",
+    "title": {
+        "AUDIENCE RETENTION": "दर्शक वीडियो क्यों छोड़ते हैं? | 5 YouTube Tips",
+        "BETTER VIDEO IDEAS": "दमदार YouTube वीडियो आइडिया कैसे चुनें?",
+        "THUMBNAIL BASICS": "प्रोफेशनल YouTube Thumbnail कैसे बनाएँ?",
+        "CONSISTENT CREATION": "YouTube पर लगातार कैसे बढ़ें?",
+        "YOUTUBE ANALYTICS": "YouTube Analytics आसान हिंदी में",
+        "CREATOR WORKFLOW": "YouTube वीडियो बनाने का प्रोफेशनल तरीका",
+        "YOUTUBE GROWTH": "YouTube चैनल कैसे बढ़ाएँ? | Hindi Guide",
+    }.get(topic["title"], topic["title"] + " | Hindi YouTube Guide"),
+    "description": topic["subtitle"] + "\\n\\n" + topic["voice"] + "\\n\\nवीडियो को बेहतर बनाने के लिए एक-एक सुझाव अगली वीडियो में लागू करें.",
     "tags": ["YouTube Tips Hindi", "YouTube Growth", "Audience Retention", "Hindi Creator", "YouTube Tutorial"],
     "privacyStatus": "private",
     "note": "Offline-rendered motion-card explainer; captions.srt is included. Review pronunciation, visuals, duration, audio, and content before upload."

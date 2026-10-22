@@ -152,8 +152,12 @@ def draw_slide(index, heading, lines, footer):
     d.rounded_rectangle((48, 48, W-48, H-48), radius=30, outline=(*glow_color,), width=3)
     d.rounded_rectangle((82, 86, 370, 130), radius=14, fill=accent)
     d.text((102, 94), f"सीखें  •  भाग {index}", font=font(font_candidates, 22), fill=(8, 12, 28))
-    d.text((90, 165), heading, font=title_font, fill=(255, 255, 255), stroke_width=1)
-    y = 275
+    heading_lines = textwrap.wrap(heading, width=18, break_long_words=True, break_on_hyphens=False)[:2]
+    heading_y = 160
+    for heading_line in heading_lines:
+        d.text((90, heading_y), heading_line, font=font(font_candidates, 56 if len(heading_lines) > 1 else 64), fill=(255, 255, 255), stroke_width=1)
+        heading_y += 64
+    y = max(275, heading_y + 12)
     for line in lines:
         wrapped = textwrap.wrap(line, width=34)
         for part in wrapped:
@@ -300,7 +304,12 @@ thumbnail_titles = {
     "CREATOR WORKFLOW": ("वीडियो बनाने का", "प्रोफेशनल तरीका"),
     "YOUTUBE GROWTH": ("YouTube चैनल", "कैसे बढ़ाएँ?"),
 }
-thumb_title = "\n".join(thumbnail_titles.get(topic_key, ("YouTube वीडियो", "बेहतर कैसे बनाएँ?")))
+if topic_key == "CUSTOM_TOPIC":
+    # Keep custom topics visible in the thumbnail; split long titles into readable lines.
+    custom_thumb = textwrap.wrap(topic["title"], width=20, break_long_words=True, break_on_hyphens=False)
+    thumb_title = "\\n".join(custom_thumb[:2]) if custom_thumb else "हिंदी वीडियो"
+else:
+    thumb_title = "\\n".join(thumbnail_titles.get(topic_key, ("YouTube वीडियो", "बेहतर कैसे बनाएँ?")))
 for line_no, line in enumerate(thumb_title.split("\n")):
     td.text((70, 190 + line_no*100), line, font=headline_font, fill=(255, 255, 255), stroke_width=2, stroke_fill=(5, 10, 25))
 td.rounded_rectangle((72, 430, 635, 500), radius=18, fill=(224, 48, 55))

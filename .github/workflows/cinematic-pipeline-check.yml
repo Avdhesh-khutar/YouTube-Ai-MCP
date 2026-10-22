@@ -35,3 +35,11 @@ jobs:
           python scripts/plan_cinematic_scenes.py --help
           python scripts/comfyui_generate_assets.py --help
           python scripts/generate_daily_video.py --help
+      - name: Check custom topic length validation
+        run: |
+          topic="$(python -c 'print("x" * 101)')"
+          if python scripts/generate_daily_video.py --topic "$topic" >topic-check.log 2>&1; then
+            echo "Expected an overlong custom topic to be rejected."
+            exit 1
+          fi
+          grep -q -- "--topic must be 100 characters or fewer" topic-check.log

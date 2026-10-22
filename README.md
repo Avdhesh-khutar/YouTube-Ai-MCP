@@ -116,3 +116,7 @@ The tool reports channel-level views, estimated minutes watched, average view du
 - Keep `OAUTH_ADMIN_PASSWORD` strong and unique; never paste it into chat.
 - Restrict the YouTube API key to YouTube Data API v3 and monitor quota in Google Cloud Console.
 - OAuth for this MCP connector is separate from Google OAuth for accessing a user's own private channel data.
+
+## Cinematic video pipeline (review-only)
+
+See [CINEMATIC_PIPELINE.md](CINEMATIC_PIPELINE.md) for the new scene-based renderer, optional image-to-video clips, voice-over/caption inputs, local rendering instructions, and the manual GitHub Actions review workflow. This pipeline does not upload or publish videos.

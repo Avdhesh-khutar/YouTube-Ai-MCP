@@ -71,7 +71,8 @@ custom_topic = " ".join(args.topic.split())
 if len(custom_topic) > 100:
     parser.error("--topic must be 100 characters or fewer")
 if args.validate_only:
-    print("Arguments valid; rendering skipped.")
+    validated_topic = custom_topic or "daily rotation"
+    print(f"Arguments valid for topic: {validated_topic}; rendering skipped.")
     raise SystemExit(0)
 
 # Create output files only after CLI validation succeeds.

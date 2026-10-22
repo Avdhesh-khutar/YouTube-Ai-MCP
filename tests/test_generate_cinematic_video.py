@@ -23,6 +23,52 @@ class CinematicRendererGuardTests(unittest.TestCase):
                 with self.assertRaisesRegex(RuntimeError, "No scene images found"):
                     renderer.render(Path(tmp), Path(tmp) / "out", 5)
 
+    def test_scene_plan_controls_render_duration(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            scenes = root / "scenes"
+            scenes.mkdir()
+            for number in range(1, 5):
+                (scenes / f"scene-{number:02d}.png").write_bytes(b"image placeholder")
+            plan = {
+                "scenes": [
+                    {
+                        "scene_id": f"scene-{number:02d}",
+                        "narration": f"कथा {number}",
+                        "visual_prompt": f"दृश्य {number}",
+                        "duration_seconds": 120,
+                    }
+                    for number in range(1, 5)
+                ]
+            }
+            plan_path = root / "scene-plan.json"
+            plan_path.write_text(__import__("json").dumps(plan, ensure_ascii=False), encoding="utf-8")
+            with patch.object(renderer, "ffmpeg_available", return_value=True), \
+                 patch.object(renderer, "run"):
+                renderer.render(scenes, root / "out", scene_plan_path=plan_path)
+            import json
+            report = json.loads((root / "out" / "render-report.json").read_text(encoding="utf-8"))
+            self.assertEqual([row["duration_seconds"] for row in report["scenes"]], [120.0] * 4)
+
+    def test_scene_plan_must_match_available_images(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            scenes = root / "scenes"
+            scenes.mkdir()
+            (scenes / "scene-01.png").write_bytes(b"image placeholder")
+            plan_path = root / "scene-plan.json"
+            plan_path.write_text(__import__("json").dumps({
+                "scenes": [{
+                    "scene_id": "scene-02",
+                    "narration": "कथा",
+                    "visual_prompt": "दृश्य",
+                    "duration_seconds": 480,
+                }]
+            }, ensure_ascii=False), encoding="utf-8")
+            with patch.object(renderer, "ffmpeg_available", return_value=True):
+                with self.assertRaisesRegex(ValueError, "do not match"):
+                    renderer.render(scenes, root / "out", scene_plan_path=plan_path)
+
     def test_renderer_report_policy_is_private_review_only(self):
         source = Path(renderer.__file__).read_text(encoding="utf-8")
         self.assertIn('"upload_enabled": False', source)

@@ -77,6 +77,8 @@ form.addEventListener('submit',e=>{
  ];
  output.textContent=lines.join('\n');
 });
+document.getElementById('copy-script').addEventListener('click',async()=>{await copyText(latestScriptPrompt,document.getElementById('copy-script'));});
+document.getElementById('copy-scenes').addEventListener('click',async()=>{await copyText(latestScenePrompts.join('\n\n'),document.getElementById('copy-scenes'));});
 document.getElementById('copy').addEventListener('click',async()=>{
  try{await navigator.clipboard.writeText(output.textContent);document.getElementById('copy').textContent='Copied';}
  catch(e){document.getElementById('copy').textContent='Copy unavailable — text select karein';}

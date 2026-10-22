@@ -53,6 +53,14 @@ class BrowserWorkflowPageTests(unittest.TestCase):
         self.assertIn("Private only", self.html)
         self.assertIn("actual AI video nahi", self.html)
 
+    def test_copy_controls_have_valid_markup_and_listeners(self):
+        self.assertIn("</button>\n<button class=\"secondary\" id=\"copy-script\"", self.html)
+        self.assertIn("</button>\n<button class=\"secondary\" id=\"copy-scenes\"", self.html)
+        self.assertIn("output');\nlet latestScriptPrompt", self.html)
+        self.assertIn("copy-script').addEventListener", self.html)
+        self.assertIn("copy-scenes').addEventListener", self.html)
+        self.assertNotIn("\\n<button", self.html)
+
     def test_topic_is_required_and_length_limited(self):
         self.assertIn('id="topic" required maxlength="180"', self.html)
 

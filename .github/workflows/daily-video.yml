@@ -69,7 +69,7 @@ jobs:
           )
           assert "audio" in probe.stdout, "Rendered video has no audio stream"
           srt = Path("dist/captions.srt").read_text(encoding="utf-8").strip()
-          blocks = re.split(r"\n\\s*\n", srt)
+          blocks = re.split(r"\n\s*\n", srt)
           previous_end = 0
           def to_ms(stamp):
               h, m, rest = stamp.split(":")

@@ -38,6 +38,13 @@ The owner submits a topic and optional audience/style. A single orchestrator sho
 - Local GPU generation is not available to a GitHub-hosted runner by default. Prefer a supported hosted API or a user-managed worker; enforce budgets and timeouts.
 - If image-to-video fails, fall back only to a clearly reported still-image motion effect; never label that as generated video.
 
+### Offline Hindi narration starter (implemented, needs runtime verification)
+- `scripts/prepare_offline_narration.py` reads a validated `scene-plan.json`, invokes the locally installed eSpeak Hindi voice, writes `voiceover.wav`, and creates scene-boundary `captions.srt`.
+- Example: `python scripts/prepare_offline_narration.py --scene-plan dist-cinematic/scene-plan.json --output assets/cinematic-scenes`.
+- This route does not require a paid API, but it does require eSpeak NG (or eSpeak) and FFmpeg installed in the runtime. It is offline synthetic speech, not premium neural TTS.
+- Captions currently follow planned scene boundaries, not word-level forced alignment. Before treating captions as final, verify that spoken text fits the scene duration and run the quality checker.
+- This helper does not research facts, generate images, animate images, upload, or publish.
+
 ### Stage D — assembly and quality
 - Use FFmpeg to assemble scenes, voiceover, licensed/owned music, transitions, and subtitles.
 - Validate the final file with ffprobe; generate a designed thumbnail and metadata; keep an asset/source manifest.

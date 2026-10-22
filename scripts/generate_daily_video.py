@@ -16,7 +16,6 @@ from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
 W, H = 1280, 720
 OUT = Path("dist")
-OUT.mkdir(parents=True, exist_ok=True)
 TODAY = date.today().isoformat()
 
 TOPICS = [
@@ -70,6 +69,9 @@ args = parser.parse_args()
 custom_topic = " ".join(args.topic.split())
 if len(custom_topic) > 100:
     parser.error("--topic must be 100 characters or fewer")
+
+# Create output files only after CLI validation succeeds.
+OUT.mkdir(parents=True, exist_ok=True)
 
 topic = TOPICS[date.today().toordinal() % len(TOPICS)]
 topic_key = topic["title"]  # Keep the stable English key for matching thumbnail/metadata variants.

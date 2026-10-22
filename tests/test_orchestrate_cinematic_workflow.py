@@ -43,6 +43,40 @@ class WorkflowOrchestratorTests(unittest.TestCase):
             self.assertEqual(research["sources"], [])
             self.assertEqual(research["claims"], [])
 
+
+    def test_rejects_invalid_research_before_creating_job(self):
+        config = self.base_config()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            config_path = root / "config.json"
+            config_path.write_text(json.dumps(config), encoding="utf-8")
+            research_path = root / "research.json"
+            research_path.write_text(json.dumps({
+                "sources": [{"id": "s1", "title": "Report", "url": "http://example.org"}],
+                "claims": [{"id": "c1", "text": "Claim", "source_ids": ["s1"]}],
+            }), encoding="utf-8")
+            jobs_dir = root / "jobs"
+            with self.assertRaisesRegex(WorkflowError, "Research manifest validation failed"):
+                create_job("प्राचीन भारत के रहस्य", config_path, jobs_dir, research_path)
+            self.assertFalse(jobs_dir.exists())
+
+    def test_accepts_valid_research_manifest(self):
+        config = self.base_config()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            config_path = root / "config.json"
+            config_path.write_text(json.dumps(config), encoding="utf-8")
+            research = {
+                "topic": "प्राचीन भारत के रहस्य",
+                "sources": [{"id": "s1", "title": "Report", "url": "https://example.org/report"}],
+                "claims": [{"id": "c1", "text": "Claim", "source_ids": ["s1"], "status": "needs_review"}],
+            }
+            research_path = root / "research.json"
+            research_path.write_text(json.dumps(research, ensure_ascii=False), encoding="utf-8")
+            job = create_job("प्राचीन भारत के रहस्य", config_path, root / "jobs", research_path)
+            saved = json.loads((job / "research-manifest.json").read_text(encoding="utf-8"))
+            self.assertEqual(saved["claims"][0]["source_ids"], ["s1"])
+
     def test_rejects_too_short_topic(self):
         with tempfile.TemporaryDirectory() as tmp:
             tmp = Path(tmp)

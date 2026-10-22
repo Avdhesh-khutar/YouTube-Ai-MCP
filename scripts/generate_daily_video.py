@@ -244,16 +244,27 @@ for index, audio in enumerate(audio_parts, start=1):
         if line:
             lines.append(line)
         # Timing is estimated by text length, not speech recognition alignment.
-        display_text = "\\n".join(lines[:2])
+        display_text = "\n".join(lines[:2])
         caption_blocks.append(
-            f"{caption_index}\\n{srt_timestamp(cursor + elapsed)} --> "
-            f"{srt_timestamp(cursor + elapsed + cue_duration)}\\n{display_text}\\n"
+            f"{caption_index}\n{srt_timestamp(cursor + elapsed)} --> "
+            f"{srt_timestamp(cursor + elapsed + cue_duration)}\n{display_text}\n"
         )
         caption_index += 1
         elapsed += cue_duration
     cursor += duration
-(OUT / "captions.srt").write_text("\\n".join(caption_blocks), encoding="utf-8")
+(OUT / "captions.srt").write_text("\n".join(caption_blocks), encoding="utf-8")
 
+
+# Create a gentle synthesized ambient bed locally; no external music asset or paid API required.
+music = OUT / "background-music.wav"
+subprocess.run([
+    "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+    "-f", "lavfi", "-i", "sine=frequency=110:duration=600",
+    "-f", "lavfi", "-i", "sine=frequency=164.81:duration=600",
+    "-f", "lavfi", "-i", "sine=frequency=220:duration=600",
+    "-filter_complex", "[0:a]volume=0.10[a0];[1:a]volume=0.055[a1];[2:a]volume=0.025[a2];[a0][a1][a2]amix=inputs=3:normalize=0,lowpass=f=700,afade=t=in:d=2,afade=t=out:st=590:d=10",
+    "-t", "600", str(music)
+], check=True)
 
 # Match each scene's display time to its narration duration.
 segments = []

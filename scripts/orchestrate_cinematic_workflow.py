@@ -82,6 +82,9 @@ def create_job(topic: str, config_path: Path, jobs_dir: Path,
         try:
             research_data = read_json(research_manifest_path)
             validate_manifest(research_data)
+            research_topic = research_data.get("topic")
+            if not isinstance(research_topic, str) or research_topic.strip() != topic:
+                raise WorkflowError("research manifest topic must exactly match the requested video topic")
         except (WorkflowError, ManifestError) as exc:
             raise WorkflowError(f"Research manifest validation failed: {exc}") from exc
     job_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid.uuid4().hex[:6]

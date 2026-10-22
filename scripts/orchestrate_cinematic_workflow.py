@@ -142,6 +142,11 @@ def create_job(topic: str, config_path: Path, jobs_dir: Path,
         json.dumps(research_payload, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
+    if scene_plan_data is not None:
+        (job_dir / "scene-plan.json").write_text(
+            json.dumps(scene_plan_data, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
     (job_dir / "NEXT_STEPS.md").write_text(
         "# Job handoff\n\n"
         f"**Topic:** {topic}\n\n"

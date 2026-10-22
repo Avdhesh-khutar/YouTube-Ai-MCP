@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -28,6 +29,46 @@ def probe(path: Path) -> dict[str, Any] | None:
     if result.returncode:
         raise ValueError(f"ffprobe could not read {path.name}: {result.stderr.strip()}")
     return json.loads(result.stdout)
+
+
+def validate_srt(text: str) -> tuple[int, float, list[str]]:
+    """Validate SRT timestamps, ordering, and non-empty caption text."""
+    errors: list[str] = []
+    blocks = [block.strip() for block in re.split(r"\\n\\s*\\n", text.strip()) if block.strip()]
+    if not blocks:
+        return 0, 0.0, ["Subtitle file contains no caption blocks."]
+    timestamp = re.compile(r"^(\\d{2}):(\\d{2}):(\\d{2}),(\\d{3})$")
+    def millis(value: str) -> int | None:
+        match = timestamp.fullmatch(value)
+        if not match:
+            return None
+        hours, minutes, seconds, ms = map(int, match.groups())
+        if minutes > 59 or seconds > 59:
+            return None
+        return ((hours * 60 + minutes) * 60 + seconds) * 1000 + ms
+    previous_start = -1
+    last_end = 0
+    for number, block in enumerate(blocks, start=1):
+        lines = block.splitlines()
+        if len(lines) < 3 or not lines[0].strip().isdigit():
+            errors.append(f"Caption block {number} must contain an index, time range, and text.")
+            continue
+        if int(lines[0].strip()) != number:
+            errors.append(f"Caption block {number} has a non-sequential index.")
+        parts = [part.strip() for part in lines[1].split("-->")]
+        if len(parts) != 2:
+            errors.append(f"Caption block {number} has an invalid time range.")
+            continue
+        start, end = millis(parts[0]), millis(parts[1])
+        if start is None or end is None or end <= start:
+            errors.append(f"Caption block {number} has invalid or reversed timestamps.")
+            continue
+        if start < previous_start:
+            errors.append(f"Caption block {number} is out of chronological order.")
+        if not any(line.strip() for line in lines[2:]):
+            errors.append(f"Caption block {number} has no text.")
+        previous_start, last_end = start, max(last_end, end)
+    return len(blocks), last_end / 1000.0, errors
 
 
 def check(video: Path, subtitles: Path | None, narration: Path | None = None,
@@ -64,8 +105,11 @@ def check(video: Path, subtitles: Path | None, narration: Path | None = None,
         details["checks"]["subtitles"] = "fail"
     else:
         text = subtitles.read_text(encoding="utf-8-sig").strip()
-        if "-->" not in text:
-            errors.append("Subtitle file has no SRT time ranges.")
+        count, caption_end, srt_errors = validate_srt(text)
+        details["subtitle_count"] = count
+        details["subtitle_end_seconds"] = caption_end
+        if srt_errors:
+            errors.extend(srt_errors)
             details["checks"]["subtitles"] = "fail"
         else:
             details["checks"]["subtitles"] = "pass"

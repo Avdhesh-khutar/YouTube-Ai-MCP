@@ -62,7 +62,7 @@ class CinematicRendererGuardTests(unittest.TestCase):
                     "scene_id": "scene-02",
                     "narration": "कथा",
                     "visual_prompt": "दृश्य",
-                    "duration_seconds": 480,
+                    "duration_seconds": 120,
                 }]
             }, ensure_ascii=False), encoding="utf-8")
             with patch.object(renderer, "ffmpeg_available", return_value=True):

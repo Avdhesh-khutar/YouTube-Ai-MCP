@@ -9,6 +9,12 @@ on:
   schedule:
     - cron: "30 4 * * *"
   workflow_dispatch:
+    inputs:
+      topic:
+        description: "Optional custom Hindi/English topic for a draft explainer"
+        required: false
+        default: ""
+        type: string
 
 permissions:
   contents: read
@@ -37,7 +43,7 @@ jobs:
           ELEVENLABS_VOICE_ID: ${{ secrets.ELEVENLABS_VOICE_ID }}
           # Keep paid API calls disabled until the chosen voice is API-eligible.
           ELEVENLABS_USE_API: "false"
-        run: python scripts/generate_daily_video.py
+        run: python scripts/generate_daily_video.py --topic "${{ inputs.topic }}"
       - name: Verify rendered video and required deliverables
         run: |
           set -euo pipefail

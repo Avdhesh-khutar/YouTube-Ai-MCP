@@ -5,6 +5,7 @@ This intentionally renders motion-card slides and offline speech, not AI-generat
 It requires ffmpeg, espeak-ng, and Pillow. The workflow publishes the output as an artifact
 for review; it does not upload to YouTube automatically.
 """
+import argparse
 from datetime import date
 from pathlib import Path
 import subprocess
@@ -63,6 +64,13 @@ TOPICS = [
     },
 ]
 
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument("--topic", default="", help="Optional custom Hindi/English video topic")
+args = parser.parse_args()
+custom_topic = args.topic.strip()
+if len(custom_topic) > 100:
+    parser.error("--topic must be 100 characters or fewer")
+
 topic = TOPICS[date.today().toordinal() % len(TOPICS)]
 topic_key = topic["title"]  # Keep the stable English key for matching thumbnail/metadata variants.
 # Replace the initial English/romanized drafts with proper Devanagari Hindi before rendering.
@@ -77,6 +85,25 @@ HINDI_TOPICS = {
 }
 if topic["title"] in HINDI_TOPICS:
     topic["title"], topic["subtitle"], topic["voice"], topic["points"] = HINDI_TOPICS[topic["title"]]
+
+# A user-supplied topic overrides the daily rotation. This creates a clearly generic
+# topic-specific explainer draft; it does not claim to research or verify the topic.
+if custom_topic:
+    topic_key = "CUSTOM_TOPIC"
+    topic["title"] = custom_topic
+    topic["subtitle"] = "इस विषय को आसान हिंदी में समझें"
+    topic["voice"] = (f"नमस्कार दोस्तों। आज हम {custom_topic} के बारे में आसान हिंदी में समझेंगे। "
+                      "इस विषय को समझने के लिए पहले इसका अर्थ और महत्व जानना जरूरी है। "
+                      "फिर इसके मुख्य पहलुओं, उदाहरणों और आम गलतफहमियों पर ध्यान दें। "
+                      "किसी भी महत्वपूर्ण दावे को भरोसेमंद स्रोतों से जाँचें और संदर्भ के बिना निष्कर्ष न निकालें। "
+                      "इस वीडियो का उद्देश्य विषय की शुरुआती समझ देना है; प्रकाशित करने से पहले तथ्यों और स्रोतों की समीक्षा जरूरी है।")
+    topic["points"] = [
+        f"{custom_topic} का अर्थ और परिचय",
+        "मुख्य तथ्य और जरूरी संदर्भ",
+        "आसान उदाहरणों से समझें",
+        "आम गलतफहमियों की जाँच",
+        "विश्वसनीय स्रोतों से पुष्टि करें",
+    ]
 font_candidates = [
     "/usr/share/fonts/truetype/noto/NotoSansDevanagari-Bold.ttf",
     "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",

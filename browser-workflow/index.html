@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="hi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Calcuside — Browser Cinematic Planner</title>
+<style>
+:root{font-family:system-ui,-apple-system,"Noto Sans Devanagari",sans-serif;color:#18212f;background:#f4f6fa}
+body{margin:0;padding:24px;max-width:900px;margin-inline:auto}
+main{background:white;border:1px solid #dce2ec;border-radius:18px;padding:clamp(18px,4vw,32px);box-shadow:0 8px 30px #1725540d}
+h1{margin-top:0}p{line-height:1.55}.muted{color:#536174;font-size:.95rem}
+label{display:block;font-weight:650;margin:18px 0 7px}
+input,select,textarea{box-sizing:border-box;width:100%;font:inherit;border:1px solid #c8d1df;border-radius:10px;padding:12px;background:white}
+button{font:inherit;font-weight:700;border:0;border-radius:10px;padding:12px 16px;background:#1d4ed8;color:white;cursor:pointer;margin:16px 8px 0 0}
+button.secondary{background:#e8edf5;color:#18212f}
+pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f7f9fc;padding:16px;border-radius:12px;border:1px solid #e1e6ef}
+.notice{border-left:4px solid #d97706;padding:10px 14px;background:#fffbeb;border-radius:6px}
+</style>
+</head>
+<body>
+<main>
+<h1>Calcuside — Browser Cinematic Planner</h1>
+<p class="muted">Topic se Hindi 8–10 minute cinematic video ki planning. Yeh page browser mein hi chalta hai; koi installation, API key ya paid service call nahi karta.</p>
+<div class="notice"><strong>Saaf baat:</strong> Yeh abhi planning tool hai, video generator nahi. Yeh khud AI images/video/voice create ya YouTube upload nahi karta. Koi paid service automatically use nahi hogi.</div>
+<form id="planner">
+<label for="topic">Video ka topic</label>
+<input id="topic" required maxlength="180" placeholder="Jaise: Prachin Bharat ke mandiron ke rahasya">
+<label for="audience">Kis audience ke liye?</label>
+<select id="audience"><option>General Hindi audience</option><option>Students</option><option>History enthusiasts</option><option>Science enthusiasts</option></select>
+<label for="style">Video style</label>
+<select id="style"><option>Cinematic documentary</option><option>Mystery and suspense</option><option>Educational explainer</option><option>Historical storytelling</option></select>
+<label for="notes">Extra instructions (optional)</label>
+<textarea id="notes" rows="3" maxlength="1000" placeholder="Tone, region, facts to verify, etc."></textarea>
+<button type="submit">Planning brief banao</button>
+<button class="secondary" id="copy" type="button">Brief copy karo</button>
+</form>
+<h2>Planning brief</h2>
+<pre id="output">Topic enter karke “Planning brief banao” dabayein.</pre>
+<p class="muted">Safety: factual claims ko sources se verify karein. YouTube publishing policy: Private only; public upload disabled.</p>
+</main>
+<script>
+const form=document.getElementById('planner'), output=document.getElementById('output');
+form.addEventListener('submit',e=>{
+ e.preventDefault();
+ const topic=document.getElementById('topic').value.trim();
+ const audience=document.getElementById('audience').value;
+ const style=document.getElementById('style').value;
+ const notes=document.getElementById('notes').value.trim()||'Koi extra instruction nahi.';
+ const scenes=[
+  ['Hook','0:00–0:30','Ek dilchasp sawal ya hairan karne wala verified fact.'],
+  ['Context','0:30–1:30','Topic ka parichay aur zaroori background.'],
+  ['Research','1:30–3:30','Reliable sources se saboot aur context; har claim verify karein.'],
+  ['Deep dive','3:30–6:30','3–5 cinematic scenes, har scene ka ek clear point.'],
+  ['Discovery','6:30–8:30','Key insight, competing explanations aur uncertainties.'],
+  ['Conclusion','8:30–9:00','Short recap aur audience ke liye ek sawal.']
+ ];
+ output.textContent=[
+ 'CALCUSIDE — VIDEO PLANNING BRIEF','Topic: '+topic,'Target duration: 8–10 minutes','Language: Hindi','Audience: '+audience,'Style: '+style,'Extra instructions: '+notes,'',
+ 'SCRIPT PROMPT','Is topic par 8–10 minute ki natural Hindi documentary script ka draft banayein. Opening hook, clear narrative, transitions aur conclusion dein. Har factual claim ke liye source notes/URLs aur confidence label dein. Unknown details ko fact ki tarah na likhein. Script ko publish karne se pehle human fact-check zaroor karein.','',
+ 'SCENE OUTLINE',...scenes.map((s,i)=>(i+1)+'. '+s[0]+' ('+s[1]+')\n   '+s[2]+'\n   Visual direction: '+style+'; topic ke mutabiq ek clear cinematic shot.'),
+ '',
+ 'ASSET CHECKLIST','[ ] Verified Hindi script','[ ] Scene-by-scene image prompts','[ ] Licensed images / generated images','[ ] Video clips','[ ] Hindi voiceover','[ ] Licensed music/SFX','[ ] Hindi subtitles (SRT)','[ ] Thumbnail and metadata','[ ] Final render + duration/audio/subtitle checks','[ ] Owner review','[ ] YouTube upload: PRIVATE only','',
+ 'CURRENT LIMITATION','Yeh browser page sirf planning brief banata hai. Yeh AI media generate, video render, cloud storage, ya YouTube upload nahi karta. Aage ka har provider free terms, quota, privacy aur license verify hone ke baad hi integrate hoga.'
+ ].join('\n');
+});
+document.getElementById('copy').addEventListener('click',async()=>{
+ try{await navigator.clipboard.writeText(output.textContent);document.getElementById('copy').textContent='Copied';}
+ catch(e){document.getElementById('copy').textContent='Copy unavailable — text select karein';}
+});
+</script>
+</body>
+</html>

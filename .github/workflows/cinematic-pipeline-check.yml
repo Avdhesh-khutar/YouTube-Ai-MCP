@@ -44,6 +44,9 @@ jobs:
           topic="$(python -c 'print("x" * 100)')"
           python scripts/generate_daily_video.py --topic "$topic" --validate-only
           test ! -e dist
+          normalized=$(python scripts/generate_daily_video.py --topic "  hindi   topic  " --validate-only)
+          grep -q -- "topic: hindi topic; rendering skipped" <<< "$normalized"
+          test ! -e dist
           topic="$(python -c 'print("x" * 101)')"
           if python scripts/generate_daily_video.py --topic "$topic" --validate-only >topic-check.log 2>&1; then
             echo "Expected an overlong custom topic to be rejected."

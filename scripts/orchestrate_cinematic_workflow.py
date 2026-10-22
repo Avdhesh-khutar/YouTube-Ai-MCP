@@ -17,6 +17,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from scripts.validate_research_manifest import ManifestError, validate_manifest
+
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_CONFIG = ROOT / "config" / "cinematic-workflow.example.json"
 DEFAULT_JOBS = ROOT / "jobs"
@@ -65,12 +67,20 @@ def slugify(value: str) -> str:
     return (slug or "cinematic-video")[:64]
 
 
-def create_job(topic: str, config_path: Path, jobs_dir: Path) -> Path:
+def create_job(topic: str, config_path: Path, jobs_dir: Path,
+               research_manifest_path: Path | None = None) -> Path:
     topic = topic.strip()
     if len(topic) < 4:
         raise WorkflowError("Please provide a topic with at least 4 characters.")
     config = read_json(config_path)
     validate_config(config)
+    research_data: dict[str, Any] | None = None
+    if research_manifest_path is not None:
+        try:
+            research_data = read_json(research_manifest_path)
+            validate_manifest(research_data)
+        except (WorkflowError, ManifestError) as exc:
+            raise WorkflowError(f"Research manifest validation failed: {exc}") from exc
     job_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid.uuid4().hex[:6]
     job_dir = jobs_dir / f"{slugify(topic)}-{job_id}"
     job_dir.mkdir(parents=True, exist_ok=False)
@@ -102,15 +112,16 @@ def create_job(topic: str, config_path: Path, jobs_dir: Path) -> Path:
         ]
     }
     (job_dir / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    # Provide a structured research handoff immediately; claims remain unverified
-    # until a researcher/provider supplies source-backed evidence and review notes.
+    # A supplied manifest must pass structural provenance checks before job creation.
+    # Without one, create an explicitly empty handoff rather than inventing research.
+    research_payload = research_data or {
+        "topic": topic,
+        "sources": [],
+        "claims": [],
+        "instructions": "Add HTTPS source records and link every factual claim to source_ids. Keep status as needs_review until the claim is checked against its cited source. Structural validation does not establish factual accuracy."
+    }
     (job_dir / "research-manifest.json").write_text(
-        json.dumps({
-            "topic": topic,
-            "sources": [],
-            "claims": [],
-            "instructions": "Add HTTPS source records and link every factual claim to source_ids. Keep status as needs_review until the claim is checked against its cited source. Structural validation does not establish factual accuracy."
-        }, ensure_ascii=False, indent=2) + "\n",
+        json.dumps(research_payload, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
     (job_dir / "NEXT_STEPS.md").write_text(
@@ -134,10 +145,11 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Create a resumable job workspace for the private-first Hindi cinematic workflow.")
     parser.add_argument("--topic", required=True, help="Video topic in Hindi or English")
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG, help="Workflow JSON configuration")
+    parser.add_argument("--research-manifest", type=Path, help="Optional source-backed research JSON; validated before job creation")
     parser.add_argument("--jobs-dir", type=Path, default=DEFAULT_JOBS, help="Output directory for job workspaces")
     args = parser.parse_args()
     try:
-        job_dir = create_job(args.topic, args.config, args.jobs_dir)
+        job_dir = create_job(args.topic, args.config, args.jobs_dir, args.research_manifest)
     except WorkflowError as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 2

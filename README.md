@@ -20,7 +20,7 @@ OAuth-protected Model Context Protocol (MCP) server for Claude, hosted on Cloudf
 
 ## Daily video package starter
 
-A GitHub Actions workflow at `.github/workflows/daily-video.yml` runs daily at 04:30 UTC (10:00 AM India time) and can also be started manually. It uses free Ubuntu packages (FFmpeg + eSpeak NG) and Pillow to render a short motion-card video, thumbnail, script, and metadata into a downloadable workflow artifact.
+A GitHub Actions workflow at `.github/workflows/daily-video.yml` runs daily at 04:30 UTC (10:00 AM India time) and can also be started manually. On the feature branch, manual runs accept an optional `topic` input; the renderer uses it to create a topic-specific Hindi explainer draft, thumbnail, script, captions, and metadata. It uses free Ubuntu packages (FFmpeg + eSpeak NG) and Pillow to render the downloadable workflow artifact.
 
 Important limitations:
 - This is a **starter motion-card video**, not generative AI footage. The offline Hindi voice is synthetic and must be reviewed for pronunciation and quality.

@@ -19,8 +19,10 @@ from typing import Any
 
 try:
     from scripts.validate_research_manifest import ManifestError, validate_manifest
+    from scripts.validate_scene_plan import ScenePlanError, validate_scene_plan
 except ModuleNotFoundError:  # Support direct execution as `python scripts/orchestrate...`
     from validate_research_manifest import ManifestError, validate_manifest
+    from validate_scene_plan import ScenePlanError, validate_scene_plan
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_CONFIG = ROOT / "config" / "cinematic-workflow.example.json"
@@ -71,7 +73,8 @@ def slugify(value: str) -> str:
 
 
 def create_job(topic: str, config_path: Path, jobs_dir: Path,
-               research_manifest_path: Path | None = None) -> Path:
+               research_manifest_path: Path | None = None,
+               scene_plan_path: Path | None = None) -> Path:
     topic = topic.strip()
     if len(topic) < 4:
         raise WorkflowError("Please provide a topic with at least 4 characters.")
@@ -87,6 +90,15 @@ def create_job(topic: str, config_path: Path, jobs_dir: Path,
                 raise WorkflowError("research manifest topic must exactly match the requested video topic")
         except (WorkflowError, ManifestError) as exc:
             raise WorkflowError(f"Research manifest validation failed: {exc}") from exc
+    scene_plan_data: dict[str, Any] | None = None
+    if scene_plan_path is not None:
+        try:
+            scene_plan_data = read_json(scene_plan_path)
+            duration = config["target_duration_minutes"]
+            validate_scene_plan(scene_plan_data, float(duration["min"]), float(duration["max"]))
+        except (WorkflowError, ScenePlanError) as exc:
+            raise WorkflowError(f"Scene plan validation failed: {exc}") from exc
+
     job_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid.uuid4().hex[:6]
     job_dir = jobs_dir / f"{slugify(topic)}-{job_id}"
     job_dir.mkdir(parents=True, exist_ok=False)
@@ -152,10 +164,11 @@ def main() -> int:
     parser.add_argument("--topic", required=True, help="Video topic in Hindi or English")
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG, help="Workflow JSON configuration")
     parser.add_argument("--research-manifest", type=Path, help="Optional source-backed research JSON; validated before job creation")
+    parser.add_argument("--scene-plan", type=Path, help="Optional scene-plan JSON; validated against configured duration before job creation")
     parser.add_argument("--jobs-dir", type=Path, default=DEFAULT_JOBS, help="Output directory for job workspaces")
     args = parser.parse_args()
     try:
-        job_dir = create_job(args.topic, args.config, args.jobs_dir, args.research_manifest)
+        job_dir = create_job(args.topic, args.config, args.jobs_dir, args.research_manifest, args.scene_plan)
     except WorkflowError as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 2

@@ -307,9 +307,9 @@ thumbnail_titles = {
 if topic_key == "CUSTOM_TOPIC":
     # Keep custom topics visible in the thumbnail; split long titles into readable lines.
     custom_thumb = textwrap.wrap(topic["title"], width=20, break_long_words=True, break_on_hyphens=False)
-    thumb_title = "\\n".join(custom_thumb[:2]) if custom_thumb else "हिंदी वीडियो"
+    thumb_title = "\n".join(custom_thumb[:2]) if custom_thumb else "हिंदी वीडियो"
 else:
-    thumb_title = "\\n".join(thumbnail_titles.get(topic_key, ("YouTube वीडियो", "बेहतर कैसे बनाएँ?")))
+    thumb_title = "\n".join(thumbnail_titles.get(topic_key, ("YouTube वीडियो", "बेहतर कैसे बनाएँ?")))
 for line_no, line in enumerate(thumb_title.split("\n")):
     td.text((70, 190 + line_no*100), line, font=headline_font, fill=(255, 255, 255), stroke_width=2, stroke_fill=(5, 10, 25))
 td.rounded_rectangle((72, 430, 635, 500), radius=18, fill=(224, 48, 55))

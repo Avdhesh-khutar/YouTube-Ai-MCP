@@ -76,6 +76,7 @@ def check(video: Path, subtitles: Path | None, narration: Path | None = None,
     errors: list[str] = []
     warnings: list[str] = []
     details: dict[str, Any] = {"video": str(video), "checks": {}}
+    media_duration: float | None = None
     if not video.is_file() or video.stat().st_size == 0:
         errors.append("Final video is missing or empty.")
     else:
@@ -92,6 +93,7 @@ def check(video: Path, subtitles: Path | None, narration: Path | None = None,
             except (TypeError, ValueError):
                 duration = 0
             details["duration_seconds"] = duration
+            media_duration = duration
             details["stream_types"] = sorted(types)
             if "video" not in types:
                 errors.append("Final file has no video stream.")
@@ -108,6 +110,10 @@ def check(video: Path, subtitles: Path | None, narration: Path | None = None,
         count, caption_end, srt_errors = validate_srt(text)
         details["subtitle_count"] = count
         details["subtitle_end_seconds"] = caption_end
+        if media_duration is not None and caption_end > media_duration + 0.5:
+            srt_errors.append(
+                f"Subtitles end at {caption_end:.1f}s, after video duration {media_duration:.1f}s."
+            )
         if srt_errors:
             errors.extend(srt_errors)
             details["checks"]["subtitles"] = "fail"

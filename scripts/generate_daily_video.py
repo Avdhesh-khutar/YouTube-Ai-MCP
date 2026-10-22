@@ -199,6 +199,23 @@ def srt_timestamp(seconds):
 
 caption_blocks = []
 cursor = 0.0
+caption_index = 1
+
+def caption_chunks(text, max_line_chars=32):
+    """Wrap narration into two-line cues without discarding any words."""
+    lines = []
+    current = ""
+    for word in text.split():
+        candidate = f"{current} {word}".strip()
+        if current and len(candidate) > max_line_chars:
+            lines.append(current)
+            current = word
+        else:
+            current = candidate
+    if current:
+        lines.append(current)
+    return ["\n".join(lines[i:i + 2]) for i in range(0, len(lines), 2)]
+
 for index, audio in enumerate(audio_parts, start=1):
     probe = subprocess.run(
         ["ffprobe", "-v", "error", "-show_entries", "format=duration",
@@ -206,10 +223,19 @@ for index, audio in enumerate(audio_parts, start=1):
         check=True, capture_output=True, text=True
     )
     duration = max(3.0, float(probe.stdout.strip()) + 0.4)
-    caption_blocks.append(
-        f"{index}\n{srt_timestamp(cursor)} --> {srt_timestamp(cursor + duration)}\n"
-        + voice_texts[index - 1] + "\n"
-    )
+    chunks = caption_chunks(voice_texts[index - 1])
+    total_chars = max(1, sum(len(chunk.replace("\n", "")) for chunk in chunks))
+    elapsed = 0.0
+    for chunk in chunks:
+        cue_weight = max(1, len(chunk.replace("\n", "")))
+        cue_duration = duration * cue_weight / total_chars
+        # Timing is estimated by text length, not speech recognition alignment.
+        caption_blocks.append(
+            f"{caption_index}\n{srt_timestamp(cursor + elapsed)} --> "
+            f"{srt_timestamp(cursor + elapsed + cue_duration)}\n{chunk}\n"
+        )
+        caption_index += 1
+        elapsed += cue_duration
     cursor += duration
 (OUT / "captions.srt").write_text("\n".join(caption_blocks), encoding="utf-8")
 

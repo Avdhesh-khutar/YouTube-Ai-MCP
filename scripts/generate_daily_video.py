@@ -201,23 +201,20 @@ caption_blocks = []
 cursor = 0.0
 caption_index = 1
 
-def caption_chunks(text, max_chars=64):
-    """Split narration into compact, readable SRT cues."""
-    chunks = []
-    current_words = []
-    current_length = 0
+def caption_chunks(text, max_line_chars=32):
+    """Wrap narration into two-line cues without discarding any words."""
+    lines = []
+    current = ""
     for word in text.split():
-        extra = len(word) + (1 if current_words else 0)
-        if current_words and current_length + extra > max_chars:
-            chunks.append(" ".join(current_words))
-            current_words = [word]
-            current_length = len(word)
+        candidate = f"{current} {word}".strip()
+        if current and len(candidate) > max_line_chars:
+            lines.append(current)
+            current = word
         else:
-            current_words.append(word)
-            current_length += extra
-    if current_words:
-        chunks.append(" ".join(current_words))
-    return chunks
+            current = candidate
+    if current:
+        lines.append(current)
+    return ["\\n".join(lines[i:i + 2]) for i in range(0, len(lines), 2)]
 
 for index, audio in enumerate(audio_parts, start=1):
     probe = subprocess.run(
@@ -227,27 +224,15 @@ for index, audio in enumerate(audio_parts, start=1):
     )
     duration = max(3.0, float(probe.stdout.strip()) + 0.4)
     chunks = caption_chunks(voice_texts[index - 1])
-    total_chars = max(1, sum(len(chunk) for chunk in chunks))
+    total_chars = max(1, sum(len(chunk.replace("\\n", "")) for chunk in chunks))
     elapsed = 0.0
     for chunk in chunks:
-        cue_duration = duration * len(chunk) / total_chars
-        words = chunk.split()
-        lines = []
-        line = ""
-        for word in words:
-            candidate = f"{line} {word}".strip()
-            if line and len(candidate) > 32:
-                lines.append(line)
-                line = word
-            else:
-                line = candidate
-        if line:
-            lines.append(line)
+        cue_weight = max(1, len(chunk.replace("\\n", "")))
+        cue_duration = duration * cue_weight / total_chars
         # Timing is estimated by text length, not speech recognition alignment.
-        display_text = "\n".join(lines[:2])
         caption_blocks.append(
-            f"{caption_index}\n{srt_timestamp(cursor + elapsed)} --> "
-            f"{srt_timestamp(cursor + elapsed + cue_duration)}\n{display_text}\n"
+            f"{caption_index}\\n{srt_timestamp(cursor + elapsed)} --> "
+            f"{srt_timestamp(cursor + elapsed + cue_duration)}\\n{chunk}\\n"
         )
         caption_index += 1
         elapsed += cue_duration

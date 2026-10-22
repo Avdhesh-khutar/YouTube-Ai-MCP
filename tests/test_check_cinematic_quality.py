@@ -1,5 +1,6 @@
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 from scripts.check_cinematic_quality import check, validate_srt
@@ -45,6 +46,25 @@ class CinematicQualityTests(unittest.TestCase):
         self.assertEqual(count, 2)
         self.assertEqual(end, 4.0)
         self.assertEqual(errors, [])
+
+
+    def test_rejects_subtitles_that_extend_beyond_video_duration(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            video = root / "video.mp4"
+            subtitles = root / "captions.srt"
+            video.write_bytes(b"test video placeholder")
+            subtitles.write_text(
+                "1\\n00:00:00,000 --> 00:00:12,000\\n字幕文本\\n",
+                encoding="utf-8",
+            )
+            with patch("scripts.check_cinematic_quality.probe", return_value={
+                "format": {"duration": "10"},
+                "streams": [{"codec_type": "video"}, {"codec_type": "audio"}],
+            }):
+                report = check(video, subtitles, min_minutes=0.1, max_minutes=1)
+            self.assertFalse(report["ready_for_owner_review"])
+            self.assertTrue(any("Subtitles end at" in error for error in report["errors"]))
 
     def test_empty_subtitle_fails(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -39,11 +39,12 @@ jobs:
           pip install edge-tts || echo 'Edge TTS install unavailable; renderer will use offline Hindi speech'
       - name: Render daily video package
         env:
+          VIDEO_TOPIC: ${{ inputs.topic }}
           ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
           ELEVENLABS_VOICE_ID: ${{ secrets.ELEVENLABS_VOICE_ID }}
           # Keep paid API calls disabled until the chosen voice is API-eligible.
           ELEVENLABS_USE_API: "false"
-        run: python scripts/generate_daily_video.py --topic "${{ inputs.topic }}"
+        run: python scripts/generate_daily_video.py --topic "$VIDEO_TOPIC"
       - name: Verify rendered video and required deliverables
         run: |
           set -euo pipefail

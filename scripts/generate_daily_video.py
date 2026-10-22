@@ -65,10 +65,14 @@ TOPICS = [
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--topic", default="", help="Optional custom Hindi/English video topic")
+parser.add_argument("--validate-only", action="store_true", help="Validate arguments and exit without rendering")
 args = parser.parse_args()
 custom_topic = " ".join(args.topic.split())
 if len(custom_topic) > 100:
     parser.error("--topic must be 100 characters or fewer")
+if args.validate_only:
+    print("Arguments valid; rendering skipped.")
+    raise SystemExit(0)
 
 # Create output files only after CLI validation succeeds.
 OUT.mkdir(parents=True, exist_ok=True)

@@ -12,6 +12,11 @@ import json
 import re
 from pathlib import Path
 
+try:
+    from scripts.validate_scene_plan import ScenePlanError, validate_scene_plan
+except ModuleNotFoundError:  # Support direct execution as a script
+    from validate_scene_plan import ScenePlanError, validate_scene_plan
+
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_SCRIPT = ROOT / "assets" / "cinematic-scenes" / "script.txt"
 DEFAULT_OUTPUT = ROOT / "dist-cinematic"
@@ -57,19 +62,43 @@ def main() -> int:
     parser.add_argument("--script", type=Path, default=DEFAULT_SCRIPT)
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     parser.add_argument("--max-scenes", type=int, default=12)
+    parser.add_argument("--target-minutes", type=int, default=8, help="Target scene-plan duration in minutes (1-60)")
     args = parser.parse_args()
     if not args.script.is_file():
         parser.error(f"Script not found: {args.script}. Add a Hindi narration at that path or pass --script.")
     if not 2 <= args.max_scenes <= 40:
         parser.error("--max-scenes must be between 2 and 40")
+    if not 1 <= args.target_minutes <= 60:
+        parser.error("--target-minutes must be between 1 and 60")
     text = args.script.read_text(encoding="utf-8").strip()
     if len(text) < 80:
         parser.error("Narration script must contain at least 80 characters.")
     scenes = [build_prompt(i, line) for i, line in enumerate(split_scenes(text, args.max_scenes), 1)]
+    if not scenes:
+        parser.error("Narration script did not produce any scenes.")
+    total_seconds = args.target_minutes * 60
+    base_duration, remainder = divmod(total_seconds, len(scenes))
+    scene_plan = {
+        "scenes": [
+            {
+                "scene_id": f"scene-{item['scene']:02d}",
+                "narration": item["narration"],
+                "visual_prompt": item["image_prompt"],
+                "duration_seconds": base_duration + (1 if index < remainder else 0),
+            }
+            for index, item in enumerate(scenes)
+        ]
+    }
+    try:
+        validation = validate_scene_plan(scene_plan, args.target_minutes, args.target_minutes)
+    except ScenePlanError as exc:
+        parser.error(f"Generated scene plan is invalid: {exc}")
     args.output.mkdir(parents=True, exist_ok=True)
     json_path = args.output / "scene-prompts.json"
+    plan_path = args.output / "scene-plan.json"
     md_path = args.output / "scene-prompts.md"
     json_path.write_text(json.dumps(scenes, ensure_ascii=False, indent=2), encoding="utf-8")
+    plan_path.write_text(json.dumps(scene_plan, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     sections = ["# Cinematic scene prompts", "", "Generate each image with your chosen local/open-source model. Save images as assets/cinematic-scenes/scene-01.png, etc.", ""]
     for item in scenes:
         sections += [
@@ -82,6 +111,7 @@ def main() -> int:
     print(f"Created {len(scenes)} scene prompts:")
     print(md_path)
     print(json_path)
+    print(f"Validated scene plan ({validation['total_duration_seconds']} seconds): {plan_path}")
     print("No images, video, or uploads were generated.")
     return 0
 

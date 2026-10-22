@@ -45,7 +45,7 @@ class CinematicRendererGuardTests(unittest.TestCase):
             plan_path.write_text(__import__("json").dumps(plan, ensure_ascii=False), encoding="utf-8")
             with patch.object(renderer, "ffmpeg_available", return_value=True), \
                  patch.object(renderer, "run"):
-                renderer.render(scenes, root / "out", scene_plan_path=plan_path, min_minutes=8/60, max_minutes=1)
+                renderer.render(scenes, root / "out", scene_plan_path=plan_path, min_minutes=8, max_minutes=10)
             import json
             report = json.loads((root / "out" / "render-report.json").read_text(encoding="utf-8"))
             self.assertEqual([row["duration_seconds"] for row in report["scenes"]], [120.0] * 4)

@@ -159,7 +159,7 @@ def main() -> int:
                 "__INPUT_IMAGE__": uploaded_name,
             })
             outputs = submit_and_wait(base_url, workflow, args.timeout)
-            files = download_outputs(base_url, outputs, args.scenes_dir, {".mp4", ".webm", ".gif"})
+            files = download_outputs(base_url, outputs, args.scenes_dir, {".mp4"})
             if not files:
                 raise RuntimeError("Video workflow produced no video; configure an output node that saves MP4/WebM/GIF.")
             selected = files[0]

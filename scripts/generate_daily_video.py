@@ -214,7 +214,7 @@ def caption_chunks(text, max_line_chars=32):
             current = candidate
     if current:
         lines.append(current)
-    return ["\\n".join(lines[i:i + 2]) for i in range(0, len(lines), 2)]
+    return ["\n".join(lines[i:i + 2]) for i in range(0, len(lines), 2)]
 
 for index, audio in enumerate(audio_parts, start=1):
     probe = subprocess.run(
@@ -224,15 +224,15 @@ for index, audio in enumerate(audio_parts, start=1):
     )
     duration = max(3.0, float(probe.stdout.strip()) + 0.4)
     chunks = caption_chunks(voice_texts[index - 1])
-    total_chars = max(1, sum(len(chunk.replace("\\n", "")) for chunk in chunks))
+    total_chars = max(1, sum(len(chunk.replace("\n", "")) for chunk in chunks))
     elapsed = 0.0
     for chunk in chunks:
-        cue_weight = max(1, len(chunk.replace("\\n", "")))
+        cue_weight = max(1, len(chunk.replace("\n", "")))
         cue_duration = duration * cue_weight / total_chars
         # Timing is estimated by text length, not speech recognition alignment.
         caption_blocks.append(
-            f"{caption_index}\\n{srt_timestamp(cursor + elapsed)} --> "
-            f"{srt_timestamp(cursor + elapsed + cue_duration)}\\n{chunk}\\n"
+            f"{caption_index}\n{srt_timestamp(cursor + elapsed)} --> "
+            f"{srt_timestamp(cursor + elapsed + cue_duration)}\n{chunk}\n"
         )
         caption_index += 1
         elapsed += cue_duration

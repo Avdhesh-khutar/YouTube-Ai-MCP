@@ -67,7 +67,7 @@ TOPICS = [
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--topic", default="", help="Optional custom Hindi/English video topic")
 args = parser.parse_args()
-custom_topic = args.topic.strip()
+custom_topic = " ".join(args.topic.split())
 if len(custom_topic) > 100:
     parser.error("--topic must be 100 characters or fewer")
 
@@ -348,7 +348,7 @@ contact.save(OUT / "scene-contact-sheet.jpg", quality=92, optimize=True)
         "YOUTUBE GROWTH": "YouTube चैनल कैसे बढ़ाएँ? | Hindi Guide",
     }.get(topic_key, topic["title"] + " | Hindi YouTube Guide"),
     "description": topic["subtitle"] + "\n\n" + topic["voice"] + "\n\nवीडियो को बेहतर बनाने के लिए एक-एक सुझाव अगली वीडियो में लागू करें.",
-    "tags": ["YouTube Tips Hindi", "YouTube Growth", "Audience Retention", "Hindi Creator", "YouTube Tutorial"],
+    "tags": list(dict.fromkeys((["YouTube Tips Hindi", "Hindi Creator", "YouTube Tutorial"] + (["YouTube Growth", "Audience Retention"] if topic_key != "CUSTOM_TOPIC" else [topic["title"][:30], "Hindi Explainer"])))),
     "privacyStatus": "private",
     "note": "Offline-rendered motion-card explainer; captions.srt is included. Review pronunciation, visuals, duration, audio, and content before upload."
 }, ensure_ascii=False, indent=2), encoding="utf-8")

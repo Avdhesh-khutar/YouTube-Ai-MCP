@@ -79,3 +79,27 @@ Candidate currently listed as running on ZeroGPU:
 - https://huggingface.co/spaces/techfreakworm/LTX2.3-Studio
 
 This is a candidate only. The public listing does not prove the API schema, free quota suitability, or commercial-use permission for this project. Run the metadata-only inspector first. Do not submit a generation request until the user explicitly approves consuming their free GPU quota.
+
+
+## Manual triage update (2026-10-23)
+
+A browser-based test of `techfreakworm/LTX2.3-Studio` was attempted with a single short image-to-video clip (512×768, 3 seconds, Balanced preset). The Space returned its generic **“Generation failed”** message and no output video. Switching to a lower-cost preset was considered, but no repeated generation request should be submitted until the failure is understood. This is a failed test, not a verified provider.
+
+The browser-visible Space status said “Running on ZERO”, which only indicates the Space's published runtime status; it does not prove the model loaded correctly, that the request succeeded, or that quota remains. The Space also warns that mobile tab focus/device sleep can interrupt queue connections.
+
+The guessed browser URL `/spaces/techfreakworm/LTX2.3-Studio/logs/run` returned 404 in this troubleshooting session. Do not keep guessing UI URLs. Hugging Face documents authenticated runtime log access via `GET /api/spaces/{namespace}/{repo}/logs/run` and build logs via `GET /api/spaces/{namespace}/{repo}/logs/build`; these endpoints use authentication and SSE. See:
+- https://huggingface.co/docs/hub/spaces-gpus
+- https://huggingface.co/docs/huggingface_hub/en/package_reference/space_runtime
+
+Free-account ZeroGPU allowance is documented as 5 GPU minutes per 24-hour period; using a ZeroGPU Space consumes the caller's quota. Do not retry generation, create a paid plan, add credits, or switch to a paid provider as a workaround. The user's remaining quota and billing configuration were not visible to the project, so they must be treated as unknown.
+
+### Result and next safe action
+
+- Provider status: **FAILED / unverified**.
+- Valid MP4 produced: **No**.
+- GPU quota consumed by the failed attempt: **Unknown** (a failed request may still consume quota).
+- Paid credits or payment: **Not authorized; do not use**.
+- YouTube upload: **Not attempted; keep disabled**.
+- Main branch: **Not changed**.
+
+If runtime logs are later inspected by an authenticated account owner, capture only the relevant error lines and redact tokens, cookies, and other secrets. Do not share access tokens. Until a real, non-empty MP4 passes signature, duration, resolution, and playback checks, use the existing review-only renderer and label scenes as animated stills rather than claiming generated image-to-video footage.

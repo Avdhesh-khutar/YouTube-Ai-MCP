@@ -100,6 +100,30 @@ def download_outputs(base_url: str, outputs: dict[str, Any], destination: Path, 
     return saved
 
 
+
+def validate_prompts(prompts: Any) -> list[dict[str, Any]]:
+    """Validate scene prompt records before making requests to ComfyUI."""
+    if not isinstance(prompts, list) or not prompts:
+        raise ValueError("Prompt JSON must be a non-empty list of scene records.")
+    validated: list[dict[str, Any]] = []
+    seen: set[int] = set()
+    for index, scene in enumerate(prompts, start=1):
+        if not isinstance(scene, dict):
+            raise ValueError(f"Scene prompt {index} must be a JSON object.")
+        number = scene.get("scene")
+        if isinstance(number, bool) or not isinstance(number, int) or number < 1:
+            raise ValueError(f"Scene prompt {index} must have a positive integer 'scene'.")
+        if number in seen:
+            raise ValueError(f"Duplicate scene number: {number}.")
+        if not isinstance(scene.get("image_prompt"), str) or not scene["image_prompt"].strip():
+            raise ValueError(f"Scene {number} must have a non-empty 'image_prompt'.")
+        negative = scene.get("negative_prompt", "")
+        if not isinstance(negative, str):
+            raise ValueError(f"Scene {number} 'negative_prompt' must be text.")
+        seen.add(number)
+        validated.append(scene)
+    return validated
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--base-url", default="http://127.0.0.1:8188")
@@ -119,9 +143,12 @@ def main() -> int:
     if request_json(base_url + "/system_stats") is None:
         raise RuntimeError("ComfyUI health check returned no response.")
 
-    prompts = json.loads(args.prompts.read_text(encoding="utf-8"))
-    image_template = json.loads(args.image_workflow.read_text(encoding="utf-8"))
-    video_template = json.loads(args.video_workflow.read_text(encoding="utf-8")) if args.video_workflow else None
+    try:
+        prompts = validate_prompts(json.loads(args.prompts.read_text(encoding="utf-8")))
+        image_template = json.loads(args.image_workflow.read_text(encoding="utf-8"))
+        video_template = json.loads(args.video_workflow.read_text(encoding="utf-8")) if args.video_workflow else None
+    except (OSError, json.JSONDecodeError, ValueError) as exc:
+        parser.error(f"Invalid prompt/workflow JSON: {exc}")
     args.scenes_dir.mkdir(parents=True, exist_ok=True)
     generated = 0
 

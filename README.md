@@ -40,6 +40,10 @@ To upload a reviewed artifact manually:
 
 The MCP tool `youtube_upload_video_from_url` is a separate path for an already-rendered video available at a direct HTTPS URL. It always requests `privacyStatus: private`, but requires working Google OAuth upload permission and a URL meeting its size/content requirements. Do not share OAuth tokens or upload secrets in chat. No upload is considered successful until YouTube confirms it.
 
+## Local AI scene generation
+
+The optional ComfyUI helper can generate scene images (and optionally image-to-video clips) using a compatible workflow and model installed on your own machine. Setup, workflow placeholders, commands, and limitations are documented in [Local ComfyUI scene generation](docs/COMFYUI_LOCAL_GENERATION.md). This integration has not been verified against a real model/runtime yet; GitHub Actions only tests the code and renderer scaffold.
+
 ## Automated video creation limits and next step
 
 This Worker does **not** generate a finished video, voiceover, captions, or thumbnail by itself. The free-budget workflow still needs a video-generation/rendering service or a local renderer that produces a direct HTTPS video file. The upload tool is the first publishing component; a daily unattended pipeline is not complete until a renderer, persistent job scheduler, failure notifications, and a secure source-file handoff are configured. Do not describe this as fully automatic until those parts have been tested.

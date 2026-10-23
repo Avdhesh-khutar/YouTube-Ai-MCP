@@ -1,7 +1,7 @@
 import importlib.util
 import io
-import json
 import unittest
+import urllib.error
 from contextlib import redirect_stdout
 from unittest.mock import patch
 
@@ -55,7 +55,9 @@ class CheckFreeVideoSpaceTests(unittest.TestCase):
             "subdomain": "demo-owner-video",
         }
         with patch.object(module, "get_json", side_effect=[
-            (200, metadata), OSError("not reachable"), OSError("not reachable")
+            (200, metadata),
+            urllib.error.URLError("not reachable"),
+            urllib.error.URLError("not reachable"),
         ]):
             output = io.StringIO()
             with redirect_stdout(output):

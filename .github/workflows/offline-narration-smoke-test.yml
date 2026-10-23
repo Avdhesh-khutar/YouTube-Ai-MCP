@@ -1,0 +1,61 @@
+name: Offline Hindi narration smoke test
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  narration-smoke-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Install free offline tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg espeak-ng
+      - name: Create temporary Hindi smoke-test script
+        run: |
+          mkdir -p /tmp/narration-smoke dist-cinematic
+          cat > /tmp/narration-smoke/script.txt <<'EOF'
+          नमस्कार। आज हम एक छोटे परीक्षण के माध्यम से हिंदी वॉइसओवर और सबटाइटल बनाने की प्रक्रिया जाँचेंगे।
+          
+          इस परीक्षण में कोई भुगतान वाली एपीआई इस्तेमाल नहीं होगी। आवाज़ स्थानीय ईस्पीक टूल से बनाई जाएगी और ऑडियो फाइलों को एफएफएमपीईजी से जोड़ा जाएगा।
+          
+          हर दृश्य के लिए तय समय रखा जाएगा। सबटाइटल में दृश्य का समय दिखेगा, लेकिन यह शब्द-दर-शब्द ऑडियो अलाइनमेंट नहीं है।
+          
+          यह केवल तकनीकी परीक्षण है। इससे एआई चित्र, वास्तविक सिनेमैटिक वीडियो या यूट्यूब अपलोड नहीं बनाया जाएगा।
+          EOF
+      - name: Plan a one-minute test
+        run: |
+          python scripts/plan_cinematic_scenes.py --script /tmp/narration-smoke/script.txt --output dist-cinematic --max-scenes 4 --target-minutes 1
+      - name: Generate offline Hindi narration and SRT
+        run: |
+          python scripts/prepare_offline_narration.py --scene-plan dist-cinematic/scene-plan.json --output dist-cinematic --min-minutes 1 --max-minutes 1
+      - name: Verify audio and subtitles
+        run: |
+          test -s dist-cinematic/voiceover.wav
+          test -s dist-cinematic/captions.srt
+          ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 dist-cinematic/voiceover.wav
+          python - <<'PY'
+          from pathlib import Path
+          from scripts.check_cinematic_quality import validate_srt
+          p = Path("dist-cinematic/captions.srt")
+          count, end, errors = validate_srt(p.read_text(encoding="utf-8"))
+          assert count >= 2, f"Expected multiple subtitle blocks, got {count}"
+          assert not errors, errors
+          assert 59 <= end <= 60, f"Expected subtitle timeline near 60 seconds, got {end}"
+          print(f"PASS: {count} SRT blocks, timeline {end:.3f}s")
+          PY
+      - name: Save smoke-test evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: offline-hindi-narration-smoke-test-${{ github.run_id }}
+          path: |
+            dist-cinematic/voiceover.wav
+            dist-cinematic/captions.srt
+            dist-cinematic/scene-plan.json
+          retention-days: 7

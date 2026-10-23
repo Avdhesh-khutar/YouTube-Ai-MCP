@@ -47,6 +47,17 @@ jobs:
         run: |
           test -s dist-cinematic/voiceover.wav
           test -s dist-cinematic/captions.srt
+          test -s dist-cinematic/narration-coverage.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(Path("dist-cinematic/narration-coverage.json").read_text(encoding="utf-8"))
+          assert report["all_scenes_pass"] is True
+          assert report["playback_speed_adjusted"] is False
+          assert len(report["scenes"]) == 4
+          assert all(row["speech_coverage"] >= report["minimum_speech_coverage"] for row in report["scenes"])
+          print("PASS: per-scene coverage report confirms every scene passes without speed adjustment")
+          PY
           ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 dist-cinematic/voiceover.wav
           python - <<'PY'
           from pathlib import Path
@@ -93,4 +104,5 @@ jobs:
             dist-cinematic/voiceover.wav
             dist-cinematic/captions.srt
             dist-cinematic/scene-plan.json
+            dist-cinematic/narration-coverage.json
           retention-days: 7

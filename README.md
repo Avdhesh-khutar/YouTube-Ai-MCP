@@ -1,7 +1,3 @@
-# See also: free browser-based image-to-video provider evaluation
-
-For the current read-only review of free Hugging Face image-to-video candidates, their API limitations, and the no-paid-fallback safeguards, see [docs/CURRENT_FREE_I2V_CANDIDATES.md](docs/CURRENT_FREE_I2V_CANDIDATES.md) and [docs/FREE_VIDEO_PROVIDER_EVALUATION.md](docs/FREE_VIDEO_PROVIDER_EVALUATION.md).
-
 # YouTube AI MCP
 
 OAuth-protected Model Context Protocol (MCP) server for Claude, hosted on Cloudflare Workers.
@@ -128,3 +124,7 @@ The tool reports channel-level views, estimated minutes watched, average view du
 ## Cinematic video pipeline (review-only)
 
 See [CINEMATIC_PIPELINE.md](CINEMATIC_PIPELINE.md) for the new scene-based renderer, optional image-to-video clips, voice-over/caption inputs, local rendering instructions, and the manual GitHub Actions review workflow. This pipeline does not upload or publish videos.
+
+# See also: free browser-based image-to-video provider evaluation
+
+For the current read-only review of free Hugging Face image-to-video candidates, their API limitations, and the no-paid-fallback safeguards, see [docs/CURRENT_FREE_I2V_CANDIDATES.md](docs/CURRENT_FREE_I2V_CANDIDATES.md) and [docs/FREE_VIDEO_PROVIDER_EVALUATION.md](docs/FREE_VIDEO_PROVIDER_EVALUATION.md).

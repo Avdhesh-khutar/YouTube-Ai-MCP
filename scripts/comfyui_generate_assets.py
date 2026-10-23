@@ -123,6 +123,30 @@ def download_outputs(base_url: str, outputs: dict[str, Any], destination: Path, 
 
 
 
+
+def validate_workflow_tokens(workflow: Any, required_tokens: set[str], label: str) -> dict[str, Any]:
+    """Ensure an API workflow is an object and contains every required placeholder."""
+    if not isinstance(workflow, dict) or not workflow:
+        raise ValueError(f"{label} workflow must be a non-empty JSON object.")
+    found: set[str] = set()
+
+    def scan(value: Any) -> None:
+        if isinstance(value, dict):
+            for child in value.values():
+                scan(child)
+        elif isinstance(value, list):
+            for child in value:
+                scan(child)
+        elif isinstance(value, str):
+            found.update(token for token in required_tokens if token in value)
+
+    scan(workflow)
+    missing = sorted(required_tokens - found)
+    if missing:
+        raise ValueError(f"{label} workflow is missing required token(s): {', '.join(missing)}.")
+    return workflow
+
+
 def validate_prompts(prompts: Any) -> list[dict[str, Any]]:
     """Validate scene prompt records before making requests to ComfyUI."""
     if not isinstance(prompts, list) or not prompts:
@@ -161,16 +185,26 @@ def main() -> int:
         parser.error("Prompt JSON and image workflow file must exist.")
     if args.animate_every < 1 or args.timeout < 30:
         parser.error("--animate-every must be >= 1 and --timeout must be >= 30 seconds.")
+    try:
+        prompts = validate_prompts(json.loads(args.prompts.read_text(encoding="utf-8")))
+        image_template = validate_workflow_tokens(
+            json.loads(args.image_workflow.read_text(encoding="utf-8")),
+            {"__POSITIVE_PROMPT__", "__NEGATIVE_PROMPT__", "__OUTPUT_PREFIX__"},
+            "Image",
+        )
+        video_template = None
+        if args.video_workflow:
+            video_template = validate_workflow_tokens(
+                json.loads(args.video_workflow.read_text(encoding="utf-8")),
+                {"__POSITIVE_PROMPT__", "__NEGATIVE_PROMPT__", "__OUTPUT_PREFIX__", "__INPUT_IMAGE__"},
+                "Video",
+            )
+    except (OSError, json.JSONDecodeError, ValueError) as exc:
+        parser.error(f"Invalid prompt/workflow JSON: {exc}")
+
     base_url = args.base_url.rstrip("/")
     if request_json(base_url + "/system_stats") is None:
         raise RuntimeError("ComfyUI health check returned no response.")
-
-    try:
-        prompts = validate_prompts(json.loads(args.prompts.read_text(encoding="utf-8")))
-        image_template = json.loads(args.image_workflow.read_text(encoding="utf-8"))
-        video_template = json.loads(args.video_workflow.read_text(encoding="utf-8")) if args.video_workflow else None
-    except (OSError, json.JSONDecodeError, ValueError) as exc:
-        parser.error(f"Invalid prompt/workflow JSON: {exc}")
     args.scenes_dir.mkdir(parents=True, exist_ok=True)
     generated = 0
 

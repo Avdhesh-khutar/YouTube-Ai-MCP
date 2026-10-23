@@ -9,6 +9,12 @@ on:
   schedule:
     - cron: "30 4 * * *"
   workflow_dispatch:
+    inputs:
+      topic:
+        description: "Optional custom Hindi/English topic for a draft explainer"
+        required: false
+        default: ""
+        type: string
 
 permissions:
   contents: read
@@ -33,11 +39,12 @@ jobs:
           pip install edge-tts || echo 'Edge TTS install unavailable; renderer will use offline Hindi speech'
       - name: Render daily video package
         env:
+          VIDEO_TOPIC: ${{ inputs.topic }}
           ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
           ELEVENLABS_VOICE_ID: ${{ secrets.ELEVENLABS_VOICE_ID }}
           # Keep paid API calls disabled until the chosen voice is API-eligible.
           ELEVENLABS_USE_API: "false"
-        run: python scripts/generate_daily_video.py
+        run: python scripts/generate_daily_video.py --topic "$VIDEO_TOPIC"
       - name: Verify rendered video and required deliverables
         run: |
           set -euo pipefail
@@ -54,6 +61,10 @@ jobs:
           python -c "import sys; assert float(sys.argv[1]) >= 60, 'Video is unexpectedly short'" "$duration"
           test "$width" = "1280"
           test "$height" = "720"
+          audio_codec=$(ffprobe -v error -select_streams a:0 -show_entries stream=codec_name -of csv=s=x:p=0 dist/daily-youtube-video.mp4)
+          test -n "$audio_codec"
+          echo "Audio codec: ${audio_codec}"
+          python -c "import sys; d=float(sys.argv[1]); assert d <= 600, f'Video exceeds 10-minute QA cap: {d:.1f}s'" "$duration"
           # Validate thumbnail dimensions and required metadata/captions.
           python -c 'from PIL import Image; im=Image.open("dist/thumbnail.jpg"); assert im.size == (1280, 720), f"Unexpected thumbnail size: {im.size}"'
           python -c 'import json; from pathlib import Path; m=json.loads(Path("dist/metadata.json").read_text(encoding="utf-8")); assert m.get("title", "").strip(), "Missing title"; assert m.get("description", "").strip(), "Missing description"; assert isinstance(m.get("tags"), list) and m["tags"], "Missing tags"; s=Path("dist/captions.srt").read_text(encoding="utf-8"); assert s.count("-->") >= 8, "Captions missing/incomplete"; assert len(Path("dist/script.txt").read_text(encoding="utf-8").strip()) >= 500, "Script too short"; print("Metadata, captions, script and thumbnail checks passed.")'

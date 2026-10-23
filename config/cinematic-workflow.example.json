@@ -1,0 +1,73 @@
+{
+  "language": "hi-IN",
+  "target_duration_minutes": {
+    "min": 8,
+    "max": 10
+  },
+  "output": {
+    "width": 1920,
+    "height": 1080,
+    "fps": 30,
+    "directory": "dist-cinematic"
+  },
+  "workflow": {
+    "research": {
+      "enabled": true,
+      "require_source_manifest": true
+    },
+    "script": {
+      "enabled": true,
+      "language": "Hindi"
+    },
+    "scene_planning": {
+      "enabled": true,
+      "min_scenes": 12,
+      "max_scenes": 24
+    },
+    "image_generation": {
+      "enabled": true,
+      "provider": "UNCONFIGURED"
+    },
+    "image_to_video": {
+      "enabled": true,
+      "provider": "UNCONFIGURED",
+      "animate_every_nth_scene": 3,
+      "allow_still_motion_fallback": true
+    },
+    "voiceover": {
+      "enabled": true,
+      "provider": "UNCONFIGURED",
+      "voice_language": "hi-IN"
+    },
+    "music_and_sfx": {
+      "enabled": true,
+      "provider": "UNCONFIGURED",
+      "require_licensed_assets": true
+    },
+    "subtitles": {
+      "enabled": true,
+      "language": "hi",
+      "format": "srt"
+    },
+    "thumbnail_and_metadata": {
+      "enabled": true
+    },
+    "quality_checks": {
+      "enabled": true,
+      "require_video_stream": true,
+      "require_audio_stream": true,
+      "require_subtitles": true
+    },
+    "youtube_upload": {
+      "enabled": true,
+      "privacy_status": "private",
+      "require_owner_approval": true,
+      "allow_public_publish": false
+    }
+  },
+  "security": {
+    "read_secrets_from_environment_or_secret_manager_only": true,
+    "never_log_secrets": true,
+    "never_commit_secrets": true
+  }
+}

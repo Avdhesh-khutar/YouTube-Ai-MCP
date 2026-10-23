@@ -5,7 +5,7 @@ from unittest.mock import patch
 from io import BytesIO
 
 from scripts.comfyui_generate_assets import (
-    replace_tokens, validate_prompts, validate_output_bytes, validate_workflow_tokens, select_scene_output, download_outputs,
+    replace_tokens, validate_prompts, validate_output_bytes, validate_workflow_tokens, select_scene_output, download_outputs, cleanup_downloads,
 )
 
 
@@ -135,6 +135,17 @@ class ComfyUITokenReplacementTests(unittest.TestCase):
         ):
             with self.assertRaisesRegex(RuntimeError, "duplicate output filename"):
                 download_outputs("http://comfyui", outputs, Path(temp_dir), {".png"})
+
+
+    def test_cleanup_downloads_preserves_selected_file_and_removes_extras(self):
+        with TemporaryDirectory() as temp_dir:
+            selected = Path(temp_dir) / "scene-01.png"
+            extra = Path(temp_dir) / "scene-02.png"
+            selected.write_bytes(b"selected")
+            extra.write_bytes(b"extra")
+            cleanup_downloads([selected, extra], keep=selected)
+            self.assertTrue(selected.exists())
+            self.assertFalse(extra.exists())
 
 
 if __name__ == "__main__":

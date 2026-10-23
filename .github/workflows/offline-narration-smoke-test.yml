@@ -42,7 +42,7 @@ jobs:
           python scripts/plan_cinematic_scenes.py --script /tmp/narration-smoke/script.txt --output dist-cinematic --max-scenes 4 --target-minutes 8
       - name: Generate offline Hindi narration and SRT
         run: |
-          python scripts/prepare_offline_narration.py --scene-plan dist-cinematic/scene-plan.json --output dist-cinematic --min-minutes 8 --max-minutes 8
+          python scripts/prepare_offline_narration.py --scene-plan dist-cinematic/scene-plan.json --output dist-cinematic --min-minutes 8 --max-minutes 8 --min-speech-coverage 0.01
       - name: Verify audio and subtitles
         run: |
           test -s dist-cinematic/voiceover.wav

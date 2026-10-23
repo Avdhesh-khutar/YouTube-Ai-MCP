@@ -63,12 +63,12 @@ def prepare(plan_path: Path, output_dir: Path, min_minutes: float = 8,
             audio_files.append(audio)
             end = elapsed + float(scene["duration_seconds"])
             captions.append(
-                f"{index}\\n{timestamp(elapsed)} --> {timestamp(end)}\\n{text}\\n"
+                f"{index}\n{timestamp(elapsed)} --> {timestamp(end)}\n{text}\n"
             )
             elapsed = end
 
         concat = temp_dir / "concat.txt"
-        concat.write_text("".join(f"file '{p.as_posix()}'\\n" for p in audio_files), encoding="utf-8")
+        concat.write_text("".join(f"file '{p.as_posix()}'\n" for p in audio_files), encoding="utf-8")
         narration = output_dir / "voiceover.wav"
         result = subprocess.run(
             [ffmpeg, "-y", "-f", "concat", "-safe", "0", "-i", str(concat),
@@ -78,7 +78,7 @@ def prepare(plan_path: Path, output_dir: Path, min_minutes: float = 8,
         if result.returncode != 0 or not narration.is_file() or narration.stat().st_size == 0:
             raise RuntimeError(f"Could not concatenate narration audio: {result.stderr[-1000:]}")
     subtitle_path = output_dir / "captions.srt"
-    subtitle_path.write_text("\\n".join(captions) + "\\n", encoding="utf-8")
+    subtitle_path.write_text("\n".join(captions) + "\n", encoding="utf-8")
     return narration, subtitle_path
 
 

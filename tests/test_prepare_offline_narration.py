@@ -32,9 +32,9 @@ class OfflineNarrationTests(unittest.TestCase):
                     self.assertIn("file '", concat_text)
                     self.assertNotIn("\\\\nfile", concat_text)
                 return type("Result", (), {"returncode": 0, "stderr": ""})()
-            with patch("scripts.prepare_offline_narration.shutil.which", side_effect=lambda name: "/usr/bin/" + name), \\
-                 patch("scripts.prepare_offline_narration.subprocess.run", side_effect=fake_run):
-                audio, srt = prepare(plan_path, root / "out", 8, 8)
+            with patch("scripts.prepare_offline_narration.shutil.which", side_effect=lambda name: "/usr/bin/" + name) as which_patch:
+                with patch("scripts.prepare_offline_narration.subprocess.run", side_effect=fake_run):
+                    audio, srt = prepare(plan_path, root / "out", 8, 8)
             self.assertTrue(audio.is_file())
             content = srt.read_text(encoding="utf-8")
             self.assertEqual(content.count("-->"), 4)

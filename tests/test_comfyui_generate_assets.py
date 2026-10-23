@@ -1,6 +1,6 @@
 import unittest
 
-from scripts.comfyui_generate_assets import replace_tokens
+from scripts.comfyui_generate_assets import replace_tokens, validate_prompts
 
 
 class ComfyUITokenReplacementTests(unittest.TestCase):
@@ -37,6 +37,33 @@ class ComfyUITokenReplacementTests(unittest.TestCase):
         workflow = {"steps": 4, "enabled": True, "empty": None}
         result = replace_tokens(workflow, {"__POSITIVE_PROMPT__": "hello"})
         self.assertEqual(result, workflow)
+
+
+    def test_validates_scene_prompt_records(self):
+        prompts = [
+            {"scene": 1, "image_prompt": "A historic fort", "negative_prompt": "blurry"},
+            {"scene": 3, "image_prompt": "A river at sunrise"},
+        ]
+        self.assertEqual(validate_prompts(prompts), prompts)
+
+    def test_rejects_duplicate_scene_numbers(self):
+        with self.assertRaisesRegex(ValueError, "Duplicate scene number"):
+            validate_prompts([
+                {"scene": 1, "image_prompt": "first"},
+                {"scene": 1, "image_prompt": "second"},
+            ])
+
+    def test_rejects_missing_prompt_and_invalid_scene_number(self):
+        with self.assertRaisesRegex(ValueError, "image_prompt"):
+            validate_prompts([{"scene": 1, "image_prompt": " "}])
+        with self.assertRaisesRegex(ValueError, "positive integer"):
+            validate_prompts([{"scene": True, "image_prompt": "scene"}])
+
+    def test_rejects_empty_or_non_list_prompt_data(self):
+        with self.assertRaisesRegex(ValueError, "non-empty list"):
+            validate_prompts([])
+        with self.assertRaisesRegex(ValueError, "non-empty list"):
+            validate_prompts({"scene": 1, "image_prompt": "scene"})
 
 
 if __name__ == "__main__":

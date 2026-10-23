@@ -6,7 +6,7 @@ from io import BytesIO
 
 from scripts.comfyui_generate_assets import (
     replace_tokens, validate_prompts, validate_output_bytes, validate_workflow_tokens,
-    select_scene_output, download_outputs, cleanup_downloads, upload_image,
+    select_scene_output, download_outputs, cleanup_downloads, upload_image, submit_and_wait,
 )
 
 
@@ -149,6 +149,33 @@ class ComfyUITokenReplacementTests(unittest.TestCase):
             with patch("scripts.comfyui_generate_assets.urllib.request.urlopen", return_value=BytesIO(b'[]')):
                 with self.assertRaisesRegex(RuntimeError, "invalid JSON object"):
                     upload_image("http://comfyui", image_path)
+
+    def test_submit_and_wait_rejects_invalid_submission_response(self):
+        with patch("scripts.comfyui_generate_assets.request_json", return_value=[]):
+            with self.assertRaisesRegex(RuntimeError, "invalid JSON object"):
+                submit_and_wait("http://comfyui", {}, 30)
+
+    def test_submit_and_wait_rejects_comfyui_execution_error(self):
+        responses = [
+            {"prompt_id": "prompt-123"},
+            {"prompt-123": {"status": {"status_str": "error"}, "outputs": {}}},
+        ]
+        with patch("scripts.comfyui_generate_assets.request_json", side_effect=responses), patch(
+            "scripts.comfyui_generate_assets.time.monotonic", side_effect=[0, 1]
+        ):
+            with self.assertRaisesRegex(RuntimeError, "workflow failed"):
+                submit_and_wait("http://comfyui", {}, 30)
+
+    def test_submit_and_wait_returns_completed_outputs(self):
+        outputs = {"3": {"images": [{"filename": "scene-01.png"}]}}
+        responses = [
+            {"prompt_id": "prompt-123"},
+            {"prompt-123": {"status": {"status_str": "success"}, "outputs": outputs}},
+        ]
+        with patch("scripts.comfyui_generate_assets.request_json", side_effect=responses), patch(
+            "scripts.comfyui_generate_assets.time.monotonic", side_effect=[0, 1]
+        ):
+            self.assertEqual(submit_and_wait("http://comfyui", {}, 30), outputs)
 
     def test_download_outputs_rejects_duplicate_basenames(self):
         outputs = {

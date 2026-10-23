@@ -60,8 +60,17 @@ def prepare(plan_path: Path, output_dir: Path, min_minutes: float = 8,
             )
             if result.returncode != 0 or not audio.is_file() or audio.stat().st_size == 0:
                 raise RuntimeError(f"Offline TTS failed for {scene['scene_id']}: {result.stderr[-500:]}")
-            audio_files.append(audio)
-            end = elapsed + float(scene["duration_seconds"])
+            duration = float(scene["duration_seconds"])
+            padded_audio = temp_dir / f"padded-{index:03d}.wav"
+            padded = subprocess.run(
+                [ffmpeg, "-y", "-i", str(audio), "-af", "apad", "-t", str(duration),
+                 "-ac", "2", "-ar", "44100", str(padded_audio)],
+                capture_output=True, text=True, check=False,
+            )
+            if padded.returncode != 0 or not padded_audio.is_file() or padded_audio.stat().st_size == 0:
+                raise RuntimeError(f"Could not fit narration to scene {scene['scene_id']}: {padded.stderr[-1000:]}")
+            audio_files.append(padded_audio)
+            end = elapsed + duration
             captions.append(
                 f"{index}\n{timestamp(elapsed)} --> {timestamp(end)}\n{text}\n"
             )

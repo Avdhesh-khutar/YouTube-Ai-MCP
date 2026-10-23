@@ -85,9 +85,9 @@ def validate_output_bytes(path: Path, data: bytes) -> None:
         raise RuntimeError(f"ComfyUI returned an empty output for {path.name}.")
     suffix = path.suffix.lower()
     signatures = {
-        ".png": lambda value: value.startswith(b"\\x89PNG\\r\\n\\x1a\\n"),
-        ".jpg": lambda value: value.startswith(b"\\xff\\xd8\\xff"),
-        ".jpeg": lambda value: value.startswith(b"\\xff\\xd8\\xff"),
+        ".png": lambda value: value.startswith(bytes.fromhex("89504e470d0a1a0a")),
+        ".jpg": lambda value: value.startswith(bytes.fromhex("ffd8ff")),
+        ".jpeg": lambda value: value.startswith(bytes.fromhex("ffd8ff")),
         ".webp": lambda value: len(value) >= 12 and value[:4] == b"RIFF" and value[8:12] == b"WEBP",
         ".gif": lambda value: value.startswith((b"GIF87a", b"GIF89a")),
         ".mp4": lambda value: len(value) >= 12 and value[4:8] == b"ftyp",

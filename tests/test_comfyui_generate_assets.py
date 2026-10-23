@@ -5,7 +5,8 @@ from unittest.mock import patch
 from io import BytesIO
 
 from scripts.comfyui_generate_assets import (
-    replace_tokens, validate_prompts, validate_output_bytes, validate_workflow_tokens, select_scene_output, download_outputs, cleanup_downloads,
+    replace_tokens, validate_prompts, validate_output_bytes, validate_workflow_tokens,
+    select_scene_output, download_outputs, cleanup_downloads, upload_image,
 )
 
 
@@ -121,6 +122,33 @@ class ComfyUITokenReplacementTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "exactly one"):
             select_scene_output([Path("scene-01_00001_.jpg")], 1, ".png")
 
+
+    def test_upload_image_returns_validated_name_from_comfyui(self):
+        response = BytesIO(b'{"name":"scene-01.png"}')
+        with TemporaryDirectory() as temp_dir:
+            image_path = Path(temp_dir) / "scene-01.png"
+            image_path.write_bytes(b"png fixture")
+            with patch("scripts.comfyui_generate_assets.urllib.request.urlopen", return_value=response):
+                self.assertEqual(upload_image("http://comfyui", image_path), "scene-01.png")
+
+    def test_upload_image_rejects_unsafe_returned_name(self):
+        with TemporaryDirectory() as temp_dir:
+            image_path = Path(temp_dir) / "scene-01.png"
+            image_path.write_bytes(b"png fixture")
+            for unsafe_name in ("../outside.png", "folder\\outside.png", ""):
+                response = BytesIO(json.dumps({"name": unsafe_name}).encode())
+                with patch("scripts.comfyui_generate_assets.urllib.request.urlopen", return_value=response):
+                    with self.subTest(name=unsafe_name):
+                        with self.assertRaisesRegex(RuntimeError, "unsafe or invalid"):
+                            upload_image("http://comfyui", image_path)
+
+    def test_upload_image_rejects_non_object_response(self):
+        with TemporaryDirectory() as temp_dir:
+            image_path = Path(temp_dir) / "scene-01.png"
+            image_path.write_bytes(b"png fixture")
+            with patch("scripts.comfyui_generate_assets.urllib.request.urlopen", return_value=BytesIO(b'[]')):
+                with self.assertRaisesRegex(RuntimeError, "invalid JSON object"):
+                    upload_image("http://comfyui", image_path)
 
     def test_download_outputs_rejects_duplicate_basenames(self):
         outputs = {

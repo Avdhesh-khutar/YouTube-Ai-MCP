@@ -8,6 +8,7 @@ on:
       - 'scripts/plan_cinematic_scenes.py'
       - 'scripts/validate_scene_plan.py'
       - 'scripts/check_cinematic_quality.py'
+      - 'scripts/generate_cinematic_video.py'
       - 'tests/test_prepare_offline_narration.py'
       - '.github/workflows/offline-narration-smoke-test.yml'
 
@@ -96,6 +97,33 @@ jobs:
           fi
           grep -F "minimum is 20%" /tmp/narration-smoke/short-check.log
           echo "PASS: insufficient spoken coverage is rejected"
+      - name: Render and quality-check a short fixture video
+        run: |
+          mkdir -p /tmp/cinematic-render-smoke/scenes /tmp/cinematic-render-smoke/output
+          ffmpeg -y -f lavfi -i color=c=navy:s=640x360 -frames:v 1 /tmp/cinematic-render-smoke/scenes/scene-01.png
+          ffmpeg -y -f lavfi -i color=c=darkgreen:s=640x360 -frames:v 1 /tmp/cinematic-render-smoke/scenes/scene-02.png
+          cp dist-cinematic/voiceover.wav /tmp/cinematic-render-smoke/scenes/voiceover.wav
+          cat > /tmp/cinematic-render-smoke/scenes/captions.srt <<'EOF'
+          1
+          00:00:00,000 --> 00:00:02,000
+          पहला परीक्षण दृश्य।
+
+          2
+          00:00:02,000 --> 00:00:04,000
+          दूसरा परीक्षण दृश्य।
+          EOF
+          python scripts/generate_cinematic_video.py --scenes /tmp/cinematic-render-smoke/scenes --output /tmp/cinematic-render-smoke/output --seconds-per-scene 2
+          python scripts/check_cinematic_quality.py --video /tmp/cinematic-render-smoke/output/cinematic-video.mp4 --subtitles /tmp/cinematic-render-smoke/scenes/captions.srt --min-minutes 0.05 --max-minutes 1 --report /tmp/cinematic-render-smoke/output/quality-report.json
+          test -s /tmp/cinematic-render-smoke/output/thumbnail.jpg
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(Path("/tmp/cinematic-render-smoke/output/quality-report.json").read_text(encoding="utf-8"))
+          assert report["ready_for_owner_review"] is True, report
+          assert report["upload_performed"] is False
+          assert report["public_publish"] is False
+          print("PASS: short fixture video rendered and passed media/subtitle QA; no upload or public publishing")
+          PY
       - name: Save smoke-test evidence
         uses: actions/upload-artifact@v4
         with:

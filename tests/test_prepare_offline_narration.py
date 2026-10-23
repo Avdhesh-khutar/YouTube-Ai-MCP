@@ -30,7 +30,7 @@ class OfflineNarrationTests(unittest.TestCase):
                     concat_path = Path(command[command.index("-i") + 1])
                     concat_text = concat_path.read_text(encoding="utf-8")
                     self.assertIn("file '", concat_text)
-                    self.assertNotIn("\nfile", concat_text)
+                    self.assertIn("\nfile", concat_text)
                 return type("Result", (), {"returncode": 0, "stderr": ""})()
             with patch("scripts.prepare_offline_narration.shutil.which", side_effect=lambda name: "/usr/bin/" + name) as which_patch:
                 with patch("scripts.prepare_offline_narration.subprocess.run", side_effect=fake_run):
@@ -39,7 +39,7 @@ class OfflineNarrationTests(unittest.TestCase):
             content = srt.read_text(encoding="utf-8")
             self.assertEqual(content.count("-->"), 4)
             self.assertIn("1\n00:00:00,000", content)
-            self.assertNotIn("\n2\n", content)
+            self.assertIn("\n\n2\n", content)
             self.assertIn("00:02:00,000 --> 00:04:00,000", content)
 
 

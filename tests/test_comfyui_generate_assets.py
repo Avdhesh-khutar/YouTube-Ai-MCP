@@ -2,7 +2,9 @@ import unittest
 
 from pathlib import Path
 
-from scripts.comfyui_generate_assets import (\n    replace_tokens, validate_prompts, validate_output_bytes, validate_workflow_tokens,\n)
+from scripts.comfyui_generate_assets import (
+    replace_tokens, validate_prompts, validate_output_bytes, validate_workflow_tokens,
+)
 
 
 class ComfyUITokenReplacementTests(unittest.TestCase):

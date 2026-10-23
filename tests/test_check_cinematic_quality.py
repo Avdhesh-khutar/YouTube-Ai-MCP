@@ -88,5 +88,51 @@ class CinematicQualityTests(unittest.TestCase):
             self.assertEqual(report["checks"]["subtitles"], "fail")
 
 
+    def test_quality_gate_rejects_video_below_720p(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            video = root / "video.mp4"
+            subtitles = root / "captions.srt"
+            video.write_bytes(b"video placeholder")
+            subtitles.write_text(
+                "1\\n00:00:00,000 --> 00:00:02,000\\nनमस्ते दुनिया\\n",
+                encoding="utf-8",
+            )
+            metadata = {
+                "format": {"duration": "4"},
+                "streams": [
+                    {"codec_type": "video", "width": 640, "height": 360},
+                    {"codec_type": "audio"},
+                ],
+            }
+            with patch("scripts.check_cinematic_quality.probe", return_value=metadata):
+                report = check(video, subtitles, min_minutes=0.05, max_minutes=1)
+            self.assertFalse(report["ready_for_owner_review"])
+            self.assertEqual(report["checks"]["resolution"], "fail")
+            self.assertTrue(any("below the 1280x720 minimum" in error for error in report["errors"]))
+
+    def test_quality_gate_accepts_exact_720p_resolution(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            video = root / "video.mp4"
+            subtitles = root / "captions.srt"
+            video.write_bytes(b"video placeholder")
+            subtitles.write_text(
+                "1\\n00:00:00,000 --> 00:00:02,000\\nनमस्ते दुनिया\\n",
+                encoding="utf-8",
+            )
+            metadata = {
+                "format": {"duration": "4"},
+                "streams": [
+                    {"codec_type": "video", "width": 1280, "height": 720},
+                    {"codec_type": "audio"},
+                ],
+            }
+            with patch("scripts.check_cinematic_quality.probe", return_value=metadata):
+                report = check(video, subtitles, min_minutes=0.05, max_minutes=1)
+            self.assertTrue(report["ready_for_owner_review"], report["errors"])
+            self.assertEqual(report["checks"]["resolution"], "pass")
+
+
 if __name__ == "__main__":
     unittest.main()

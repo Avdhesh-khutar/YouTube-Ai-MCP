@@ -1,9 +1,11 @@
 import unittest
-
 from pathlib import Path
+from tempfile import TemporaryDirectory
+from unittest.mock import patch
+from io import BytesIO
 
 from scripts.comfyui_generate_assets import (
-    replace_tokens, validate_prompts, validate_output_bytes, validate_workflow_tokens, select_scene_output,
+    replace_tokens, validate_prompts, validate_output_bytes, validate_workflow_tokens, select_scene_output, download_outputs,
 )
 
 
@@ -118,6 +120,21 @@ class ComfyUITokenReplacementTests(unittest.TestCase):
     def test_rejects_wrong_extension_for_scene_output(self):
         with self.assertRaisesRegex(RuntimeError, "exactly one"):
             select_scene_output([Path("scene-01_00001_.jpg")], 1, ".png")
+
+
+    def test_download_outputs_rejects_duplicate_basenames(self):
+        outputs = {
+            "1": {"images": [
+                {"filename": "scene-01.png", "subfolder": "first"},
+                {"filename": "scene-01.png", "subfolder": "second"},
+            ]}
+        }
+        with TemporaryDirectory() as temp_dir, patch(
+            "scripts.comfyui_generate_assets.urllib.request.urlopen",
+            return_value=BytesIO(bytes.fromhex("89504e470d0a1a0a") + b"fixture"),
+        ):
+            with self.assertRaisesRegex(RuntimeError, "duplicate output filename"):
+                download_outputs("http://comfyui", outputs, Path(temp_dir), {".png"})
 
 
 if __name__ == "__main__":

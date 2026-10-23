@@ -1,6 +1,6 @@
 import unittest
 
-from scripts.comfyui_generate_assets import replace_tokens, validate_prompts
+from pathlib import Path\n\nfrom scripts.comfyui_generate_assets import replace_tokens, validate_prompts, validate_output_bytes
 
 
 class ComfyUITokenReplacementTests(unittest.TestCase):
@@ -64,6 +64,19 @@ class ComfyUITokenReplacementTests(unittest.TestCase):
             validate_prompts([])
         with self.assertRaisesRegex(ValueError, "non-empty list"):
             validate_prompts({"scene": 1, "image_prompt": "scene"})
+
+
+    def test_rejects_empty_generated_output(self):
+        with self.assertRaisesRegex(RuntimeError, "empty output"):
+            validate_output_bytes(Path("scene-01.png"), b"")
+
+    def test_rejects_image_bytes_with_wrong_extension(self):
+        with self.assertRaisesRegex(RuntimeError, "does not match"):
+            validate_output_bytes(Path("scene-01.png"), b"not a png")
+
+    def test_accepts_png_and_mp4_signatures(self):
+        validate_output_bytes(Path("scene-01.png"), b"\\x89PNG\\r\\n\\x1a\\nrest")
+        validate_output_bytes(Path("scene-01.mp4"), b"\\x00\\x00\\x00\\x18ftypisomrest")
 
 
 if __name__ == "__main__":

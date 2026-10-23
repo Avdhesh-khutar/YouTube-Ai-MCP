@@ -23,6 +23,8 @@ class OfflineNarrationTests(unittest.TestCase):
                 for i in range(1, 5)
             ]}, ensure_ascii=False), encoding="utf-8")
             def fake_run(command, capture_output, text, check):
+                if "ffprobe" in command[0]:
+                    return type("Result", (), {"returncode": 0, "stdout": "60.0", "stderr": ""})()
                 if "-w" in command:
                     Path(command[command.index("-w") + 1]).write_bytes(b"fake wav")
                 elif "-f" in command and "concat" in command:
@@ -35,7 +37,7 @@ class OfflineNarrationTests(unittest.TestCase):
                     self.assertIn("apad", command)
                     self.assertIn("-t", command)
                     Path(command[-1]).write_bytes(b"padded wav")
-                return type("Result", (), {"returncode": 0, "stderr": ""})()
+                return type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})()
             with patch("scripts.prepare_offline_narration.shutil.which", side_effect=lambda name: "/usr/bin/" + name) as which_patch:
                 with patch("scripts.prepare_offline_narration.subprocess.run", side_effect=fake_run):
                     audio, srt = prepare(plan_path, root / "out", 8, 8)
@@ -45,6 +47,24 @@ class OfflineNarrationTests(unittest.TestCase):
             self.assertIn("1\n00:00:00,000", content)
             self.assertIn("\n\n2\n", content)
             self.assertIn("00:02:00,000 --> 00:04:00,000", content)
+
+    def test_rejects_scenes_with_excessive_silence(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            plan_path = root / "scene-plan.json"
+            plan_path.write_text(json.dumps({"scenes": [
+                {"scene_id": "scene-01", "narration": "बहुत छोटा वाक्य",
+                 "visual_prompt": "चित्र", "duration_seconds": 480}
+            ]}, ensure_ascii=False), encoding="utf-8")
+            def fake_run(command, capture_output, text, check):
+                if "-w" in command:
+                    Path(command[command.index("-w") + 1]).write_bytes(b"fake wav")
+                    return type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})()
+                return type("Result", (), {"returncode": 0, "stdout": "10.0", "stderr": ""})()
+            with patch("scripts.prepare_offline_narration.shutil.which", side_effect=lambda name: "/usr/bin/" + name):
+                with patch("scripts.prepare_offline_narration.subprocess.run", side_effect=fake_run):
+                    with self.assertRaisesRegex(ValueError, "excessive|only 10.0s of speech|minimum is"):
+                        prepare(plan_path, root / "out", 8, 8, min_speech_coverage=0.20)
 
 
 if __name__ == "__main__":

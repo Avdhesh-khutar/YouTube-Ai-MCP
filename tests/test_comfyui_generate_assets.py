@@ -3,7 +3,7 @@ import unittest
 from pathlib import Path
 
 from scripts.comfyui_generate_assets import (
-    replace_tokens, validate_prompts, validate_output_bytes, validate_workflow_tokens,
+    replace_tokens, validate_prompts, validate_output_bytes, validate_workflow_tokens, select_scene_output,
 )
 
 
@@ -104,6 +104,20 @@ class ComfyUITokenReplacementTests(unittest.TestCase):
     def test_workflow_token_validation_rejects_non_object(self):
         with self.assertRaisesRegex(ValueError, "non-empty JSON object"):
             validate_workflow_tokens([], {"__POSITIVE_PROMPT__"}, "Image")
+
+
+    def test_selects_only_matching_scene_and_extension(self):
+        files = [Path("scene-02_00001_.png"), Path("scene-01_00001_.png")]
+        self.assertEqual(select_scene_output(files, 1, ".png"), Path("scene-01_00001_.png"))
+
+    def test_rejects_ambiguous_scene_outputs(self):
+        files = [Path("scene-01_00001_.png"), Path("scene-01_00002_.png")]
+        with self.assertRaisesRegex(RuntimeError, "exactly one"):
+            select_scene_output(files, 1, ".png")
+
+    def test_rejects_wrong_extension_for_scene_output(self):
+        with self.assertRaisesRegex(RuntimeError, "exactly one"):
+            select_scene_output([Path("scene-01_00001_.jpg")], 1, ".png")
 
 
 if __name__ == "__main__":

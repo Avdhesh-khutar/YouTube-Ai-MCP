@@ -64,3 +64,18 @@ Use the existing provider contract / renderer architecture rather than coupling 
 ## Honest current status
 
 The repository's existing ComfyUI helper targets a ComfyUI server the user controls; it is not a Comfy Cloud adapter. This document identifies a candidate but does not implement or claim a verified Hugging Face image-to-video provider. Until a specific Space has been manually tested, use the provider interface as a seam and the existing renderer as fallback.
+
+## Metadata-only API inspection tool
+
+The repository now includes `scripts/inspect_huggingface_space_api.py`. It fetches public `agents.md` and OpenAPI metadata for a selected Space, prints candidate API paths, and explicitly reports that it did not submit inference or consume GPU quota.
+
+Example (run in an environment with Python 3.10+ and network access):
+
+```bash
+python scripts/inspect_huggingface_space_api.py techfreakworm/LTX2.3-Studio
+```
+
+Candidate currently listed as running on ZeroGPU:
+- https://huggingface.co/spaces/techfreakworm/LTX2.3-Studio
+
+This is a candidate only. The public listing does not prove the API schema, free quota suitability, or commercial-use permission for this project. Run the metadata-only inspector first. Do not submit a generation request until the user explicitly approves consuming their free GPU quota.

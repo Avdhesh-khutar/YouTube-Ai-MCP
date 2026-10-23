@@ -130,6 +130,18 @@ def download_outputs(base_url: str, outputs: dict[str, Any], destination: Path, 
 
 
 
+
+def cleanup_downloads(files: list[Path], keep: Path | None = None) -> None:
+    """Remove temporary downloaded outputs after selection or failure."""
+    for path in files:
+        if keep is not None and path == keep:
+            continue
+        try:
+            path.unlink(missing_ok=True)
+        except OSError:
+            pass
+
+
 def select_scene_output(files: list[Path], scene_number: int, suffix: str) -> Path:
     """Select only the requested scene's expected output format."""
     expected_prefix = f"scene-{scene_number:02d}"
@@ -242,9 +254,12 @@ def main() -> int:
             })
             outputs = submit_and_wait(base_url, workflow, args.timeout)
             files = download_outputs(base_url, outputs, args.scenes_dir, {".png"})
-            selected = select_scene_output(files, number, ".png")
-            if selected != image_path:
-                selected.replace(image_path)
+            try:
+                selected = select_scene_output(files, number, ".png")
+                if selected != image_path:
+                    selected.replace(image_path)
+            finally:
+                cleanup_downloads(files, keep=image_path if image_path.exists() else None)
             generated += 1
             print(f"Generated image: {image_path.name}")
         else:
@@ -264,9 +279,12 @@ def main() -> int:
             })
             outputs = submit_and_wait(base_url, workflow, args.timeout)
             files = download_outputs(base_url, outputs, args.scenes_dir, {".mp4"})
-            selected = select_scene_output(files, number, ".mp4")
-            if selected != video_path:
-                selected.replace(video_path)
+            try:
+                selected = select_scene_output(files, number, ".mp4")
+                if selected != video_path:
+                    selected.replace(video_path)
+            finally:
+                cleanup_downloads(files, keep=video_path if video_path.exists() else None)
             print(f"Generated animation: {video_path.name}")
 
     print(f"Done. New images generated: {generated}. Assets saved in {args.scenes_dir}")

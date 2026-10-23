@@ -29,20 +29,20 @@ jobs:
         run: |
           mkdir -p /tmp/narration-smoke dist-cinematic
           cat > /tmp/narration-smoke/script.txt <<'EOF'
-          नमस्कार। आज हम एक छोटे परीक्षण के माध्यम से हिंदी वॉइसओवर और सबटाइटल बनाने की प्रक्रिया जाँचेंगे।
-          
-          इस परीक्षण में कोई भुगतान वाली एपीआई इस्तेमाल नहीं होगी। आवाज़ स्थानीय ईस्पीक टूल से बनाई जाएगी और ऑडियो फाइलों को एफएफएमपीईजी से जोड़ा जाएगा।
-          
-          हर दृश्य के लिए तय समय रखा जाएगा। सबटाइटल में दृश्य का समय दिखेगा, लेकिन यह शब्द-दर-शब्द ऑडियो अलाइनमेंट नहीं है।
-          
-          यह केवल तकनीकी परीक्षण है। इससे एआई चित्र, वास्तविक सिनेमैटिक वीडियो या यूट्यूब अपलोड नहीं बनाया जाएगा।
+          नमस्कार। आज हम एक विस्तृत तकनीकी परीक्षण कर रहे हैं, जिसमें हिंदी narration को सामान्य गति पर बनाया जाएगा। हर दृश्य के लिए केवल छोटा वाक्य नहीं, बल्कि पूरा समझाने वाला अनुच्छेद इस्तेमाल होगा। इसका उद्देश्य यह देखना है कि दृश्य की कुल अवधि के मुकाबले आवाज़ पर्याप्त समय तक चलती है या नहीं। अगर कहानी में कोई नया विचार आता है, तो उसे सरल भाषा में समझाया जाएगा, उदाहरण दिया जाएगा और उसके महत्व को बताया जाएगा। आवाज़ को तेज़ करके अवधि घटाने या बढ़ाने के बजाय सामान्य गति पर रखा जाएगा।
+
+          दूसरे भाग में हम ऑडियो की गुणवत्ता और समय की जाँच करेंगे। स्थानीय text to speech इंजन लिखे हुए हिंदी पाठ को आवाज़ में बदलेगा और ffmpeg उस आवाज़ को सही ऑडियो फ़ॉर्मेट में तैयार करेगा। हर scene के लिए आवाज़ की वास्तविक अवधि मापी जाएगी। अगर किसी दृश्य में बहुत कम शब्द होंगे और बाकी समय ख़ामोशी होगी, तो परीक्षण उसे स्वीकार नहीं करेगा। इस तरह आठ मिनट की फ़ाइल केवल तकनीकी रूप से लंबी नहीं होगी, बल्कि उसमें पर्याप्त narration भी होना चाहिए। इस जाँच से खाली समय छिपाकर परिणाम को सफल दिखाने की समस्या पकड़ी जा सकेगी।
+
+          तीसरे भाग में subtitles की जाँच होगी। हर subtitle block में क्रमांक, शुरू होने का समय, समाप्ति का समय और पढ़ने योग्य पाठ होना चाहिए। समय क्रम में होना चाहिए और कोई block पिछले block से टकराना नहीं चाहिए। यह परीक्षण scene-level timing को सत्यापित करता है, शब्द-दर-शब्द alignment का दावा नहीं करता। वास्तविक वीडियो में captions को और बेहतर बनाने के लिए narration और scene transitions की अलग जाँच आवश्यक होगी। इसलिए इस smoke test के परिणाम को पूरी cinematic video की गुणवत्ता का प्रमाण नहीं माना जाएगा।
+
+          आख़िरी भाग में हम स्पष्ट करेंगे कि यह परीक्षण क्या साबित करता है और क्या नहीं। यह मुफ़्त, offline tools से हिंदी narration और subtitles बनाने की प्रक्रिया जाँचता है। यह अपने आप AI चित्र, image-to-video clips, संगीत की licensing, thumbnail design या YouTube upload नहीं बनाता। उन चरणों के लिए अलग provider integration और वास्तविक output tests चाहिए। इस परीक्षण में voice speed सामान्य रखी जाएगी, scene की अवधि के साथ वास्तविक speech coverage मापी जाएगी और अपर्याप्त narration को असफल माना जाएगा। सफल होने पर audio की अवधि और subtitle timeline दोनों आठ मिनट के आसपास होने चाहिए।
           EOF
       - name: Plan an eight-minute test
         run: |
           python scripts/plan_cinematic_scenes.py --script /tmp/narration-smoke/script.txt --output dist-cinematic --max-scenes 4 --target-minutes 8
       - name: Generate offline Hindi narration and SRT
         run: |
-          python scripts/prepare_offline_narration.py --scene-plan dist-cinematic/scene-plan.json --output dist-cinematic --min-minutes 8 --max-minutes 8 --min-speech-coverage 0.01
+          python scripts/prepare_offline_narration.py --scene-plan dist-cinematic/scene-plan.json --output dist-cinematic --min-minutes 8 --max-minutes 8
       - name: Verify audio and subtitles
         run: |
           test -s dist-cinematic/voiceover.wav

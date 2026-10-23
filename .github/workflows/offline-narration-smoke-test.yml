@@ -58,6 +58,33 @@ jobs:
           assert 479 <= end <= 480, f"Expected subtitle timeline near 480 seconds, got {end}"
           print(f"PASS: {count} SRT blocks, timeline {end:.3f}s")
           PY
+      - name: Verify short narration is rejected
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          plan = {"scenes": [
+              {"scene_id": f"scene-{i:02d}", "narration": "छोटा वाक्य।",
+               "visual_prompt": "test still", "duration_seconds": 120}
+              for i in range(1, 5)
+          ]}
+          Path("/tmp/narration-smoke/short-plan.json").write_text(
+              json.dumps(plan, ensure_ascii=False), encoding="utf-8")
+          PY
+          set +e
+          python scripts/prepare_offline_narration.py \
+            --scene-plan /tmp/narration-smoke/short-plan.json \
+            --output /tmp/narration-smoke/short-output \
+            --min-minutes 8 --max-minutes 8 > /tmp/narration-smoke/short-check.log 2>&1
+          status=$?
+          set -e
+          if [ "$status" -eq 0 ]; then
+            echo "ERROR: short narration was incorrectly accepted"
+            cat /tmp/narration-smoke/short-check.log
+            exit 1
+          fi
+          grep -F "minimum is 20%" /tmp/narration-smoke/short-check.log
+          echo "PASS: insufficient spoken coverage is rejected"
       - name: Save smoke-test evidence
         uses: actions/upload-artifact@v4
         with:

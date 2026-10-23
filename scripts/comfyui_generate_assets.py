@@ -124,6 +124,24 @@ def download_outputs(base_url: str, outputs: dict[str, Any], destination: Path, 
 
 
 
+
+def select_scene_output(files: list[Path], scene_number: int, suffix: str) -> Path:
+    """Select only the requested scene's expected output format."""
+    expected_prefix = f"scene-{scene_number:02d}"
+    candidates = [
+        path for path in files
+        if path.suffix.lower() == suffix.lower()
+        and path.name.startswith(expected_prefix)
+    ]
+    if len(candidates) != 1:
+        names = ", ".join(path.name for path in files) or "none"
+        raise RuntimeError(
+            f"Expected exactly one {suffix} output for {expected_prefix}; "
+            f"found {len(candidates)} matching files. Downloaded: {names}"
+        )
+    return candidates[0]
+
+
 def validate_workflow_tokens(workflow: Any, required_tokens: set[str], label: str) -> dict[str, Any]:
     """Ensure an API workflow is an object and contains every required placeholder."""
     if not isinstance(workflow, dict) or not workflow:
@@ -218,12 +236,10 @@ def main() -> int:
                 "__OUTPUT_PREFIX__": f"youtube_ai_mcp/scene-{number:02d}",
             })
             outputs = submit_and_wait(base_url, workflow, args.timeout)
-            files = download_outputs(base_url, outputs, args.scenes_dir, {".png", ".jpg", ".jpeg", ".webp"})
-            if not files:
-                raise RuntimeError("Image workflow produced no downloadable image; ensure it has a SaveImage output node.")
-            image_path.write_bytes(files[0].read_bytes())
-            if files[0] != image_path:
-                files[0].unlink(missing_ok=True)
+            files = download_outputs(base_url, outputs, args.scenes_dir, {".png"})
+            selected = select_scene_output(files, number, ".png")
+            if selected != image_path:
+                selected.replace(image_path)
             generated += 1
             print(f"Generated image: {image_path.name}")
         else:
@@ -243,12 +259,8 @@ def main() -> int:
             })
             outputs = submit_and_wait(base_url, workflow, args.timeout)
             files = download_outputs(base_url, outputs, args.scenes_dir, {".mp4"})
-            if not files:
-                raise RuntimeError("Video workflow produced no video; configure an output node that saves MP4/WebM/GIF.")
-            selected = files[0]
-            if selected.suffix.lower() != ".mp4":
-                video_path = selected
-            else:
+            selected = select_scene_output(files, number, ".mp4")
+            if selected != video_path:
                 selected.replace(video_path)
             print(f"Generated animation: {video_path.name}")
 

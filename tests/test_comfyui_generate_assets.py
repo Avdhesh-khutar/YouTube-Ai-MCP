@@ -2,7 +2,7 @@ import unittest
 
 from pathlib import Path
 
-from scripts.comfyui_generate_assets import replace_tokens, validate_prompts, validate_output_bytes
+from scripts.comfyui_generate_assets import (\n    replace_tokens, validate_prompts, validate_output_bytes, validate_workflow_tokens,\n)
 
 
 class ComfyUITokenReplacementTests(unittest.TestCase):
@@ -79,6 +79,29 @@ class ComfyUITokenReplacementTests(unittest.TestCase):
     def test_accepts_png_and_mp4_signatures(self):
         validate_output_bytes(Path("scene-01.png"), b"\x89PNG\r\n\x1a\nrest")
         validate_output_bytes(Path("scene-01.mp4"), b"\x00\x00\x00\x18ftypisomrest")
+
+
+    def test_workflow_token_validation_finds_nested_tokens(self):
+        workflow = {"1": {"inputs": {"text": "__POSITIVE_PROMPT__ and __NEGATIVE_PROMPT__"}},
+                    "2": {"inputs": {"prefix": "__OUTPUT_PREFIX__"}}}
+        validated = validate_workflow_tokens(
+            workflow,
+            {"__POSITIVE_PROMPT__", "__NEGATIVE_PROMPT__", "__OUTPUT_PREFIX__"},
+            "Image",
+        )
+        self.assertEqual(validated, workflow)
+
+    def test_workflow_token_validation_reports_missing_tokens(self):
+        with self.assertRaisesRegex(ValueError, "missing required token"):
+            validate_workflow_tokens(
+                {"1": {"inputs": {"text": "__POSITIVE_PROMPT__"}}},
+                {"__POSITIVE_PROMPT__", "__INPUT_IMAGE__"},
+                "Video",
+            )
+
+    def test_workflow_token_validation_rejects_non_object(self):
+        with self.assertRaisesRegex(ValueError, "non-empty JSON object"):
+            validate_workflow_tokens([], {"__POSITIVE_PROMPT__"}, "Image")
 
 
 if __name__ == "__main__":

@@ -25,12 +25,16 @@ class OfflineNarrationTests(unittest.TestCase):
             def fake_run(command, capture_output, text, check):
                 if "-w" in command:
                     Path(command[command.index("-w") + 1]).write_bytes(b"fake wav")
-                else:
+                elif "-f" in command and "concat" in command:
                     Path(command[-1]).write_bytes(b"joined wav")
                     concat_path = Path(command[command.index("-i") + 1])
                     concat_text = concat_path.read_text(encoding="utf-8")
                     self.assertIn("file '", concat_text)
                     self.assertIn("\nfile", concat_text)
+                else:
+                    self.assertIn("apad", command)
+                    self.assertIn("-t", command)
+                    Path(command[-1]).write_bytes(b"padded wav")
                 return type("Result", (), {"returncode": 0, "stderr": ""})()
             with patch("scripts.prepare_offline_narration.shutil.which", side_effect=lambda name: "/usr/bin/" + name) as which_patch:
                 with patch("scripts.prepare_offline_narration.subprocess.run", side_effect=fake_run):

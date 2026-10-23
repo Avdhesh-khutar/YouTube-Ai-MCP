@@ -101,12 +101,17 @@ def validate_output_bytes(path: Path, data: bytes) -> None:
 
 def download_outputs(base_url: str, outputs: dict[str, Any], destination: Path, allowed: set[str]) -> list[Path]:
     saved: list[Path] = []
+    seen_names: set[str] = set()
     for node in outputs.values():
         for kind in ("images", "gifs", "videos"):
             for item in node.get(kind, []):
                 filename = str(item.get("filename", ""))
                 if not filename or Path(filename).suffix.lower() not in allowed:
                     continue
+                safe_name = Path(filename).name
+                if safe_name in seen_names:
+                    raise RuntimeError(f"ComfyUI returned duplicate output filename: {safe_name}.")
+                seen_names.add(safe_name)
                 query = urllib.parse.urlencode({
                     "filename": filename,
                     "subfolder": item.get("subfolder", ""),
@@ -115,7 +120,7 @@ def download_outputs(base_url: str, outputs: dict[str, Any], destination: Path, 
                 url = base_url + "/view?" + query
                 with urllib.request.urlopen(url, timeout=60) as response:
                     data = response.read()
-                target = destination / Path(filename).name
+                target = destination / safe_name
                 validate_output_bytes(target, data)
                 target.write_bytes(data)
                 saved.append(target)

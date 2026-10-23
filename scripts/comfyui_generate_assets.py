@@ -58,7 +58,18 @@ def upload_image(base_url: str, path: Path) -> str:
             result = json.loads(response.read().decode("utf-8"))
     except urllib.error.URLError as exc:
         raise RuntimeError(f"ComfyUI image upload failed: {exc}") from exc
-    return str(result.get("name", path.name))
+    if not isinstance(result, dict):
+        raise RuntimeError("ComfyUI image upload returned an invalid JSON object.")
+    returned_name = result.get("name", path.name)
+    if (
+        not isinstance(returned_name, str)
+        or not returned_name.strip()
+        or returned_name in {".", ".."}
+        or "/" in returned_name
+        or "\\" in returned_name
+    ):
+        raise RuntimeError("ComfyUI image upload returned an unsafe or invalid image name.")
+    return returned_name
 
 
 def submit_and_wait(base_url: str, workflow: dict[str, Any], timeout: int) -> dict[str, Any]:

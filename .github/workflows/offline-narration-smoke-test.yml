@@ -37,12 +37,12 @@ jobs:
           
           यह केवल तकनीकी परीक्षण है। इससे एआई चित्र, वास्तविक सिनेमैटिक वीडियो या यूट्यूब अपलोड नहीं बनाया जाएगा।
           EOF
-      - name: Plan a one-minute test
+      - name: Plan an eight-minute test
         run: |
-          python scripts/plan_cinematic_scenes.py --script /tmp/narration-smoke/script.txt --output dist-cinematic --max-scenes 4 --target-minutes 1
+          python scripts/plan_cinematic_scenes.py --script /tmp/narration-smoke/script.txt --output dist-cinematic --max-scenes 4 --target-minutes 8
       - name: Generate offline Hindi narration and SRT
         run: |
-          python scripts/prepare_offline_narration.py --scene-plan dist-cinematic/scene-plan.json --output dist-cinematic --min-minutes 1 --max-minutes 1
+          python scripts/prepare_offline_narration.py --scene-plan dist-cinematic/scene-plan.json --output dist-cinematic --min-minutes 8 --max-minutes 8
       - name: Verify audio and subtitles
         run: |
           test -s dist-cinematic/voiceover.wav
@@ -55,7 +55,7 @@ jobs:
           count, end, errors = validate_srt(p.read_text(encoding="utf-8"))
           assert count >= 2, f"Expected multiple subtitle blocks, got {count}"
           assert not errors, errors
-          assert 59 <= end <= 60, f"Expected subtitle timeline near 60 seconds, got {end}"
+          assert 479 <= end <= 480, f"Expected subtitle timeline near 480 seconds, got {end}"
           print(f"PASS: {count} SRT blocks, timeline {end:.3f}s")
           PY
       - name: Save smoke-test evidence

@@ -53,8 +53,9 @@ class OfflineNarrationTests(unittest.TestCase):
             root = Path(tmp)
             plan_path = root / "scene-plan.json"
             plan_path.write_text(json.dumps({"scenes": [
-                {"scene_id": "scene-01", "narration": "बहुत छोटा वाक्य",
-                 "visual_prompt": "चित्र", "duration_seconds": 480}
+                {"scene_id": f"scene-{i:02d}", "narration": "बहुत छोटा वाक्य",
+                 "visual_prompt": "चित्र", "duration_seconds": 120}
+                for i in range(1, 5)
             ]}, ensure_ascii=False), encoding="utf-8")
             def fake_run(command, capture_output, text, check):
                 if "-w" in command:

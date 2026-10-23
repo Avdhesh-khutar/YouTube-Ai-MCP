@@ -95,7 +95,7 @@ class CinematicQualityTests(unittest.TestCase):
             subtitles = root / "captions.srt"
             video.write_bytes(b"video placeholder")
             subtitles.write_text(
-                "1\\n00:00:00,000 --> 00:00:02,000\\nनमस्ते दुनिया\\n",
+                "1\n00:00:00,000 --> 00:00:02,000\nनमस्ते दुनिया\n",
                 encoding="utf-8",
             )
             metadata = {
@@ -118,7 +118,7 @@ class CinematicQualityTests(unittest.TestCase):
             subtitles = root / "captions.srt"
             video.write_bytes(b"video placeholder")
             subtitles.write_text(
-                "1\\n00:00:00,000 --> 00:00:02,000\\nनमस्ते दुनिया\\n",
+                "1\n00:00:00,000 --> 00:00:02,000\nनमस्ते दुनिया\n",
                 encoding="utf-8",
             )
             metadata = {

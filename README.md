@@ -1,3 +1,7 @@
+# See also: free browser-based image-to-video provider evaluation
+
+For the current read-only review of free Hugging Face image-to-video candidates, their API limitations, and the no-paid-fallback safeguards, see [docs/CURRENT_FREE_I2V_CANDIDATES.md](docs/CURRENT_FREE_I2V_CANDIDATES.md) and [docs/FREE_VIDEO_PROVIDER_EVALUATION.md](docs/FREE_VIDEO_PROVIDER_EVALUATION.md).
+
 # YouTube AI MCP
 
 OAuth-protected Model Context Protocol (MCP) server for Claude, hosted on Cloudflare Workers.

@@ -2,6 +2,14 @@ name: Offline Hindi narration smoke test
 
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - 'scripts/prepare_offline_narration.py'
+      - 'scripts/plan_cinematic_scenes.py'
+      - 'scripts/validate_scene_plan.py'
+      - 'scripts/check_cinematic_quality.py'
+      - 'tests/test_prepare_offline_narration.py'
+      - '.github/workflows/offline-narration-smoke-test.yml'
 
 permissions:
   contents: read

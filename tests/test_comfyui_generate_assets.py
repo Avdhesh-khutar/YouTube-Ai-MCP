@@ -77,8 +77,8 @@ class ComfyUITokenReplacementTests(unittest.TestCase):
             validate_output_bytes(Path("scene-01.png"), b"not a png")
 
     def test_accepts_png_and_mp4_signatures(self):
-        validate_output_bytes(Path("scene-01.png"), b"\\x89PNG\\r\\n\\x1a\\nrest")
-        validate_output_bytes(Path("scene-01.mp4"), b"\\x00\\x00\\x00\\x18ftypisomrest")
+        validate_output_bytes(Path("scene-01.png"), b"\x89PNG\r\n\x1a\nrest")
+        validate_output_bytes(Path("scene-01.mp4"), b"\x00\x00\x00\x18ftypisomrest")
 
 
 if __name__ == "__main__":

@@ -98,8 +98,19 @@ def check(video: Path, subtitles: Path | None, narration: Path | None = None,
             details["duration_seconds"] = duration
             media_duration = duration
             details["stream_types"] = sorted(types)
-            if "video" not in types:
+            video_streams = [stream for stream in streams if stream.get("codec_type") == "video"]
+            if not video_streams:
                 errors.append("Final file has no video stream.")
+                details["checks"]["resolution"] = "fail"
+            else:
+                width = int(video_streams[0].get("width", 0) or 0)
+                height = int(video_streams[0].get("height", 0) or 0)
+                details["resolution"] = {"width": width, "height": height}
+                if width < 1280 or height < 720:
+                    errors.append(f"Video resolution {width}x{height} is below the 1280x720 minimum.")
+                    details["checks"]["resolution"] = "fail"
+                else:
+                    details["checks"]["resolution"] = "pass"
             if "audio" not in types:
                 errors.append("Final file has no audio stream.")
             if duration < min_minutes * 60 or duration > max_minutes * 60:

@@ -124,6 +124,23 @@ jobs:
           assert report["public_publish"] is False
           print("PASS: short fixture video rendered and passed media/subtitle QA; no upload or public publishing")
           PY
+      - name: Verify the 720p quality gate rejects low-resolution video
+        run: |
+          ffmpeg -y -f lavfi -i color=c=black:s=640x360:r=30 -t 4 -pix_fmt yuv420p /tmp/cinematic-render-smoke/low-resolution.mp4
+          set +e
+          python scripts/check_cinematic_quality.py \
+            --video /tmp/cinematic-render-smoke/low-resolution.mp4 \
+            --subtitles /tmp/cinematic-render-smoke/scenes/captions.srt \
+            --min-minutes 0.05 --max-minutes 1 > /tmp/cinematic-render-smoke/low-resolution-check.log 2>&1
+          status=$?
+          set -e
+          if [ "$status" -eq 0 ]; then
+            echo "ERROR: 640x360 video was incorrectly accepted"
+            cat /tmp/cinematic-render-smoke/low-resolution-check.log
+            exit 1
+          fi
+          grep -F "below the 1280x720 minimum" /tmp/cinematic-render-smoke/low-resolution-check.log
+          echo "PASS: low-resolution video is rejected by the 720p gate"
       - name: Save smoke-test evidence
         uses: actions/upload-artifact@v4
         with:

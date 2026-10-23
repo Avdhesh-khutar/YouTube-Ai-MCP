@@ -74,17 +74,31 @@ def upload_image(base_url: str, path: Path) -> str:
 
 def submit_and_wait(base_url: str, workflow: dict[str, Any], timeout: int) -> dict[str, Any]:
     response = request_json(base_url + "/prompt", {"prompt": workflow, "client_id": uuid.uuid4().hex})
+    if not isinstance(response, dict):
+        raise RuntimeError("ComfyUI prompt submission returned an invalid JSON object.")
     prompt_id = response.get("prompt_id")
-    if not prompt_id:
-        raise RuntimeError(f"ComfyUI did not return prompt_id: {response}")
+    if not isinstance(prompt_id, str) or not prompt_id.strip():
+        raise RuntimeError(f"ComfyUI did not return a valid prompt_id: {response}")
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
-        history = request_json(base_url + "/history/" + urllib.parse.quote(str(prompt_id)))
+        history = request_json(base_url + "/history/" + urllib.parse.quote(prompt_id))
+        if not isinstance(history, dict):
+            raise RuntimeError(f"ComfyUI returned invalid history for prompt {prompt_id}.")
         item = history.get(prompt_id)
-        if item and item.get("outputs"):
-            return item["outputs"]
-        if item and item.get("status", {}).get("status_str") == "error":
+        if item is None:
+            time.sleep(2)
+            continue
+        if not isinstance(item, dict):
+            raise RuntimeError(f"ComfyUI returned invalid history entry for prompt {prompt_id}.")
+        status = item.get("status")
+        status_str = status.get("status_str") if isinstance(status, dict) else None
+        if status_str == "error":
             raise RuntimeError(f"ComfyUI workflow failed for prompt {prompt_id}")
+        outputs = item.get("outputs")
+        if outputs is not None and not isinstance(outputs, dict):
+            raise RuntimeError(f"ComfyUI returned invalid outputs for prompt {prompt_id}.")
+        if isinstance(outputs, dict) and outputs:
+            return outputs
         time.sleep(2)
     raise TimeoutError(f"ComfyUI generation timed out after {timeout}s (prompt {prompt_id})")
 

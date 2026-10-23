@@ -78,6 +78,27 @@ def submit_and_wait(base_url: str, workflow: dict[str, Any], timeout: int) -> di
     raise TimeoutError(f"ComfyUI generation timed out after {timeout}s (prompt {prompt_id})")
 
 
+
+def validate_output_bytes(path: Path, data: bytes) -> None:
+    """Reject empty or extension-mismatched files before saving generated assets."""
+    if not data:
+        raise RuntimeError(f"ComfyUI returned an empty output for {path.name}.")
+    suffix = path.suffix.lower()
+    signatures = {
+        ".png": lambda value: value.startswith(b"\\x89PNG\\r\\n\\x1a\\n"),
+        ".jpg": lambda value: value.startswith(b"\\xff\\xd8\\xff"),
+        ".jpeg": lambda value: value.startswith(b"\\xff\\xd8\\xff"),
+        ".webp": lambda value: len(value) >= 12 and value[:4] == b"RIFF" and value[8:12] == b"WEBP",
+        ".gif": lambda value: value.startswith((b"GIF87a", b"GIF89a")),
+        ".mp4": lambda value: len(value) >= 12 and value[4:8] == b"ftyp",
+    }
+    signature_check = signatures.get(suffix)
+    if signature_check and not signature_check(data):
+        raise RuntimeError(
+            f"ComfyUI output {path.name} does not match its {suffix} file extension."
+        )
+
+
 def download_outputs(base_url: str, outputs: dict[str, Any], destination: Path, allowed: set[str]) -> list[Path]:
     saved: list[Path] = []
     for node in outputs.values():
@@ -95,6 +116,7 @@ def download_outputs(base_url: str, outputs: dict[str, Any], destination: Path, 
                 with urllib.request.urlopen(url, timeout=60) as response:
                     data = response.read()
                 target = destination / Path(filename).name
+                validate_output_bytes(target, data)
                 target.write_bytes(data)
                 saved.append(target)
     return saved

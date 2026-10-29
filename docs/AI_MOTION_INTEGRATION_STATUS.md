@@ -34,7 +34,17 @@ Use only a non-sensitive image. Do not enter payment details, API tokens, or pri
 
 ## Current blocker
 
-A real browser-generated MP4 has not yet been provided to this repository or verified by CI. Until a clip passes the acceptance gate above, image-to-video integration remains pending and the end-to-end 8–10 minute cinematic pipeline is not complete.
+A real browser-generated MP4 was provided in the conversation and inspected locally on 2026-10-30. The file was not committed to the repository; this is a manual artifact check, not CI verification. Observed metadata: H.264 video, 832×480, duration 3.5625 seconds, file size 3,168,744 bytes. Four sampled frames showed substantial pixel changes between timestamps, so the clip is not a single identical still frame. This does not by itself prove natural/acceptable motion quality, and the file has not yet been run through this repository's scene renderer.
+
+Current evidence:
+- NiftyVid generated a downloadable short MP4: PASS.
+- Container/codec/duration readable with ffprobe: PASS.
+- Sampled frames vary over time: PASS (basic temporal-change check only).
+- Human review for warping/flicker/subject morphing: PENDING.
+- Matching-scene renderer integration and render-report verification: PENDING.
+- Full 480–600 second video generation: NOT VERIFIED.
+
+Therefore, the manual short-clip generation test is successful, but image-to-video integration and the end-to-end 8–10 minute cinematic pipeline remain incomplete. Do not claim full automation is complete.
 
 
 ## Duration mismatch to resolve before end-to-end claims

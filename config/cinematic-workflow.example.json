@@ -59,7 +59,7 @@
       "require_subtitles": true
     },
     "youtube_upload": {
-      "enabled": true,
+      "enabled": false,
       "privacy_status": "private",
       "require_owner_approval": true,
       "allow_public_publish": false

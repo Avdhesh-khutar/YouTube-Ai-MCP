@@ -1,0 +1,37 @@
+# AI-motion integration status
+
+## Verified status
+
+- The renderer accepts a real scene clip named alongside its source image (for example, `scene-02.png` and `scene-02.mp4`).
+- If no matching clip exists, the renderer uses a Ken Burns zoom on the still image. This is not AI-generated motion.
+- `scripts/hf_space_i2v.py` is an opt-in adapter for a public Hugging Face Gradio Space whose exact API endpoint and input schema must be inspected first.
+- The NiftyVid browser demo is a separate candidate and its custom browser/Worker flow has not been integrated with the Gradio adapter.
+- No provider is configured in `config/cinematic-workflow.example.json`.
+- YouTube upload is disabled by default in the example config.
+- A green CI run proves code/tests passed; it does not prove a real AI-generated MP4 was returned.
+
+## Real clip acceptance gate
+
+Do not mark AI-motion complete until all checks pass:
+
+1. A non-sensitive source image was used with a provider that was confirmed to be free for the test.
+2. The provider returned an actual video file, not a URL that the adapter cannot safely resolve or a still image.
+3. The saved output passes `ffprobe` and has a readable video stream with codec and non-zero dimensions.
+4. Playback confirms motion in the scene content, not only a zoom/pan effect.
+5. The motion is reviewed for warping, flicker, sudden cuts, and subject morphing.
+6. The matching scene renderer uses the MP4 and the render report identifies it as an image-to-video clip.
+7. No paid fallback or YouTube upload was used.
+
+## Manual free-browser test
+
+Candidate: [NiftyVid](https://igorcsis.github.io/nifty-vid/). Check current availability and terms in the browser before use; free public GPU availability can change.
+
+Prompt for a 3–4 second initial test:
+
+`Cinematic natural movement: camera slowly pushes forward; tree leaves sway gently in a light breeze; subtle mist drifts in the background; realistic physics, stable subject, no scene cuts or morphing, preserve the original composition.`
+
+Use only a non-sensitive image. Do not enter payment details, API tokens, or private credentials. If the demo is unavailable or fails, record the test as blocked rather than switching to a paid provider.
+
+## Current blocker
+
+A real browser-generated MP4 has not yet been provided to this repository or verified by CI. Until a clip passes the acceptance gate above, image-to-video integration remains pending and the end-to-end 8–10 minute cinematic pipeline is not complete.

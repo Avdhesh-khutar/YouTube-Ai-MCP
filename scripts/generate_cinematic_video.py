@@ -36,6 +36,27 @@ def run(command: list[str]) -> None:
         )
 
 
+def probe_duration(path: Path) -> float:
+    """Read actual media duration using ffprobe; fail closed on unreadable files."""
+    executable = shutil.which("ffprobe")
+    if executable is None:
+        raise RuntimeError("ffprobe is required to verify actual media duration.")
+    result = subprocess.run(
+        [executable, "-v", "error", "-show_entries", "format=duration",
+         "-of", "default=noprint_wrappers=1:nokey=1", str(path)],
+        text=True, capture_output=True, check=False,
+    )
+    if result.returncode:
+        raise RuntimeError(f"ffprobe could not read {path.name}: {result.stderr[-2000:]}")
+    try:
+        duration = float(result.stdout.strip())
+    except ValueError as exc:
+        raise RuntimeError(f"ffprobe returned invalid duration for {path.name}") from exc
+    if duration <= 0:
+        raise RuntimeError(f"Media duration must be positive: {path.name}")
+    return duration
+
+
 def ffmpeg_available() -> bool:
     return shutil.which("ffmpeg") is not None
 
@@ -91,7 +112,14 @@ def render(scenes_dir: Path, output_dir: Path, seconds_per_scene: float = 5.0,
         scene_number = int(re.fullmatch(r"scene[-_](\d+)", image.stem, re.IGNORECASE).group(1))
         duration = planned_durations.get(scene_number, max(2.0, seconds_per_scene))
         if clip.exists():
-            # Use a prepared image-to-video clip when available; otherwise animate the still.
+            source_duration = probe_duration(clip)
+            if source_duration + 0.05 < duration:
+                raise RuntimeError(
+                    f"AI-motion clip {clip.name} is only {source_duration:.2f}s, "
+                    f"but scene {image.stem} plans {duration:.2f}s. Add a timeline of "
+                    "short clips or shorten the scene plan; the renderer will not freeze "
+                    "or silently loop the clip to pretend it has natural motion."
+                )
             run([
                 "ffmpeg", "-y", "-i", str(clip), "-t", str(duration),
                 "-an", "-vf",
@@ -101,8 +129,8 @@ def render(scenes_dir: Path, output_dir: Path, seconds_per_scene: float = 5.0,
                 str(segment),
             ])
             motion = "image-to-video clip"
+            source_duration_value = source_duration
         else:
-            frames = int(round(duration * FPS))
             run([
                 "ffmpeg", "-y", "-loop", "1", "-framerate", str(FPS), "-i", str(image),
                 "-vf",
@@ -115,8 +143,14 @@ def render(scenes_dir: Path, output_dir: Path, seconds_per_scene: float = 5.0,
                 "-preset", "medium", "-crf", "20", str(segment),
             ])
             motion = "cinematic Ken Burns zoom"
+            source_duration_value = None
         segments.append(segment)
-        scene_rows.append({"scene": image.name, "motion": motion, "duration_seconds": duration})
+        scene_rows.append({
+            "scene": image.name,
+            "motion": motion,
+            "planned_duration_seconds": duration,
+            "source_clip_duration_seconds": source_duration_value,
+        })
 
     concat_file = output_dir / "concat.txt"
     concat_file.write_text(
@@ -149,6 +183,7 @@ def render(scenes_dir: Path, output_dir: Path, seconds_per_scene: float = 5.0,
             command += ["-vf", f"subtitles={captions.as_posix()}"]
         command += ["-c:v", "libx264", "-preset", "medium", "-crf", "20", "-an", "-movflags", "+faststart", str(final_video)]
     run(command)
+    actual_duration = probe_duration(final_video)
 
     # Use the first scene as a clean, uncaptioned thumbnail source.
     thumbnail = output_dir / "thumbnail.jpg"
@@ -162,11 +197,14 @@ def render(scenes_dir: Path, output_dir: Path, seconds_per_scene: float = 5.0,
             "video": final_video.name,
             "resolution": f"{WIDTH}x{HEIGHT}",
             "fps": FPS,
+            "planned_duration_seconds": sum(row["planned_duration_seconds"] for row in scene_rows),
+            "actual_duration_seconds": actual_duration,
+            "duration_difference_seconds": actual_duration - sum(row["planned_duration_seconds"] for row in scene_rows),
             "scenes": scene_rows,
             "audio": narration.name if narration.exists() else None,
             "captions": captions.name if captions.exists() else None,
             "upload_enabled": False,
-            "notes": "Review image rights, voice, captions, pacing, and thumbnail before any upload.",
+            "notes": "Actual duration is probed from the final MP4. Review image rights, voice, captions, pacing, and thumbnail before any upload.",
         }, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )

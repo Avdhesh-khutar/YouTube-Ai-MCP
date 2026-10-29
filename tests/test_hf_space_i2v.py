@@ -1,7 +1,9 @@
 import importlib.util
+import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch, Mock
 
 SPEC = importlib.util.spec_from_file_location("hf_space_i2v", "scripts/hf_space_i2v.py")
 module = importlib.util.module_from_spec(SPEC)
@@ -33,11 +35,31 @@ class HfSpaceI2VTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "signature"):
                 module.validate_video(video)
 
-    def test_accepts_mp4_signature(self):
+    def test_rejects_non_video_extension(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            image = Path(tmp) / "image.png"
+            image.write_bytes(b"\x00\x00\x00\x18ftyp" + b"mock-video-data")
+            with self.assertRaisesRegex(ValueError, "recognized video extension"):
+                module.validate_video(image)
+
+    def test_require_playable_checks_ffprobe_video_stream(self):
         with tempfile.TemporaryDirectory() as tmp:
             video = Path(tmp) / "clip.mp4"
             video.write_bytes(b"\x00\x00\x00\x18ftyp" + b"mock-video-data")
-            module.validate_video(video)
+            completed = Mock(stdout=json.dumps({"streams": [{"codec_name": "h264", "width": 1280, "height": 720}]}), stderr="")
+            with patch.object(module.subprocess, "run", return_value=completed) as run:
+                module.validate_video(video, require_playable=True)
+            run.assert_called_once()
+            self.assertEqual(run.call_args.args[0][0], "ffprobe")
+
+    def test_rejects_file_without_video_stream_even_with_mp4_signature(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            video = Path(tmp) / "clip.mp4"
+            video.write_bytes(b"\x00\x00\x00\x18ftyp" + b"mock-video-data")
+            completed = Mock(stdout=json.dumps({"streams": []}), stderr="")
+            with patch.object(module.subprocess, "run", return_value=completed):
+                with self.assertRaisesRegex(ValueError, "no readable video stream"):
+                    module.validate_video(video, require_playable=True)
 
     def test_resolves_prompt_and_duration_placeholders(self):
         self.assertEqual(

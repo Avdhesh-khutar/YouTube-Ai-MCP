@@ -7,6 +7,11 @@ on:
         description: "Seconds per scene (2-12)"
         required: true
         default: "5"
+      require_full_length:
+        description: "Require actual 8-10 minute runtime (fails short review clips)"
+        type: boolean
+        required: true
+        default: false
 
 permissions:
   contents: read
@@ -33,6 +38,9 @@ jobs:
           test -s dist-cinematic/thumbnail.jpg
           test -s dist-cinematic/render-report.json
           ffprobe -v error -show_entries stream=codec_type,width,height -of json dist-cinematic/cinematic-video.mp4
+      - name: Verify actual 8-10 minute runtime
+        if: ${{ inputs.require_full_length }}
+        run: python scripts/verify_render_duration.py dist-cinematic/cinematic-video.mp4 --require-audio
       - name: Save private review artifact
         uses: actions/upload-artifact@v4
         with:

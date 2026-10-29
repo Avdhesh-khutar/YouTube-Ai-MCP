@@ -1,5 +1,6 @@
 import contextlib
 import io
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -23,32 +24,52 @@ class CinematicRendererGuardTests(unittest.TestCase):
                 with self.assertRaisesRegex(RuntimeError, "No scene images found"):
                     renderer.render(Path(tmp), Path(tmp) / "out", 5)
 
-    def test_scene_plan_controls_render_duration(self):
+    def _write_eight_minute_plan(self, root: Path, scenes: Path) -> Path:
+        scenes.mkdir()
+        for number in range(1, 5):
+            (scenes / f"scene-{number:02d}.png").write_bytes(b"image placeholder")
+        plan = {
+            "scenes": [
+                {
+                    "scene_id": f"scene-{number:02d}",
+                    "narration": f"कथा {number}",
+                    "visual_prompt": f"दृश्य {number}",
+                    "duration_seconds": 120,
+                }
+                for number in range(1, 5)
+            ]
+        }
+        plan_path = root / "scene-plan.json"
+        plan_path.write_text(json.dumps(plan, ensure_ascii=False), encoding="utf-8")
+        return plan_path
+
+    def test_report_separates_planned_and_actual_duration(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             scenes = root / "scenes"
-            scenes.mkdir()
-            for number in range(1, 5):
-                (scenes / f"scene-{number:02d}.png").write_bytes(b"image placeholder")
-            plan = {
-                "scenes": [
-                    {
-                        "scene_id": f"scene-{number:02d}",
-                        "narration": f"कथा {number}",
-                        "visual_prompt": f"दृश्य {number}",
-                        "duration_seconds": 120,
-                    }
-                    for number in range(1, 5)
-                ]
-            }
-            plan_path = root / "scene-plan.json"
-            plan_path.write_text(__import__("json").dumps(plan, ensure_ascii=False), encoding="utf-8")
+            plan_path = self._write_eight_minute_plan(root, scenes)
             with patch.object(renderer, "ffmpeg_available", return_value=True), \
-                 patch.object(renderer, "run"):
+                 patch.object(renderer, "run"), \
+                 patch.object(renderer, "probe_duration", return_value=480.0):
                 renderer.render(scenes, root / "out", scene_plan_path=plan_path, min_minutes=8, max_minutes=10)
-            import json
             report = json.loads((root / "out" / "render-report.json").read_text(encoding="utf-8"))
-            self.assertEqual([row["duration_seconds"] for row in report["scenes"]], [120.0] * 4)
+            self.assertEqual([row["planned_duration_seconds"] for row in report["scenes"]], [120.0] * 4)
+            self.assertEqual(report["planned_duration_seconds"], 480.0)
+            self.assertEqual(report["actual_duration_seconds"], 480.0)
+            self.assertEqual(report["duration_difference_seconds"], 0.0)
+
+    def test_rejects_motion_clip_shorter_than_planned_scene(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            scenes = root / "scenes"
+            plan_path = self._write_eight_minute_plan(root, scenes)
+            (scenes / "scene-01.mp4").write_bytes(b"short clip placeholder")
+            with patch.object(renderer, "ffmpeg_available", return_value=True), \
+                 patch.object(renderer, "probe_duration", return_value=3.5), \
+                 patch.object(renderer, "run") as run_mock:
+                with self.assertRaisesRegex(RuntimeError, "only 3.50s"):
+                    renderer.render(scenes, root / "out", scene_plan_path=plan_path, min_minutes=8, max_minutes=10)
+                run_mock.assert_not_called()
 
     def test_scene_plan_must_match_available_images(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -57,7 +78,7 @@ class CinematicRendererGuardTests(unittest.TestCase):
             scenes.mkdir()
             (scenes / "scene-01.png").write_bytes(b"image placeholder")
             plan_path = root / "scene-plan.json"
-            plan_path.write_text(__import__("json").dumps({
+            plan_path.write_text(json.dumps({
                 "scenes": [{
                     "scene_id": "scene-02",
                     "narration": "कथा",

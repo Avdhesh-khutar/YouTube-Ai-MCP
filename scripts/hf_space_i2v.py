@@ -11,6 +11,7 @@ import argparse
 import json
 import os
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -39,7 +40,6 @@ def parse_args() -> argparse.Namespace:
 
 def resolve_args(raw: Any, image: Path, prompt: str, duration: int) -> Any:
     if raw == "__IMAGE__":
-        # Import only when an image placeholder is actually used.
         from gradio_client import handle_file
         return handle_file(str(image.resolve()))
     if raw == "__PROMPT__":
@@ -58,8 +58,7 @@ def find_video_path(value: Any) -> Path | None:
         path = Path(value)
         if path.suffix.lower() in VIDEO_SUFFIXES and path.is_file():
             return path
-        # Some Gradio outputs return a dict serialized as JSON or a URL. Do not
-        # fetch arbitrary URLs; require a local file path returned by the client.
+        # Never fetch arbitrary URLs returned by a provider.
         return None
     if isinstance(value, dict):
         for key in ("video", "path", "name", "output"):
@@ -78,13 +77,42 @@ def find_video_path(value: Any) -> Path | None:
     return None
 
 
-def validate_video(path: Path) -> None:
+def validate_video(path: Path, *, require_playable: bool = False) -> None:
+    if path.suffix.lower() not in VIDEO_SUFFIXES:
+        raise ValueError("Output must use a recognized video extension (.mp4, .webm, .mov, .m4v).")
     if not path.is_file() or path.stat().st_size < 16:
         raise ValueError("Provider output is missing or empty; no valid video was produced.")
     with path.open("rb") as file:
         header = file.read(16)
     if not any(header.startswith(sig) for sig in VIDEO_SIGNATURES):
         raise ValueError("Provider output does not have a recognized MP4/WebM video signature.")
+
+    if require_playable:
+        # A file signature alone can be faked or truncated. For real provider output,
+        # require ffprobe to confirm a readable video stream before reporting success.
+        try:
+            result = subprocess.run(
+                [
+                    "ffprobe", "-v", "error", "-select_streams", "v:0",
+                    "-show_entries", "stream=codec_name,width,height",
+                    "-of", "json", str(path),
+                ],
+                check=True, capture_output=True, text=True, timeout=20,
+            )
+        except FileNotFoundError as exc:
+            raise ValueError("ffprobe is required to verify playable output. Install FFmpeg or run in a runner that includes ffprobe.") from exc
+        except subprocess.CalledProcessError as exc:
+            detail = (exc.stderr or "").strip()[:500]
+            raise ValueError(f"ffprobe could not read the generated video: {detail}") from exc
+        except subprocess.TimeoutExpired as exc:
+            raise ValueError("ffprobe timed out while checking generated video.") from exc
+        try:
+            payload = json.loads(result.stdout)
+            streams = payload.get("streams", [])
+        except (json.JSONDecodeError, AttributeError) as exc:
+            raise ValueError("ffprobe returned invalid stream metadata.") from exc
+        if not streams or not streams[0].get("codec_name") or not streams[0].get("width") or not streams[0].get("height"):
+            raise ValueError("Output has no readable video stream; it will not be reported as a successful clip.")
 
 
 def main() -> int:
@@ -100,6 +128,12 @@ def main() -> int:
         return 2
     if args.duration < 1 or args.duration > 10:
         print("Duration must be between 1 and 10 seconds for this initial test adapter.", file=sys.stderr)
+        return 2
+    if args.output.suffix.lower() not in VIDEO_SUFFIXES:
+        print("Output path must end with a recognized video extension (.mp4, .webm, .mov, .m4v).", file=sys.stderr)
+        return 2
+    if args.output.resolve() == args.image.resolve():
+        print("Output path must not overwrite the source image.", file=sys.stderr)
         return 2
 
     try:
@@ -120,10 +154,10 @@ def main() -> int:
         video = find_video_path(result)
         if video is None:
             raise ValueError("No local video file found in the endpoint result. Inspect the Space API output schema; no output was saved.")
-        validate_video(video)
+        validate_video(video, require_playable=True)
         args.output.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(video, args.output)
-        validate_video(args.output)
+        validate_video(args.output, require_playable=True)
         print(json.dumps({"status": "success", "output": str(args.output), "bytes": args.output.stat().st_size}))
         return 0
     except Exception as exc:

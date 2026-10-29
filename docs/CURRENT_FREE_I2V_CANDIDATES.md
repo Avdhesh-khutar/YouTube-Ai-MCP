@@ -1,6 +1,6 @@
 # Current free image-to-video candidate review
 
-Reviewed: 2026-10-23. This is a read-only review; no generation request was submitted and no GPU quota was intentionally consumed.
+Reviewed: 2026-10-30. This is a read-only review; no generation request was submitted and no GPU quota was intentionally consumed.
 
 ## Candidate A: LTX-2.3 Fast Space
 
@@ -43,3 +43,28 @@ Official documentation:
 ## Status
 
 Candidate selection is narrowed down but not yet runtime-verified. No real MP4 has been generated through this provider by the repository, and no adapter is being called in production yet. This is intentional until one user-approved, quota-bounded test succeeds.
+
+
+## Follow-up verification (2026-10-30)
+
+### NiftyVid is suitable only for a short proof-of-motion clip
+
+The live demo describes a 3.5-second default and a hard cap of 4.5 seconds. It uses a shared public Hugging Face Space, so cold starts (roughly 60–120 seconds) and queue delays are possible. The upstream can change or disappear. The public GitHub repository is MIT-licensed, but that app license does not automatically replace the upstream model's license or guarantee production availability.
+
+- Live demo: https://igorcsis.github.io/nifty-vid/
+- Source and documented limits: https://github.com/IgorCSIS/nifty-vid
+
+Use it to prove a single short motion clip, not as the sole engine for a whole 8–10 minute video. A long video needs many scene clips and separate narration/subtitle timing.
+
+### LTX-2.3 Fast remains unverified for a free user workflow
+
+The public source describes a `/generate` endpoint and 5–10 second output, but its implementation requests ZeroGPU `size="xlarge"`; the published Space page currently shows a runtime error in the inspected source result. Public source/API shape is not proof that the hosted service is currently healthy or that a free request will run. Do not choose it as the primary provider until the public runtime, license, and free quota are confirmed.
+
+Source: https://huggingface.co/spaces/ShaundeOoO/ltx-2.3-fast/blob/main/app.py
+
+### Decision
+
+1. First manual acceptance test: NiftyVid, one non-sensitive image, 3–4 seconds, no login/payment/token.
+2. Download the resulting MP4 and verify it plays and contains scene motion.
+3. Only after the clip is supplied for inspection should we integrate it into a test render.
+4. No provider has passed the real-output acceptance gate yet. No paid fallback, no automated provider calls in CI, and no YouTube upload.

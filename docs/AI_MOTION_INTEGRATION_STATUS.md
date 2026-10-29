@@ -35,3 +35,15 @@ Use only a non-sensitive image. Do not enter payment details, API tokens, or pri
 ## Current blocker
 
 A real browser-generated MP4 has not yet been provided to this repository or verified by CI. Until a clip passes the acceptance gate above, image-to-video integration remains pending and the end-to-end 8–10 minute cinematic pipeline is not complete.
+
+
+## Duration mismatch to resolve before end-to-end claims
+
+The current scene-plan model allows long narration scenes (for example, 120 seconds), while the shortlisted public image-to-video demos typically return only a few seconds per generated clip. The current renderer trims an available matching MP4 to the planned scene duration but does not extend a shorter clip to fill that duration; FFmpeg can therefore produce a segment shorter than the manifest's declared duration. The render report currently records planned duration, not independently probed output duration.
+
+This is a real integration gap, not a cosmetic issue. Before claiming an 8–10 minute cinematic render, implementation must do both:
+
+1. Probe each input clip and the final MP4 with ffprobe; report actual durations separately from planned durations and fail quality checks if the final runtime falls outside the requested 480–600 second range.
+2. Support multiple short motion clips per long narration scene (or explicitly create a timeline of short scenes with aligned narration/subtitles). Do not freeze a 3–4 second clip for the remaining minutes or silently loop it as if it were continuous natural motion.
+
+Until this is implemented and tested with real clips, a valid MP4 file alone is not proof that the full-length cinematic workflow works.

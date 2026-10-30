@@ -59,3 +59,19 @@ This is a real integration gap, not a cosmetic issue. Before claiming an 8–10 
 2. Support multiple short motion clips per long narration scene (or explicitly create a timeline of short scenes with aligned narration/subtitles). Do not freeze a 3–4 second clip for the remaining minutes or silently loop it as if it were continuous natural motion.
 
 Until this is implemented and tested with real clips, a valid MP4 file alone is not proof that the full-length cinematic workflow works.
+
+
+## Short-clip scene timeline support
+
+The renderer now accepts multiple short AI-motion clips for a single long scene. Name them
+`scene-01-clip-001.mp4`, `scene-01-clip-002.mp4`, and so on. Clips are ordered by
+their numeric suffix, individually probed, transcoded to the common 1280x720/30fps
+format, and concatenated in sequence. The total available source duration must cover
+the planned scene duration; otherwise rendering fails instead of freezing or looping
+footage. Any excess duration in the final clip is trimmed to the exact remaining scene
+time. The legacy single-clip name `scene-01.mp4` remains supported.
+
+This code path has a unit test using mocked media commands and durations. It is not yet
+a full real-media renderer test, and the uploaded 3.56-second NiftyVid clip alone is
+not enough to fill a long narration scene. A real scene timeline with enough distinct
+clips and a final 480–600 second render remain required for end-to-end verification.

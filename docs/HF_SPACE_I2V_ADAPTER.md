@@ -14,6 +14,42 @@ Official docs:
 - https://huggingface.co/docs/hub/spaces-api-endpoints
 - https://huggingface.co/docs/hub/spaces-zerogpu
 
+## Inspected LTX 2.3 Studio schema (2026-10-30)
+
+The user supplied the Space's OpenAPI schema. Its image-input endpoint is
+`/run/handler_1` (Gradio client API name: `/handler_1`) with 17 positional
+inputs:
+
+| Position | OpenAPI field | Schema |
+|---:|---|---|
+| 0 | `param_0` | string |
+| 1 | `param_1` | Fast / Balanced / Quality |
+| 2–3 | `param_2`, `param_3` | number, 256–4096 |
+| 4 | `param_4` | number, 1–30 |
+| 5 | `param_5` | number, 8–30 |
+| 6 | `param_6` | integer |
+| 7 | `param_7` | boolean |
+| 8 | `param_8` | ImageData |
+| 9 | `param_9` | string |
+| 10 | `param_10` | none / static / dolly-in / dolly-out / dolly-left / dolly-right / jib-up / jib-down |
+| 11 | `param_11` | number, 0–1.5 |
+| 12 | `param_12` | boolean |
+| 13 | `param_13` | number, 0–1 |
+| 14 | `param_14` | none / union / pose-control |
+| 15 | `param_15` | number, 0–1 |
+| 16 | `param_16` | boolean |
+
+The schema confirms position 8 is the image and positions 0 and 9 are strings,
+but does not expose their UI labels or the meaning/defaults of several controls.
+The adapter therefore validates the 17-input shape, requires `__IMAGE__` at
+position 8 and a `__PROMPT__` placeholder in position 0 or 9, and leaves all
+other values explicit in the caller-provided JSON. Do not invent those values.
+The text-to-video endpoint `/run/handler` is not used for image-to-video.
+
+The video output is nested under `output_1.video` in the OpenAPI response.
+Actual Gradio client return shape still needs a no-quota metadata inspection or
+a single explicitly approved generation before production wiring can be claimed.
+
 ## Example
 
 Install the client in the execution environment:
@@ -24,7 +60,7 @@ python -m pip install --upgrade gradio_client
 
 Inspect the Space's **Use via API** page and supply the exact endpoint name and input array order. The JSON array uses placeholders:
 - `__IMAGE__`: uploaded image
-- `__PROMPT__`: motion prompt
+- `__PROMPT__`: motion prompt (place in the verified text input slot)
 - `__DURATION__`: requested duration (only if the endpoint has a matching input)
 
 ```bash
@@ -43,7 +79,7 @@ The example endpoint name and argument order are placeholders, not a verified Sp
 
 ## Current verification status
 
-- Adapter code is committed, but no real Space request has been made.
+- The LTX 2.3 Studio image-input endpoint schema is documented and guarded by unit tests; no real API generation request has been made.
 - No model or endpoint is yet marked production-ready.
 - A valid output file signature is checked, but playback, duration, resolution, motion quality, and commercial license must still be checked.
 - This adapter has no retry loop to avoid wasting quota.

@@ -67,8 +67,7 @@ def prepare(plan_path: Path, model_path: Path, output_dir: Path,
             duration = float(scene["duration_seconds"])
             wav = temp_dir / f"scene-{index:03d}.wav"
             generated = subprocess.run(
-                [piper, "--model", str(model_path), "--config", str(config_path),
-                 "--output_file", str(wav)],
+                [piper, "--model", str(model_path), "--output_file", str(wav)],
                 input=text, capture_output=True, text=True, check=False,
             )
             if generated.returncode != 0 or not wav.is_file() or wav.stat().st_size == 0:

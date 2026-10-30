@@ -108,13 +108,13 @@ def render(scenes_dir: Path, output_dir: Path, seconds_per_scene: float = 5.0,
     scene_rows = []
     for index, image in enumerate(images, start=1):
         segment = output_dir / f"segment-{index:03d}.mp4"
-        scene_number = int(re.fullmatch(r"scene[-_](\\d+)", image.stem, re.IGNORECASE).group(1))
+        scene_number = int(re.fullmatch(r"scene[-_](\d+)", image.stem, re.IGNORECASE).group(1))
         duration = planned_durations.get(scene_number, max(2.0, seconds_per_scene))
 
         # Numbered short clips form a timeline for one long narration scene:
         # scene-01-clip-001.mp4, scene-01-clip-002.mp4, ...
         clip_pattern = re.compile(
-            rf"{re.escape(image.stem)}-clip[-_](\\d+)", re.IGNORECASE
+            rf"{re.escape(image.stem)}-clip[-_](\d+)", re.IGNORECASE
         )
         clip_sequence = sorted(
             (p for p in scenes_dir.iterdir()

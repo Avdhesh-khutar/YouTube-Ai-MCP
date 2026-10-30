@@ -75,3 +75,8 @@ This code path has a unit test using mocked media commands and durations. It is 
 a full real-media renderer test, and the uploaded 3.56-second NiftyVid clip alone is
 not enough to fill a long narration scene. A real scene timeline with enough distinct
 clips and a final 480–600 second render remain required for end-to-end verification.
+
+
+## Final runtime quality gate
+
+When a validated scene plan is supplied, the renderer now checks the probed final MP4 duration against the requested `min_minutes` and `max_minutes` range (with a one-second container/timestamp tolerance). A short narration track can no longer silently shorten an intended 8–10 minute export: the render fails with a clear error and does not produce an upload-ready success message. This guard is unit-tested with a mocked 479-second output against an eight-minute minimum. Real end-to-end media validation is still pending.

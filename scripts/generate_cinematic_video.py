@@ -219,6 +219,16 @@ def render(scenes_dir: Path, output_dir: Path, seconds_per_scene: float = 5.0,
         command += ["-c:v", "libx264", "-preset", "medium", "-crf", "20", "-an", "-movflags", "+faststart", str(final_video)]
     run(command)
     actual_duration = probe_duration(final_video)
+    if scene_plan_path is not None:
+        minimum_seconds = min_minutes * 60
+        maximum_seconds = max_minutes * 60
+        tolerance_seconds = 1.0
+        if not (minimum_seconds - tolerance_seconds <= actual_duration <= maximum_seconds + tolerance_seconds):
+            raise RuntimeError(
+                f"Final video is {actual_duration:.2f}s; expected "
+                f"{minimum_seconds:.0f}–{maximum_seconds:.0f}s for the validated "
+                "scene plan. Check narration length and scene timeline; no upload was performed."
+            )
 
     # Use the first scene as a clean, uncaptioned thumbnail source.
     thumbnail = output_dir / "thumbnail.jpg"

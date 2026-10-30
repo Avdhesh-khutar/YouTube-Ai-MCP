@@ -45,6 +45,14 @@ The owner submits a topic and optional audience/style. A single orchestrator sho
 - Captions currently follow planned scene boundaries, not word-level forced alignment. Before treating captions as final, verify that spoken text fits the scene duration and run the quality checker.
 - This helper does not research facts, generate images, animate images, upload, or publish.
 
+### Free/offline Hindi voice and speech-timed captions
+- Existing fallback: eSpeak Hindi voice. It is offline and lightweight, but uses formant synthesis; it is clear but less natural than neural voices. Do not describe it as a deep, natural male voice.
+- Neural-voice candidate: Piper Hindi male voice models (for example, Pratham/Rohan variants) can run locally on CPU through Piper/sherpa-onnx. Model availability and redistribution/commercial-use terms must be checked for the exact model before shipping or monetizing; do not assume every voice model has the same license. A community reference reports a Hindi Pratham Piper model, but this is not a repository-integrated or runtime-tested provider.
+- Optional speech-timed caption stage: `scripts/align_hindi_captions.py` uses `faster-whisper` on the finished narration WAV with Hindi forced as the transcription language and writes SRT from detected speech-segment timestamps. Install `faster-whisper` only in the rendering environment; the script does not install dependencies or call a paid API.
+- Example: `python scripts/align_hindi_captions.py --audio assets/cinematic-scenes/voiceover.wav --output assets/cinematic-scenes/captions.srt --model small --compute-type int8`.
+- This creates segment-level captions timed against the actual audio, not word-level forced alignment. Speech recognition can mishear Hindi names, punctuation, or English words; review the SRT. The `small` CPU-int8 model is a practical starting point, but runtime and RAM use depend on the host.
+- Current scene-level SRT generation remains available as a fallback. Prefer the speech-timed SRT after it passes Hindi-language detection and manual review.
+
 ### Stage D — assembly and quality
 - Use FFmpeg to assemble scenes, voiceover, licensed/owned music, transitions, and subtitles.
 - Validate the final file with ffprobe; generate a designed thumbnail and metadata; keep an asset/source manifest.

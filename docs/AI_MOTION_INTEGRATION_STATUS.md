@@ -36,6 +36,8 @@ Use only a non-sensitive image. Do not enter payment details, API tokens, or pri
 
 A real browser-generated MP4 was provided in the conversation and inspected locally on 2026-10-30. The file was not committed to the repository; this is a manual artifact check, not CI verification. Observed metadata: H.264 video, 832×480, duration 3.5625 seconds, file size 3,168,744 bytes. Four sampled frames showed substantial pixel changes between timestamps, so the clip is not a single identical still frame. This does not by itself prove natural/acceptable motion quality, and the file has not yet been run through this repository's scene renderer.
 
+A local FFmpeg normalization smoke test was also run against the supplied MP4 using the renderer's exact scene-clip transcode filters and encoding settings (scale/crop to 1280×720, 30 fps, H.264, yuv420p). The normalized output was readable by ffprobe at 1280×720 and 30 fps, with a 3.5667-second duration. This verifies media compatibility with the renderer's clip-transcode command, but it is not a full invocation of the Python renderer and does not establish full-scene or full-length rendering.
+
 Current evidence:
 - NiftyVid generated a downloadable short MP4: PASS.
 - Container/codec/duration readable with ffprobe: PASS.

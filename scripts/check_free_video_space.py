@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 import urllib.error
 import urllib.request
@@ -21,19 +22,31 @@ def get_json(url: str, timeout: float = 15.0) -> tuple[int, Any]:
                  "Accept": "application/json"},
     )
     with urllib.request.urlopen(request, timeout=timeout) as response:
-        body = response.read().decode("utf-8")
-        return response.status, json.loads(body)
+        body = response.read(2_000_001)
+        if len(body) > 2_000_000:
+            raise ValueError("Response too large; refusing to parse provider metadata.")
+        return response.status, json.loads(body.decode("utf-8"))
+
+
+def valid_space_id(space_id: str) -> bool:
+    """Accept one safe owner/name pair; reject path and query injection."""
+    if not isinstance(space_id, str) or not re.fullmatch(
+        r"[A-Za-z0-9][A-Za-z0-9_.-]*/[A-Za-z0-9][A-Za-z0-9_.-]*",
+        space_id,
+    ):
+        return False
+    return all(part not in {".", ".."} for part in space_id.split("/"))
 
 
 def inspect_space(space_id: str) -> int:
-    if "/" not in space_id or space_id.startswith("/") or space_id.endswith("/"):
-        print("ERROR: use owner/space-name format, for example owner/demo")
+    if not valid_space_id(space_id):
+        print("ERROR: use a safe owner/space-name ID, for example owner/demo")
         return 2
 
     metadata_url = "https://huggingface.co/api/spaces/" + space_id
     try:
         _, metadata = get_json(metadata_url)
-    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
+    except (urllib.error.URLError, TimeoutError, ValueError, json.JSONDecodeError) as exc:
         print(f"ERROR: could not read Space metadata: {exc}")
         return 1
 
@@ -54,22 +67,24 @@ def inspect_space(space_id: str) -> int:
     # check may fail on non-Gradio Spaces, sleeping Spaces, or custom deployments.
     subdomain = metadata.get("subdomain")
     candidates = []
-    if subdomain:
+    if isinstance(subdomain, str) and re.fullmatch(r"[A-Za-z0-9-]+", subdomain):
         candidates.append(f"https://{subdomain}.hf.space/gradio_api/openapi.json")
     candidates.append(f"https://{space_id.replace('/', '-')}.hf.space/gradio_api/openapi.json")
 
     for schema_url in candidates:
         try:
             _, schema = get_json(schema_url)
-        except (urllib.error.URLError, TimeoutError, json.JSONDecodeError):
+        except (urllib.error.URLError, TimeoutError, ValueError, json.JSONDecodeError):
             continue
         if not isinstance(schema, dict):
             continue
         paths = schema.get("paths") or {}
+        if not isinstance(paths, dict):
+            paths = {}
         endpoints = sorted(
             path for path, methods in paths.items()
-            if isinstance(methods, dict)
-            and any(method.lower() in {"post", "get"} for method in methods)
+            if isinstance(path, str) and isinstance(methods, dict)
+            and any(isinstance(method, str) and method.lower() in {"post", "get"} for method in methods)
         )
         print(f"API schema: {schema_url}")
         if endpoints:
@@ -94,7 +109,7 @@ def main() -> int:
         "space_id",
         nargs="?",
         default="asifn269h/ltx-2-3-demo",
-        help="Hugging Face Space ID in owner/name form (default: asifn269h/ltx-2-3-demo)",
+        help="Hugging Face Space ID in owner/name format (default: asifn269h/ltx-2-3-demo)",
     )
     args = parser.parse_args()
     return inspect_space(args.space_id)

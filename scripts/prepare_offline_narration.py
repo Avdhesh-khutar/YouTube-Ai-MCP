@@ -89,6 +89,12 @@ def prepare(plan_path: Path, output_dir: Path, min_minutes: float = 8,
                     "Playback speed remains unchanged."
                 )
             print(f"{scene['scene_id']}: {spoken_seconds:.1f}s speech / {duration:.1f}s scene ({coverage:.0%})")
+            if spoken_seconds > duration + 0.25:
+                raise ValueError(
+                    f"Scene {scene['scene_id']} narration is {spoken_seconds:.1f}s but the "
+                    f"scene is only {duration:.1f}s; audio would be cut off. Increase the "
+                    "scene duration or shorten the narration. Playback speed remains unchanged."
+                )
             coverage_rows.append({
                 "scene_id": scene["scene_id"],
                 "speech_seconds": round(spoken_seconds, 3),

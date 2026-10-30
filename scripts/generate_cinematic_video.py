@@ -107,29 +107,66 @@ def render(scenes_dir: Path, output_dir: Path, seconds_per_scene: float = 5.0,
     segments: list[Path] = []
     scene_rows = []
     for index, image in enumerate(images, start=1):
-        clip = image.with_suffix(".mp4")
         segment = output_dir / f"segment-{index:03d}.mp4"
-        scene_number = int(re.fullmatch(r"scene[-_](\d+)", image.stem, re.IGNORECASE).group(1))
+        scene_number = int(re.fullmatch(r"scene[-_](\\d+)", image.stem, re.IGNORECASE).group(1))
         duration = planned_durations.get(scene_number, max(2.0, seconds_per_scene))
-        if clip.exists():
-            source_duration = probe_duration(clip)
-            if source_duration + 0.05 < duration:
+
+        # Numbered short clips form a timeline for one long narration scene:
+        # scene-01-clip-001.mp4, scene-01-clip-002.mp4, ...
+        clip_pattern = re.compile(
+            rf"{re.escape(image.stem)}-clip[-_](\\d+)", re.IGNORECASE
+        )
+        clip_sequence = sorted(
+            (p for p in scenes_dir.iterdir()
+             if p.is_file() and p.suffix.lower() == ".mp4"
+             and clip_pattern.fullmatch(p.stem)),
+            key=lambda p: int(clip_pattern.fullmatch(p.stem).group(1)),
+        )
+        legacy_clip = image.with_suffix(".mp4")
+        if not clip_sequence and legacy_clip.exists():
+            clip_sequence = [legacy_clip]
+
+        if clip_sequence:
+            clip_durations = [(clip, probe_duration(clip)) for clip in clip_sequence]
+            available_duration = sum(value for _, value in clip_durations)
+            if available_duration + 0.05 < duration:
                 raise RuntimeError(
-                    f"AI-motion clip {clip.name} is only {source_duration:.2f}s, "
-                    f"but scene {image.stem} plans {duration:.2f}s. Add a timeline of "
-                    "short clips or shorten the scene plan; the renderer will not freeze "
-                    "or silently loop the clip to pretend it has natural motion."
+                    f"AI-motion timeline for {image.stem} provides only "
+                    f"{available_duration:.2f}s across {len(clip_sequence)} clip(s), "
+                    f"but the scene plans {duration:.2f}s. Add more numbered clips; "
+                    "the renderer will not freeze or silently loop footage."
                 )
-            run([
-                "ffmpeg", "-y", "-i", str(clip), "-t", str(duration),
-                "-an", "-vf",
-                f"scale={WIDTH}:{HEIGHT}:force_original_aspect_ratio=increase,"
-                f"crop={WIDTH}:{HEIGHT},fps={FPS},setsar=1,format=yuv420p",
-                "-c:v", "libx264", "-preset", "medium", "-crf", "20",
-                str(segment),
-            ])
-            motion = "image-to-video clip"
-            source_duration_value = source_duration
+            remaining = duration
+            rendered_clips = []
+            for clip_index, (clip, source_duration) in enumerate(clip_durations, start=1):
+                if remaining <= 0.05:
+                    break
+                take = min(source_duration, remaining)
+                clip_segment = output_dir / (
+                    f"segment-{index:03d}-motion-{clip_index:03d}.mp4"
+                )
+                run([
+                    "ffmpeg", "-y", "-i", str(clip), "-t", f"{take:.6f}",
+                    "-an", "-vf",
+                    f"scale={WIDTH}:{HEIGHT}:force_original_aspect_ratio=increase,"
+                    f"crop={WIDTH}:{HEIGHT},fps={FPS},setsar=1,format=yuv420p",
+                    "-c:v", "libx264", "-preset", "medium", "-crf", "20",
+                    str(clip_segment),
+                ])
+                segments.append(clip_segment)
+                rendered_clips.append({
+                    "file": clip.name,
+                    "source_duration_seconds": source_duration,
+                    "used_duration_seconds": take,
+                })
+                remaining -= take
+            scene_rows.append({
+                "scene": image.name,
+                "motion": "image-to-video clip sequence",
+                "planned_duration_seconds": duration,
+                "source_clips": rendered_clips,
+                "source_clip_duration_seconds": available_duration,
+            })
         else:
             run([
                 "ffmpeg", "-y", "-loop", "1", "-framerate", str(FPS), "-i", str(image),
@@ -142,15 +179,13 @@ def render(scenes_dir: Path, output_dir: Path, seconds_per_scene: float = 5.0,
                 "-t", str(duration), "-an", "-c:v", "libx264",
                 "-preset", "medium", "-crf", "20", str(segment),
             ])
-            motion = "cinematic Ken Burns zoom"
-            source_duration_value = None
-        segments.append(segment)
-        scene_rows.append({
-            "scene": image.name,
-            "motion": motion,
-            "planned_duration_seconds": duration,
-            "source_clip_duration_seconds": source_duration_value,
-        })
+            segments.append(segment)
+            scene_rows.append({
+                "scene": image.name,
+                "motion": "cinematic Ken Burns zoom",
+                "planned_duration_seconds": duration,
+                "source_clip_duration_seconds": None,
+            })
 
     concat_file = output_dir / "concat.txt"
     concat_file.write_text(

@@ -76,6 +76,11 @@ def prepare(plan_path: Path, output_dir: Path, min_minutes: float = 8,
                  "-of", "default=noprint_wrappers=1:nokey=1", str(audio)],
                 capture_output=True, text=True, check=False,
             )
+            if measured.returncode != 0:
+                raise RuntimeError(
+                    f"ffprobe could not measure speech for {scene['scene_id']}: "
+                    f"{measured.stderr[-500:]}"
+                )
             try:
                 spoken_seconds = float(measured.stdout.strip())
             except ValueError as exc:

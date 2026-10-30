@@ -62,8 +62,6 @@ def transcribe_to_srt(audio_path: Path, output_path: Path, model_size: str = "sm
         word_timestamps=False, beam_size=5,
     )
     srt = segments_to_srt(segments)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(srt, encoding="utf-8")
     print(
         f"Speech-timed captions: {output_path} "
         f"(detected={info.language}, probability={info.language_probability:.2f})"
@@ -71,8 +69,10 @@ def transcribe_to_srt(audio_path: Path, output_path: Path, model_size: str = "sm
     if info.language != language:
         raise RuntimeError(
             f"Expected language '{language}', recognizer detected '{info.language}'. "
-            "Review audio and captions; the generated SRT is not approved."
+            "No approved SRT was written; review the narration audio."
         )
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(srt, encoding="utf-8")
     return output_path
 
 

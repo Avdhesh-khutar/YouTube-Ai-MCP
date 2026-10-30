@@ -63,8 +63,8 @@ class CinematicRendererGuardTests(unittest.TestCase):
             root = Path(tmp)
             scenes = root / "scenes"
             plan_path = self._write_eight_minute_plan(root, scenes)
-            with patch.object(renderer, "ffmpeg_available", return_value=True), \\
-                 patch.object(renderer, "run"), \\
+            with patch.object(renderer, "ffmpeg_available", return_value=True), \
+                 patch.object(renderer, "run"), \
                  patch.object(renderer, "probe_duration", return_value=479.0):
                 with self.assertRaisesRegex(RuntimeError, "expected 480–600s"):
                     renderer.render(scenes, root / "out", scene_plan_path=plan_path,
@@ -92,8 +92,8 @@ class CinematicRendererGuardTests(unittest.TestCase):
             second = scenes / "scene-01-clip-010.mp4"
             first.write_bytes(b"clip one")
             second.write_bytes(b"clip two")
-            with patch.object(renderer, "ffmpeg_available", return_value=True), \\
-                 patch.object(renderer, "probe_duration", side_effect=[60.0, 60.0, 480.0]), \\
+            with patch.object(renderer, "ffmpeg_available", return_value=True), \
+                 patch.object(renderer, "probe_duration", side_effect=[60.0, 60.0, 480.0]), \
                  patch.object(renderer, "run") as run_mock:
                 renderer.render(scenes, root / "out", scene_plan_path=plan_path,
                                 min_minutes=8, max_minutes=10)
@@ -116,8 +116,8 @@ class CinematicRendererGuardTests(unittest.TestCase):
             plan_path = self._write_eight_minute_plan(root, scenes)
             (scenes / "scene-01-clip-002.mp4").write_bytes(b"clip two")
             (scenes / "scene-01-clip-010.mp4").write_bytes(b"clip ten")
-            with patch.object(renderer, "ffmpeg_available", return_value=True), \\
-                 patch.object(renderer, "probe_duration", side_effect=[60.0, 30.0]), \\
+            with patch.object(renderer, "ffmpeg_available", return_value=True), \
+                 patch.object(renderer, "probe_duration", side_effect=[60.0, 30.0]), \
                  patch.object(renderer, "run") as run_mock:
                 with self.assertRaisesRegex(RuntimeError, "provides only 90.00s"):
                     renderer.render(scenes, root / "out", scene_plan_path=plan_path,

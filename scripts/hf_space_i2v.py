@@ -53,6 +53,20 @@ def resolve_args(raw: Any, image: Path, prompt: str, duration: int) -> Any:
     return raw
 
 
+def validate_endpoint_args(api_name: str, raw_args: Any) -> None:
+    """Fail closed for the inspected LTX Studio image-to-video endpoint."""
+    if api_name not in {"handler_1", "/handler_1"}:
+        return
+    if not isinstance(raw_args, list) or len(raw_args) != 17:
+        raise ValueError("LTX Studio /handler_1 requires exactly 17 positional inputs.")
+    if raw_args[8] != "__IMAGE__":
+        raise ValueError("LTX Studio /handler_1 input 8 must be the __IMAGE__ placeholder.")
+    if "__PROMPT__" not in (raw_args[0], raw_args[9]):
+        raise ValueError("Place __PROMPT__ in the verified text-input slot (param_0 or param_9).")
+    # Other positions are deliberately caller-supplied: the schema exposes types,
+    # but not the UI labels/semantics needed to safely invent their values.
+
+
 def find_video_path(value: Any) -> Path | None:
     if isinstance(value, str):
         path = Path(value)
@@ -143,6 +157,11 @@ def main() -> int:
         return 2
     if not isinstance(raw_args, list):
         print("--api-args-json must be a JSON array in the exact endpoint input order.", file=sys.stderr)
+        return 2
+    try:
+        validate_endpoint_args(args.api_name, raw_args)
+    except ValueError as exc:
+        print(str(exc), file=sys.stderr)
         return 2
 
     try:

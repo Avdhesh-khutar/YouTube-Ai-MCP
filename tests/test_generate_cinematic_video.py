@@ -65,7 +65,7 @@ class CinematicRendererGuardTests(unittest.TestCase):
             plan_path = self._write_eight_minute_plan(root, scenes)
             with patch.object(renderer, "ffmpeg_available", return_value=True), \
                  patch.object(renderer, "run"), \
-                 patch.object(renderer, "probe_duration", return_value=479.0):
+                 patch.object(renderer, "probe_duration", return_value=478.9):
                 with self.assertRaisesRegex(RuntimeError, "expected 480–600s"):
                     renderer.render(scenes, root / "out", scene_plan_path=plan_path,
                                     min_minutes=8, max_minutes=10)

@@ -57,7 +57,7 @@ The owner submits a topic and optional audience/style. A single orchestrator sho
 - Optional provider: `scripts/prepare_piper_narration.py` invokes a locally installed Piper CLI with a user-supplied ONNX model and matching config. It does not download models, install software, call a paid API, or upload anything.
 - For a male Hindi voice, Rohan is a candidate: `hi_IN-rohan-medium.onnx`. Its model card identifies Hindi (India), one speaker, medium quality, 22,050 Hz, and the IIT Madras IndicTTS Hindi Mono Male dataset. Review that dataset's separate license before monetized/commercial use; a model's MIT metadata alone does not override training-data terms.
 - Pratham is another Hindi voice but its training-data license is CC-BY-NC-SA-4.0, so do not use it for commercial/monetized output unless the rights holder grants permission.
-- Example: `python scripts/prepare_piper_narration.py --scene-plan dist-cinematic/scene-plan.json --model /models/hi_IN-rohan-medium.onnx --model-config /models/hi_IN-rohan-medium.onnx.json --output assets/cinematic-scenes`.
+- Example: `python scripts/prepare_piper_narration.py --scene-plan dist-cinematic/scene-plan.json --model /models/hi_IN-rohan-medium.onnx --output assets/cinematic-scenes`.
 - The helper checks model/config presence, measures speech duration, rejects narration that is too short or would be cut off, pads only after validation, and writes a coverage report plus scene-level SRT. Use `align_hindi_captions.py` afterward for audio-timed captions.
 - Runtime requirements: Piper CLI, FFmpeg, ffprobe, and a compatible ONNX model. This integration has unit tests but has not yet been exercised with a real voice model or human-reviewed audio. Naturalness/deepness is not guaranteed until listening to a sample.
 

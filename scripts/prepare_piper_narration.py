@@ -29,7 +29,7 @@ def timestamp(seconds: float) -> str:
 
 
 def prepare(plan_path: Path, model_path: Path, output_dir: Path,
-            config_path: Path | None = None, min_minutes: float = 8,
+            min_minutes: float = 8,
             max_minutes: float = 10, min_speech_coverage: float = 0.20,
             piper_bin: str = "piper") -> tuple[Path, Path]:
     try:
@@ -41,7 +41,7 @@ def prepare(plan_path: Path, model_path: Path, output_dir: Path,
     except ScenePlanError as exc:
         raise ValueError(f"Invalid scene plan: {exc}") from exc
 
-    config_path = config_path or Path(str(model_path) + ".json")
+    config_path = Path(str(model_path) + ".json")
     if not model_path.is_file():
         raise FileNotFoundError(f"Piper model not found: {model_path}")
     if not config_path.is_file():
@@ -159,8 +159,6 @@ def main() -> int:
     parser.add_argument("--scene-plan", type=Path, required=True)
     parser.add_argument("--model", type=Path, required=True,
                         help="Piper Hindi male ONNX model, e.g. hi_IN-rohan-medium.onnx")
-    parser.add_argument("--model-config", type=Path,
-                        help="Matching .onnx.json file; defaults to MODEL.onnx.json")
     parser.add_argument("--output", type=Path, default=Path("assets/cinematic-scenes"))
     parser.add_argument("--min-minutes", type=float, default=8)
     parser.add_argument("--max-minutes", type=float, default=10)
@@ -168,7 +166,7 @@ def main() -> int:
     args = parser.parse_args()
     try:
         audio, captions = prepare(
-            args.scene_plan, args.model, args.output, args.model_config,
+            args.scene_plan, args.model, args.output,
             args.min_minutes, args.max_minutes, args.min_speech_coverage,
         )
     except (ValueError, RuntimeError, OSError) as exc:

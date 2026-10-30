@@ -11,6 +11,22 @@ SPEC.loader.exec_module(module)
 
 
 class HfSpaceI2VTests(unittest.TestCase):
+    def test_ltx_handler1_requires_exact_positional_schema(self):
+        args = [None] * 17
+        args[0] = "__PROMPT__"
+        args[8] = "__IMAGE__"
+        module.validate_endpoint_args("/handler_1", args)
+
+    def test_ltx_handler1_rejects_wrong_image_position(self):
+        args = [None] * 17
+        args[0] = "__PROMPT__"
+        with self.assertRaisesRegex(ValueError, "input 8"):
+            module.validate_endpoint_args("/handler_1", args)
+
+    def test_ltx_handler1_rejects_wrong_argument_count(self):
+        with self.assertRaisesRegex(ValueError, "exactly 17"):
+            module.validate_endpoint_args("/handler_1", [])
+
     def test_finds_video_in_nested_result(self):
         with tempfile.TemporaryDirectory() as tmp:
             video = Path(tmp) / "clip.mp4"

@@ -67,6 +67,24 @@ class OfflineNarrationTests(unittest.TestCase):
                     with self.assertRaisesRegex(ValueError, "excessive|only 10.0s of speech|minimum is"):
                         prepare(plan_path, root / "out", 8, 8, min_speech_coverage=0.20)
 
+    def test_rejects_narration_longer_than_scene_instead_of_truncating_it(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            plan_path = root / "scene-plan.json"
+            plan_path.write_text(json.dumps({"scenes": [
+                {"scene_id": f"scene-{i:02d}", "narration": "लंबा हिंदी कथन",
+                 "visual_prompt": "चित्र", "duration_seconds": 120}
+                for i in range(1, 5)
+            ]}, ensure_ascii=False), encoding="utf-8")
+            def fake_run(command, capture_output, text, check):
+                if "-w" in command:
+                    Path(command[command.index("-w") + 1]).write_bytes(b"fake wav")
+                    return type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})()
+                return type("Result", (), {"returncode": 0, "stdout": "130.0", "stderr": ""})()
+            with patch("scripts.prepare_offline_narration.shutil.which", side_effect=lambda name: "/usr/bin/" + name):
+                with patch("scripts.prepare_offline_narration.subprocess.run", side_effect=fake_run):
+                    with self.assertRaisesRegex(ValueError, "audio would be cut off"):
+                        prepare(plan_path, root / "out", 8, 8, min_speech_coverage=0.20)
 
 if __name__ == "__main__":
     unittest.main()

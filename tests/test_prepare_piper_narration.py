@@ -28,6 +28,8 @@ class PiperHindiNarrationTests(unittest.TestCase):
             def fake_run(command, capture_output, text, check, **kwargs):
                 if command[0] == "/usr/bin/piper":
                     self.assertEqual(kwargs["input"], "हिंदी कथन " + str(len(piper_calls) + 1))
+                    self.assertEqual(command[1:3], ["--model", str(model)])
+                    self.assertNotIn("--config", command)
                     Path(command[command.index("--output_file") + 1]).write_bytes(b"piper wav")
                     piper_calls.append(command)
                 elif command[0] == "/usr/bin/ffprobe":
@@ -40,7 +42,7 @@ class PiperHindiNarrationTests(unittest.TestCase):
             piper_calls = []
             with patch("scripts.prepare_piper_narration.shutil.which", side_effect=lambda name: "/usr/bin/" + name):
                 with patch("scripts.prepare_piper_narration.subprocess.run", side_effect=fake_run):
-                    audio, srt = prepare(plan, model, root / "out", config, 8, 8)
+                    audio, srt = prepare(plan, model, root / "out", 8, 8)
             self.assertTrue(audio.is_file())
             self.assertEqual(len(piper_calls), 4)
             content = srt.read_text(encoding="utf-8")

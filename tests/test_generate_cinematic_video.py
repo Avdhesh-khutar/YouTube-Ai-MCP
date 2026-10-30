@@ -58,6 +58,18 @@ class CinematicRendererGuardTests(unittest.TestCase):
             self.assertEqual(report["actual_duration_seconds"], 480.0)
             self.assertEqual(report["duration_difference_seconds"], 0.0)
 
+    def test_rejects_final_video_shorter_than_validated_scene_plan(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            scenes = root / "scenes"
+            plan_path = self._write_eight_minute_plan(root, scenes)
+            with patch.object(renderer, "ffmpeg_available", return_value=True), \\
+                 patch.object(renderer, "run"), \\
+                 patch.object(renderer, "probe_duration", return_value=479.0):
+                with self.assertRaisesRegex(RuntimeError, "expected 480–600s"):
+                    renderer.render(scenes, root / "out", scene_plan_path=plan_path,
+                                    min_minutes=8, max_minutes=10)
+
     def test_rejects_motion_clip_shorter_than_planned_scene(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

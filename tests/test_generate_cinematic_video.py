@@ -71,6 +71,32 @@ class CinematicRendererGuardTests(unittest.TestCase):
                     renderer.render(scenes, root / "out", scene_plan_path=plan_path, min_minutes=8, max_minutes=10)
                 run_mock.assert_not_called()
 
+    def test_multiple_short_motion_clips_fill_one_long_scene_in_order(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            scenes = root / "scenes"
+            plan_path = self._write_eight_minute_plan(root, scenes)
+            first = scenes / "scene-01-clip-001.mp4"
+            second = scenes / "scene-01-clip-002.mp4"
+            first.write_bytes(b"clip one")
+            second.write_bytes(b"clip two")
+            with patch.object(renderer, "ffmpeg_available", return_value=True), \\
+                 patch.object(renderer, "probe_duration", side_effect=[60.0, 60.0, 480.0]), \\
+                 patch.object(renderer, "run") as run_mock:
+                renderer.render(scenes, root / "out", scene_plan_path=plan_path,
+                                min_minutes=8, max_minutes=10)
+            report = json.loads((root / "out" / "render-report.json").read_text(encoding="utf-8"))
+            row = report["scenes"][0]
+            self.assertEqual(row["motion"], "image-to-video clip sequence")
+            self.assertEqual([clip["file"] for clip in row["source_clips"]],
+                             ["scene-01-clip-001.mp4", "scene-01-clip-002.mp4"])
+            self.assertEqual([clip["used_duration_seconds"] for clip in row["source_clips"]],
+                             [60.0, 60.0])
+            self.assertEqual(row["source_clip_duration_seconds"], 120.0)
+            commands = [call.args[0] for call in run_mock.call_args_list]
+            self.assertTrue(any(str(first) in command for command in commands))
+            self.assertTrue(any(str(second) in command for command in commands))
+
     def test_scene_plan_must_match_available_images(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

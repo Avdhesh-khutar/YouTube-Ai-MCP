@@ -85,6 +85,16 @@ After a GitHub-triggered Cloudflare deployment succeeds:
 4. Enter the `OAUTH_ADMIN_PASSWORD` only on the connector's authorization page, after verifying the client and redirect host.
 5. Approve individual tool calls as appropriate.
 
+## Cloudflare Preview OAuth behavior
+
+The feature-branch Preview hostname is a deployment preview, not a separately registered MCP resource. The combined OAuth provider intentionally keeps the canonical protected resource and issuer configuration pointed at the production MCP endpoint:
+
+`https://youtube-ai-mcp.mkkhutar2.workers.dev/mcp`
+
+Consequently, the Preview `/health` endpoint can be used for a basic Worker health check, but Preview-hosted OAuth discovery is not a supported end-to-end MCP test. A request to the Preview `/mcp` route without a bearer token can return HTTP 401, and the Preview host's protected-resource metadata URL can return 404 because the configured canonical resource belongs to the production hostname. These responses alone do not indicate that production OAuth is broken.
+
+Use the production MCP endpoint above for the actual connector. Do not change `MCP_RESOURCE` to a Preview hostname in the shared feature-branch source: that code may later be promoted to production and would then advertise the wrong token audience. A separately addressable Preview MCP resource would need an intentionally isolated OAuth configuration and token audience, not just a Preview KV namespace.
+
 ## Health check
 
 `https://youtube-ai-mcp.mkkhutar2.workers.dev/health`

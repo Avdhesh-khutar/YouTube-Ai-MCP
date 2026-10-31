@@ -29,6 +29,9 @@ class CinematicQualityTests(unittest.TestCase):
             report = check(video, subtitles)
             self.assertEqual(report["checks"]["video_file"], "pass")
             self.assertEqual(report["checks"]["subtitles"], "pass")
+            self.assertEqual(report["checks"]["media_probe"], "skipped")
+            self.assertFalse(report["ready_for_owner_review"])
+            self.assertTrue(any("ffprobe unavailable" in warning for warning in report["warnings"]))
             self.assertFalse(report["upload_performed"])
 
     def test_srt_rejects_reversed_timestamp(self):

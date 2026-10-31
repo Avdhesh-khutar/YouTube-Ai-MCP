@@ -141,7 +141,7 @@ def check(video: Path, subtitles: Path | None, narration: Path | None = None,
     )
     details["errors"] = errors
     details["warnings"] = warnings
-    details["ready_for_owner_review"] = not errors
+    details["ready_for_owner_review"] = not errors and details["checks"].get("media_probe") == "pass"
     details["upload_performed"] = False
     details["public_publish"] = False
     return details

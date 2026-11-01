@@ -150,6 +150,15 @@ def render(scenes_dir: Path, output_dir: Path, seconds_per_scene: float = 5.0,
                 if remaining <= 0.05:
                     break
                 take = min(source_duration, remaining)
+                is_first_clip = clip_index == 1
+                is_last_clip = take >= remaining - 0.001
+                transition_filters = []
+                if is_first_clip:
+                    transition_filters.append("fade=t=in:st=0:d=0.45")
+                if is_last_clip:
+                    transition_filters.append(
+                        f"fade=t=out:st={max(0.0, take - 0.45):.3f}:d=0.45"
+                    )
                 clip_segment = output_dir / (
                     f"segment-{index:03d}-motion-{clip_index:03d}.mp4"
                 )
@@ -157,7 +166,8 @@ def render(scenes_dir: Path, output_dir: Path, seconds_per_scene: float = 5.0,
                     "ffmpeg", "-y", "-i", str(clip), "-t", f"{take:.6f}",
                     "-an", "-vf",
                     f"scale={WIDTH}:{HEIGHT}:force_original_aspect_ratio=increase,"
-                    f"crop={WIDTH}:{HEIGHT},fps={FPS},setsar=1,format=yuv420p{title_filter}",
+                    f"crop={WIDTH}:{HEIGHT},fps={FPS},setsar=1,format=yuv420p"
+                    f"{title_filter}{',' + ','.join(transition_filters) if transition_filters else ''}",
                     "-c:v", "libx264", "-preset", "medium", "-crf", "20",
                     str(clip_segment),
                 ])
@@ -183,7 +193,8 @@ def render(scenes_dir: Path, output_dir: Path, seconds_per_scene: float = 5.0,
                 f"crop={WIDTH*2}:{HEIGHT*2},"
                 f"zoompan=z='min(zoom+0.0007,1.12)':d=1:"
                 f"x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':"
-                f"s={WIDTH}x{HEIGHT}:fps={FPS},setsar=1,format=yuv420p{title_filter}",
+                f"s={WIDTH}x{HEIGHT}:fps={FPS},setsar=1,format=yuv420p{title_filter},"
+                f"fade=t=in:st=0:d=0.45,fade=t=out:st={max(0.0, duration - 0.45):.3f}:d=0.45",
                 "-t", str(duration), "-an", "-c:v", "libx264",
                 "-preset", "medium", "-crf", "20", str(segment),
             ])

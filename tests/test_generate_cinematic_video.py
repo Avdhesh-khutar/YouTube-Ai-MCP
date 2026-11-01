@@ -174,7 +174,7 @@ class CinematicRendererGuardTests(unittest.TestCase):
             scenes = root / "scenes"
             plan_path = self._write_eight_minute_plan(root, scenes)
             (scenes / "captions.srt").write_text(
-                "1\\n00:00:00,000 --> 00:00:02,000\\nनमस्ते दुनिया\\n",
+                "1\n00:00:00,000 --> 00:00:02,000\nनमस्ते दुनिया\n",
                 encoding="utf-8",
             )
             with patch.object(renderer, "ffmpeg_available", return_value=True), \

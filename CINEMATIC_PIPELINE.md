@@ -22,9 +22,13 @@ The MP4 clip replaces the still-image camera movement for that scene. Generate c
 Optional files in the same directory:
 
 - `voiceover.mp3` or `voiceover.wav`: narration track
+- `background-music.mp3` or `background-music.wav`: optional music bed
 - `captions.srt`: subtitles (UTF-8)
 
-If no narration is provided, the result is silent. Add a reviewed Hindi voice-over before publishing. Captions are burned in when FFmpeg subtitle support is available.
+If no narration or music is provided, the result is silent. When both narration and
+background music are present, the renderer mixes music under the voice at a conservative
+12% gain; narration remains the primary audio. Music loops to cover the timeline. Use
+music you have rights to use. Captions are burned in when FFmpeg subtitle support is available.
 
 ## 2. Render locally
 
@@ -38,8 +42,10 @@ python scripts/generate_cinematic_video.py --scene-plan dist-cinematic/scene-pla
 ```
 
 This pass requires an FFmpeg build with the `drawtext` filter (libfreetype). It is a
-first editing layer, not a replacement for full kinetic typography, custom transitions,
-or professional sound design. It is opt-in so existing render jobs remain compatible.
+first editing layer, not a replacement for full kinetic typography or custom transitions.
+For an optional music bed, add `background-music.mp3` (or WAV) beside the narration;
+the renderer mixes it quietly beneath the voice. It is opt-in so existing render jobs
+remain compatible.
 
 
 Install FFmpeg, then run:

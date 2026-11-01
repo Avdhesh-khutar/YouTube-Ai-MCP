@@ -68,6 +68,20 @@ The output is in `dist-cinematic/`:
 - `thumbnail.jpg` (first scene image, not a finished designed thumbnail)
 - `render-report.json`
 
+## Real FFmpeg smoke test in CI
+
+The feature branch also runs a short, real FFmpeg render smoke test. It creates
+disposable synthetic scene images, a test-tone WAV, and a tiny SRT file, renders
+an MP4 with the actual renderer, probes the resulting streams with ffprobe, and
+runs `scripts/check_cinematic_quality.py`. The workflow stores a short proof
+artifact for 7 days.
+
+This verifies that FFmpeg can execute the rendering/muxing/subtitle path and that
+the quality-gate plumbing accepts a valid short test file. The synthetic tone is
+not Hindi narration, the images are not AI-generated footage, and this short
+test does not verify natural voice quality, real AI motion, or the 8–10 minute
+full-length target. Those require real user-approved assets and separate review.
+
 ## 3. Render in GitHub Actions
 
 After adding the assets to the feature branch, open **Actions → Cinematic video review package → Run workflow**. The workflow stores a review artifact for 7 days. It does not upload to YouTube.

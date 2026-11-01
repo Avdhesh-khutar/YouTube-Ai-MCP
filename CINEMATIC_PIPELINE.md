@@ -28,6 +28,20 @@ If no narration is provided, the result is silent. Add a reviewed Hindi voice-ov
 
 ## 2. Render locally
 
+For a reference-video-inspired animated title treatment, enable the optional motion-graphics
+pass. It adds a short animated lower-third title at the beginning of each scene. The title
+uses an explicit `title` in the scene plan when present, otherwise it derives a compact
+title from that scene's narration:
+
+```bash
+python scripts/generate_cinematic_video.py --scene-plan dist-cinematic/scene-plan.json --motion-graphics
+```
+
+This pass requires an FFmpeg build with the `drawtext` filter (libfreetype). It is a
+first editing layer, not a replacement for full kinetic typography, custom transitions,
+or professional sound design. It is opt-in so existing render jobs remain compatible.
+
+
 Install FFmpeg, then run:
 
 ```bash

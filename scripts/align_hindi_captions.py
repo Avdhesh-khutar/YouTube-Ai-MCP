@@ -56,7 +56,7 @@ def segments_to_srt(segments: Iterable[object], min_duration: float = 0.25,
                 continue
             if end - start < min_duration:
                 end = start + min_duration
-            text = " ".join(item[2] for item in group).strip()
+            text = " ".join(item[2].strip() for item in group).strip()
             index += 1
             blocks.append(f"{index}\n{srt_timestamp(start)} --> {srt_timestamp(end)}\n{text}")
             previous_end = end

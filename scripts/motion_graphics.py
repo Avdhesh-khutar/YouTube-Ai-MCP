@@ -11,14 +11,15 @@ import re
 def escape_drawtext(value: str) -> str:
     """Escape text for FFmpeg drawtext's filter-option parser."""
     # Keep titles compact and prevent user-provided text from injecting filter options.
-    value = re.sub(r"\s+", " ", str(value)).strip()[:90]
-    return (value.replace("\\", r"\\")
-            .replace(":", r"\:")
-            .replace("'", r"\'")
-            .replace("%", r"\%")
-            .replace(",", r"\,")
-            .replace("[", r"\[")
-            .replace("]", r"\]"))
+    value = re.sub(r"\s+", " ", str(value)).strip()
+    escaped = (value.replace("\\", r"\\")
+               .replace(":", r"\:")
+               .replace("'", r"\'")
+               .replace("%", r"\%")
+               .replace(",", r"\,")
+               .replace("[", r"\[")
+               .replace("]", r"\]"))
+    return escaped[:90]
 
 
 def build_title_overlay_filter(title: str, duration: float) -> str:

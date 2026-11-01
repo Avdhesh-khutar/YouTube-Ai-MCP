@@ -28,7 +28,8 @@ Optional files in the same directory:
 
 If no narration or music is provided, the result is silent. When both narration and
 background music are present, the renderer mixes music under the voice at a conservative
-12% gain; narration remains the primary audio. Music loops to cover the timeline. Use
+12% gain; narration remains the primary audio. Music loops to cover the timeline, fades
+in over 2 seconds, and fades out over the final 2 seconds of the planned timeline. Use
 music you have rights to use. Captions are burned in with a readable bold style when FFmpeg subtitle support is
 available. This is styled line-level SRT captioning, not word-by-word kinetic karaoke
 highlighting; precise word timing requires word-aligned caption data.

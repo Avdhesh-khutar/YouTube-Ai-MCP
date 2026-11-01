@@ -13,12 +13,12 @@ def escape_drawtext(value: str) -> str:
     # Keep titles compact and prevent user-provided text from injecting filter options.
     value = re.sub(r"\s+", " ", str(value)).strip()[:90]
     return (value.replace("\\", r"\\")
-            .replace(":", r"\\:")
-            .replace("'", r"\\'")
-            .replace("%", r"\\%")
-            .replace(",", r"\\,")
-            .replace("[", r"\\[")
-            .replace("]", r"\\]"))
+            .replace(":", r"\:")
+            .replace("'", r"\'")
+            .replace("%", r"\%")
+            .replace(",", r"\,")
+            .replace("[", r"\[")
+            .replace("]", r"\]"))
 
 
 def build_title_overlay_filter(title: str, duration: float) -> str:

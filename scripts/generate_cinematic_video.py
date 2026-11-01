@@ -234,7 +234,13 @@ def render(scenes_dir: Path, output_dir: Path, seconds_per_scene: float = 5.0,
     else:
         command += ["-map", "0:v:0", "-an"]
     if captions.exists():
-        command += ["-vf", f"subtitles={captions.as_posix()}"]
+        subtitle_path = captions.as_posix().replace("\\", "\\\\").replace(":", "\\:")
+        subtitle_style = (
+            "FontName=Arial,FontSize=26,PrimaryColour=&H00FFFFFF,"
+            "OutlineColour=&H00101010,BackColour=&H80000000,"
+            "Bold=1,Outline=2,Shadow=1,Alignment=2,MarginV=42"
+        )
+        command += ["-vf", f"subtitles='{subtitle_path}':force_style='{subtitle_style}'"]
     command += ["-c:v", "libx264", "-preset", "medium", "-crf", "20"]
     if narration.exists() or music.exists():
         command += ["-c:a", "aac", "-b:a", "192k", "-shortest"]

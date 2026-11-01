@@ -59,7 +59,7 @@ jobs:
                          for i in range(rate * duration))
               audio.writeframes(b"".join(struct.pack("<h", sample) for sample in samples))
           (root / "captions.srt").write_text(
-              "1\\n00:00:00,000 --> 00:00:02,000\\nRender smoke test\\n",
+              "1\n00:00:00,000 --> 00:00:02,000\nRender smoke test\n",
               encoding="utf-8")
           PY
       - name: Render a real short MP4 with FFmpeg

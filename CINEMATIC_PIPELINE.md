@@ -34,7 +34,9 @@ background music are present, the renderer mixes music under the voice at a cons
 in over 2 seconds, and fades out over the final 2 seconds of the planned timeline. Use
 music you have rights to use. Captions are burned in with a readable bold style when FFmpeg subtitle support is
 available. This is styled line-level SRT captioning, not word-by-word kinetic karaoke
-highlighting; precise word timing requires word-aligned caption data.
+highlighting; the optional `scripts/align_hindi_captions.py` can request word timestamps from
+faster-whisper and group them into short caption lines. This is speech-recognition
+timing, not forced alignment, and Hindi spelling/punctuation still needs human review.
 
 ## 2. Render locally
 

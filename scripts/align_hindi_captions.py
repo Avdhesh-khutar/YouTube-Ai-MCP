@@ -21,29 +21,63 @@ def srt_timestamp(seconds: float) -> str:
     return f"{hours:02}:{minutes:02}:{whole:02},{millis:03}"
 
 
-def segments_to_srt(segments: Iterable[object], min_duration: float = 0.25) -> str:
+def segments_to_srt(segments: Iterable[object], min_duration: float = 0.25,
+                    max_words: int = 7) -> str:
+    """Group ASR word timestamps into short, readable speech-synced SRT lines."""
+    if max_words < 1:
+        raise ValueError("max_words must be at least 1.")
+    segment_list = list(segments)
+    timed_words: list[tuple[float, float, str]] = []
+    for segment in segment_list:
+        for word in getattr(segment, "words", None) or []:
+            text = str(getattr(word, "word", "")).strip()
+            start = float(getattr(word, "start", -1))
+            end = float(getattr(word, "end", -1))
+            if text and start >= 0 and end > start:
+                timed_words.append((start, end, text))
+
     blocks = []
     previous_end = 0.0
     index = 0
-    for segment in segments:
-        text = str(getattr(segment, "text", "")).strip()
-        if not text:
-            continue
-        start = max(previous_end, float(getattr(segment, "start")))
-        end = float(getattr(segment, "end"))
-        if end <= start:
-            continue
-        if end - start < min_duration:
-            end = start + min_duration
-        index += 1
-        blocks.append(
-            f"{index}\n{srt_timestamp(start)} --> {srt_timestamp(end)}\n{text}"
-        )
-        previous_end = end
+    if timed_words:
+        groups: list[list[tuple[float, float, str]]] = []
+        current: list[tuple[float, float, str]] = []
+        for word in timed_words:
+            if current and (len(current) >= max_words or word[0] - current[-1][1] > 0.8):
+                groups.append(current)
+                current = []
+            current.append(word)
+        if current:
+            groups.append(current)
+        for group in groups:
+            start = max(previous_end, group[0][0])
+            end = max(item[1] for item in group)
+            if end <= start:
+                continue
+            if end - start < min_duration:
+                end = start + min_duration
+            text = "".join(item[2] for item in group).strip()
+            index += 1
+            blocks.append(f"{index}\\n{srt_timestamp(start)} --> {srt_timestamp(end)}\\n{text}")
+            previous_end = end
+    else:
+        # Fallback for ASR backends that provide only segment-level timestamps.
+        for segment in segment_list:
+            text = str(getattr(segment, "text", "")).strip()
+            if not text:
+                continue
+            start = max(previous_end, float(getattr(segment, "start")))
+            end = float(getattr(segment, "end"))
+            if end <= start:
+                continue
+            if end - start < min_duration:
+                end = start + min_duration
+            index += 1
+            blocks.append(f"{index}\\n{srt_timestamp(start)} --> {srt_timestamp(end)}\\n{text}")
+            previous_end = end
     if not blocks:
-        raise ValueError("Speech recognizer returned no usable Hindi caption segments.")
-    return "\n\n".join(blocks) + "\n"
-
+        raise ValueError("Speech recognizer returned no usable Hindi caption segments or words.")
+    return "\\n\\n".join(blocks) + "\\n"
 
 def transcribe_to_srt(audio_path: Path, output_path: Path, model_size: str = "small",
                       compute_type: str = "int8", language: str = "hi") -> Path:

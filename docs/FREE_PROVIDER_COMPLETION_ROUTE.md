@@ -25,10 +25,12 @@ The current sample renderer already accepts scene-matched MP4s and normalizes th
 
 ### New candidate: Pocket TTS Hindi (small browser CPU model)
 
-A Hugging Face model card describes an int4 ONNX Hindi Pocket TTS package of about 106 MB, designed to run on CPU in a browser with no server, GPU, or API key. Its model notes include distinct male/female prompt examples. This is the most promising lightweight browser test for constrained devices; the hosted demo is still a third-party endpoint and needs a listening test.
+A current Hugging Face research checkpoint, `saryps-labs/pocket-tts-hindi`, provides Hindi streaming TTS with prompt-based voice cloning. The BF16 weights are about 219 MB; its selectively quantized native ONNX bundle is about 240 MB. The model card documents male-labelled voice examples and reports CPU benchmarks on a server-class EPYC machine, not a typical phone. It is not a 106 MB browser model, and the supplied ONNX instructions require native build tooling rather than a turnkey browser app. Treat it as a promising free model for a hosted/browser demo only if the demo actually supports it; otherwise it conflicts with the no-install preference.
 
-Model: https://huggingface.co/prasadvittaldev/pocket-tts-hindi-onnx-int4
-Demo: https://prasadtts.vercel.app
+Model: https://huggingface.co/saryps-labs/pocket-tts-hindi
+License: CC BY 4.0 for the Hindi weights; attribution and upstream component notices are required. The model is an early research release, and voice cloning requires consent. Long-form, accent, number, and naturalness evaluation remains necessary.
+
+Demo candidate (not confirmed to use this exact checkpoint): https://prasadtts.vercel.app
 
 ### Preferred browser-first experiment: Indic TTS
 
@@ -93,3 +95,10 @@ This route is a concrete implementation direction, **not a claim of completion**
 - Indic TTS README documents Hindi support via Piper Pratham, ONNX Runtime WebAssembly, local generation and MIT package license. The model voice and underlying model terms still need separate confirmation.
 - Pocket TTS Hindi int4 model card describes an approximately 106 MB CPU/browser model and male/female prompt examples. Listening and commercial-use checks remain required.
 - Svāra TTS WebGPU repository documents Hindi male/female voices but a roughly 1.95 GB language model; this is not the low-memory default.
+
+
+## Correction to earlier Pocket TTS sizing (2026-11-01)
+
+An updated direct model-card review supersedes the earlier ~106 MB estimate. The current `saryps-labs/pocket-tts-hindi` release is 219 MB BF16 weights; its selective INT8 ONNX bundle is about 240 MB. It is an early research release, not a turnkey 106 MB browser package. Hindi weights are CC BY 4.0; attribution is required. CPU benchmarks were measured on an EPYC server and should not be extrapolated to an 8 GB laptop or Android phone. Male-labelled examples exist, but the requested deep male timbre still needs a listening test.
+
+Hugging Face's current Spaces API documentation describes queue-based Gradio endpoints and indicates daily ZeroGPU quotas of 2 minutes unauthenticated and 5 minutes for free accounts. These quotas are shared/plan-specific and can change; do not treat them as a guaranteed number of successful clips. Public Spaces can be invoked via their documented API, but inspect the exact Space's `Use via API` schema before passing any inputs.

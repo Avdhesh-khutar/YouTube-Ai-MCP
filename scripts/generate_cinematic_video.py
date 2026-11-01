@@ -18,8 +18,10 @@ from pathlib import Path
 
 try:
     from scripts.validate_scene_plan import ScenePlanError, validate_scene_plan
+    from scripts.motion_graphics import build_title_overlay_filter, title_for_scene
 except ModuleNotFoundError:  # Support direct execution as a script
     from validate_scene_plan import ScenePlanError, validate_scene_plan
+    from motion_graphics import build_title_overlay_filter, title_for_scene
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_SCENES = ROOT / "assets" / "cinematic-scenes"
@@ -63,7 +65,7 @@ def ffmpeg_available() -> bool:
 
 def render(scenes_dir: Path, output_dir: Path, seconds_per_scene: float = 5.0,
            scene_plan_path: Path | None = None, min_minutes: float = 8.0,
-           max_minutes: float = 10.0) -> Path:
+           max_minutes: float = 10.0, motion_graphics: bool = False) -> Path:
     if not ffmpeg_available():
         raise RuntimeError("FFmpeg is required. Install FFmpeg and retry.")
     images = sorted(
@@ -77,6 +79,7 @@ def render(scenes_dir: Path, output_dir: Path, seconds_per_scene: float = 5.0,
         )
 
     planned_durations: dict[int, float] = {}
+    planned_titles: dict[int, str] = {}
     if scene_plan_path is not None:
         try:
             plan = json.loads(scene_plan_path.read_text(encoding="utf-8"))
@@ -91,6 +94,7 @@ def render(scenes_dir: Path, output_dir: Path, seconds_per_scene: float = 5.0,
             if number in planned_durations:
                 raise ValueError(f"Duplicate scene number in plan: {number}")
             planned_durations[number] = float(scene["duration_seconds"])
+            planned_titles[number] = title_for_scene(scene, f"Scene {number:02d}")
         image_numbers = {
             int(re.fullmatch(r"scene[-_](\d+)", image.stem, re.IGNORECASE).group(1))
             for image in images
@@ -110,6 +114,10 @@ def render(scenes_dir: Path, output_dir: Path, seconds_per_scene: float = 5.0,
         segment = output_dir / f"segment-{index:03d}.mp4"
         scene_number = int(re.fullmatch(r"scene[-_](\d+)", image.stem, re.IGNORECASE).group(1))
         duration = planned_durations.get(scene_number, max(2.0, seconds_per_scene))
+        title_filter = ""
+        if motion_graphics:
+            scene_title = planned_titles.get(scene_number, image.stem.replace("-", " "))
+            title_filter = "," + build_title_overlay_filter(scene_title, duration)
 
         # Numbered short clips form a timeline for one long narration scene:
         # scene-01-clip-001.mp4, scene-01-clip-002.mp4, ...
@@ -149,7 +157,7 @@ def render(scenes_dir: Path, output_dir: Path, seconds_per_scene: float = 5.0,
                     "ffmpeg", "-y", "-i", str(clip), "-t", f"{take:.6f}",
                     "-an", "-vf",
                     f"scale={WIDTH}:{HEIGHT}:force_original_aspect_ratio=increase,"
-                    f"crop={WIDTH}:{HEIGHT},fps={FPS},setsar=1,format=yuv420p",
+                    f"crop={WIDTH}:{HEIGHT},fps={FPS},setsar=1,format=yuv420p{title_filter}",
                     "-c:v", "libx264", "-preset", "medium", "-crf", "20",
                     str(clip_segment),
                 ])
@@ -175,7 +183,7 @@ def render(scenes_dir: Path, output_dir: Path, seconds_per_scene: float = 5.0,
                 f"crop={WIDTH*2}:{HEIGHT*2},"
                 f"zoompan=z='min(zoom+0.0007,1.12)':d=1:"
                 f"x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':"
-                f"s={WIDTH}x{HEIGHT}:fps={FPS},setsar=1,format=yuv420p",
+                f"s={WIDTH}x{HEIGHT}:fps={FPS},setsar=1,format=yuv420p{title_filter}",
                 "-t", str(duration), "-an", "-c:v", "libx264",
                 "-preset", "medium", "-crf", "20", str(segment),
             ])
@@ -248,6 +256,7 @@ def render(scenes_dir: Path, output_dir: Path, seconds_per_scene: float = 5.0,
             "scenes": scene_rows,
             "audio": narration.name if narration.exists() else None,
             "captions": captions.name if captions.exists() else None,
+            "motion_graphics_enabled": motion_graphics,
             "upload_enabled": False,
             "notes": "Actual duration is probed from the final MP4. Review image rights, voice, captions, pacing, and thumbnail before any upload.",
         }, ensure_ascii=False, indent=2),
@@ -264,6 +273,10 @@ def main() -> int:
     parser.add_argument("--scene-plan", type=Path, help="Optional validated scene-plan JSON with per-scene durations")
     parser.add_argument("--min-minutes", type=float, default=8.0)
     parser.add_argument("--max-minutes", type=float, default=10.0)
+    parser.add_argument(
+        "--motion-graphics", action="store_true",
+        help="Add animated scene-title lower thirds (requires FFmpeg drawtext support).",
+    )
     args = parser.parse_args()
     try:
         if not 2.0 <= args.seconds_per_scene <= 12.0:
@@ -271,7 +284,8 @@ def main() -> int:
         if args.min_minutes <= 0 or args.max_minutes < args.min_minutes:
             raise ValueError("duration range must satisfy 0 < min-minutes <= max-minutes")
         video = render(args.scenes, args.output, args.seconds_per_scene,
-                       args.scene_plan, args.min_minutes, args.max_minutes)
+                       args.scene_plan, args.min_minutes, args.max_minutes,
+                       args.motion_graphics)
     except (RuntimeError, OSError, ValueError) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1

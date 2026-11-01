@@ -23,11 +23,24 @@ The current sample renderer already accepts scene-matched MP4s and normalizes th
 
 ## Hindi narration candidates
 
+### New candidate: Pocket TTS Hindi (small browser CPU model)
+
+A Hugging Face model card describes an int4 ONNX Hindi Pocket TTS package of about 106 MB, designed to run on CPU in a browser with no server, GPU, or API key. Its model notes include distinct male/female prompt examples. This is the most promising lightweight browser test for constrained devices; the hosted demo is still a third-party endpoint and needs a listening test.
+
+Model: https://huggingface.co/prasadvittaldev/pocket-tts-hindi-onnx-int4
+Demo: https://prasadtts.vercel.app
+
 ### Preferred browser-first experiment: Indic TTS
 
 The `indic-tts` project exposes Hindi synthesis in WebAssembly/ONNX, caches model assets in the browser, and documents CPU fallback. Its README lists a Hindi model and a simple browser JavaScript API. This is a better fit for a no-install browser workflow than requiring a local Piper CLI, but naturalness, male voice quality, long-script throughput, and commercial licensing must be listened to and verified before acceptance.
 
 Repository: https://github.com/h2210316651/indic-tts
+
+### Alternative: Svāra TTS WebGPU
+
+A public Hugging Face Space/repository advertises 19 Indian languages with male/female voice choices, including Hindi. However, its language model is approximately 1.95 GB plus a codec model and uses WebGPU; this is likely too heavy for some phones and low-memory devices. Keep it as a quality comparison on capable browsers, not the default.
+
+Repository: https://github.com/shreyaskarnik/svara-tts-webgpu
 
 ### Secondary browser candidate: Kokoro Web
 
@@ -38,6 +51,15 @@ Website: https://kokoroweb.app/
 ### Offline fallback
 
 Keep the existing Piper adapter as a fallback when a compatible Hindi ONNX voice model and config are explicitly supplied. Do not silently fall back to eSpeak for a release-quality narration. eSpeak remains only a smoke-test voice.
+
+## Updated shortlist after further research
+
+1. **Pocket TTS Hindi int4** — first lightweight browser sample; ~106 MB model pack; test male prompt and listen for naturalness.
+2. **Indic TTS / Piper Pratham** — second sample; browser ONNX/WASM, but verify whether the available Hindi voice meets the requested deep male tone.
+3. **Svāra WebGPU** — quality comparison only on capable devices; large ~1.95 GB model.
+4. **NiftyVid Wan 2.2 / Wan2.Video public Space** — short motion clips; use only after visual review. These are demos, not stable backend contracts.
+
+For image-to-video, Wan2.Video currently advertises Wan 2.2 14B and LTX public-GPU demos without signup, but explicitly warns about shared queue and usage limits. Its Wan S2V page says image+audio can create a talking/performance clip, but it is also a public demo, not a production API. These are manual test candidates only until their Gradio API schemas and terms are verified.
 
 ## Integration architecture
 
@@ -61,3 +83,13 @@ Keep the existing Piper adapter as a fallback when a compatible Hindi ONNX voice
 ## Acceptance status
 
 This route is a concrete implementation direction, **not a claim of completion**. A release can be marked complete only after the sample voice and motion clips are actually generated, listened to/watched, rendered into a full-length video, and quality-checked. No paid API, paid credits, public upload, production deploy, or main-branch change is authorized by this document.
+
+
+## Additional public-source notes (2026-11-01)
+
+- NiftyVid source README confirms Wan 2.2, a 4.5-second cap, shared Hugging Face Space, cold starts/queues, and MIT license for the NiftyVid app itself. That app license does not grant blanket rights to generated assets or upstream model terms.
+- Wan2.Video describes public-GPU queue limits and advises against sensitive uploads; do not rely on it as an uptime-guaranteed backend.
+- Hugging Face Space APIs commonly use queue-based Gradio endpoints; the exact Space schema must be read from its own API page before coding an adapter. Do not hardcode a guessed endpoint.
+- Indic TTS README documents Hindi support via Piper Pratham, ONNX Runtime WebAssembly, local generation and MIT package license. The model voice and underlying model terms still need separate confirmation.
+- Pocket TTS Hindi int4 model card describes an approximately 106 MB CPU/browser model and male/female prompt examples. Listening and commercial-use checks remain required.
+- Svāra TTS WebGPU repository documents Hindi male/female voices but a roughly 1.95 GB language model; this is not the low-memory default.

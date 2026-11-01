@@ -195,6 +195,24 @@ class CinematicRendererGuardTests(unittest.TestCase):
             self.assertIn("Outline=2", vf)
             self.assertIn("Alignment=2", vf)
 
+    def test_still_scenes_receive_soft_boundary_fades(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            scenes = root / "scenes"
+            plan_path = self._write_eight_minute_plan(root, scenes)
+            with patch.object(renderer, "ffmpeg_available", return_value=True), \
+                 patch.object(renderer, "run") as run_mock, \
+                 patch.object(renderer, "probe_duration", return_value=480.0):
+                renderer.render(scenes, root / "out", scene_plan_path=plan_path,
+                                min_minutes=8, max_minutes=10)
+            segment_command = next(
+                call.args[0] for call in run_mock.call_args_list
+                if str(root / "out" / "segment-001.mp4") in call.args[0]
+            )
+            vf = segment_command[segment_command.index("-vf") + 1]
+            self.assertIn("fade=t=in:st=0:d=0.45", vf)
+            self.assertIn("fade=t=out:st=119.550:d=0.45", vf)
+
     def test_renderer_report_policy_is_private_review_only(self):
         source = Path(renderer.__file__).read_text(encoding="utf-8")
         self.assertIn('"upload_enabled": False', source)

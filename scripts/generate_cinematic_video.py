@@ -210,21 +210,35 @@ def render(scenes_dir: Path, output_dir: Path, seconds_per_scene: float = 5.0,
     if not narration.exists():
         narration = scenes_dir / "voiceover.wav"
     captions = scenes_dir / "captions.srt"
+    music = scenes_dir / "background-music.mp3"
+    if not music.exists():
+        music = scenes_dir / "background-music.wav"
     final_video = output_dir / "cinematic-video.mp4"
+    timeline_duration = sum(row["planned_duration_seconds"] for row in scene_rows)
+    command = ["ffmpeg", "-y", "-i", str(silent_video)]
     if narration.exists():
-        command = [
-            "ffmpeg", "-y", "-i", str(silent_video), "-i", str(narration),
-            "-map", "0:v:0", "-map", "1:a:0", "-c:v", "libx264", "-preset", "medium", "-crf", "20",
-            "-c:a", "aac", "-b:a", "192k", "-shortest",
+        command += ["-i", str(narration)]
+    if music.exists():
+        command += ["-stream_loop", "-1", "-i", str(music)]
+    if narration.exists() and music.exists():
+        command += [
+            "-filter_complex",
+            "[1:a]volume=1.0[voice];[2:a]volume=0.12,afade=t=in:st=0:d=2[bed];"
+            "[voice][bed]amix=inputs=2:duration=first:dropout_transition=2[a]",
+            "-map", "0:v:0", "-map", "[a]",
         ]
-        if captions.exists():
-            command += ["-vf", f"subtitles={captions.as_posix()}"]
-        command += ["-movflags", "+faststart", str(final_video)]
+    elif narration.exists():
+        command += ["-map", "0:v:0", "-map", "1:a:0"]
+    elif music.exists():
+        command += ["-map", "0:v:0", "-map", "1:a:0", "-t", f"{timeline_duration:.3f}"]
     else:
-        command = ["ffmpeg", "-y", "-i", str(silent_video)]
-        if captions.exists():
-            command += ["-vf", f"subtitles={captions.as_posix()}"]
-        command += ["-c:v", "libx264", "-preset", "medium", "-crf", "20", "-an", "-movflags", "+faststart", str(final_video)]
+        command += ["-map", "0:v:0", "-an"]
+    if captions.exists():
+        command += ["-vf", f"subtitles={captions.as_posix()}"]
+    command += ["-c:v", "libx264", "-preset", "medium", "-crf", "20"]
+    if narration.exists() or music.exists():
+        command += ["-c:a", "aac", "-b:a", "192k", "-shortest"]
+    command += ["-movflags", "+faststart", str(final_video)]
     run(command)
     actual_duration = probe_duration(final_video)
     if scene_plan_path is not None:
@@ -255,6 +269,8 @@ def render(scenes_dir: Path, output_dir: Path, seconds_per_scene: float = 5.0,
             "duration_difference_seconds": actual_duration - sum(row["planned_duration_seconds"] for row in scene_rows),
             "scenes": scene_rows,
             "audio": narration.name if narration.exists() else None,
+            "background_music": music.name if music.exists() else None,
+            "background_music_gain": 0.12 if music.exists() else None,
             "captions": captions.name if captions.exists() else None,
             "motion_graphics_enabled": motion_graphics,
             "upload_enabled": False,

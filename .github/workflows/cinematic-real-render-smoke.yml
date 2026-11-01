@@ -1,0 +1,76 @@
+name: Cinematic real-render smoke test
+
+on:
+  pull_request:
+    paths:
+      - "scripts/generate_cinematic_video.py"
+      - "scripts/check_cinematic_quality.py"
+      - "scripts/motion_graphics.py"
+      - "tests/**"
+      - ".github/workflows/cinematic-real-render-smoke.yml"
+  push:
+    branches:
+      - "feature/cinematic-video-pipeline"
+    paths:
+      - "scripts/generate_cinematic_video.py"
+      - "scripts/check_cinematic_quality.py"
+      - "scripts/motion_graphics.py"
+      - ".github/workflows/cinematic-real-render-smoke.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  ffmpeg-real-render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install free render dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          python -m pip install --disable-pip-version-check Pillow
+      - name: Create disposable synthetic test assets
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import math
+          import struct
+          import wave
+          from PIL import Image, ImageDraw
+          root = Path("smoke-scenes")
+          root.mkdir()
+          for number, background in ((1, (28, 54, 88)), (2, (80, 48, 62))):
+              image = Image.new("RGB", (1280, 720), background)
+              draw = ImageDraw.Draw(image)
+              draw.ellipse((430, 140, 850, 560), fill=(220, 180, 110))
+              draw.text((60, 60), f"Render smoke scene {number}", fill="white")
+              image.save(root / f"scene-{number:02d}.png")
+          rate, duration = 16000, 5
+          with wave.open(str(root / "voiceover.wav"), "wb") as audio:
+              audio.setnchannels(1)
+              audio.setsampwidth(2)
+              audio.setframerate(rate)
+              samples = (int(3500 * math.sin(2 * math.pi * 220 * i / rate))
+                         for i in range(rate * duration))
+              audio.writeframes(b"".join(struct.pack("<h", sample) for sample in samples))
+          (root / "captions.srt").write_text(
+              "1\\n00:00:00,000 --> 00:00:02,000\\nRender smoke test\\n",
+              encoding="utf-8")
+          PY
+      - name: Render a real short MP4 with FFmpeg
+        run: python scripts/generate_cinematic_video.py --scenes smoke-scenes --output smoke-output --seconds-per-scene 2
+      - name: Probe and run the media quality gate
+        run: |
+          ffprobe -v error -show_entries format=duration:stream=codec_type,codec_name,width,height -of json smoke-output/cinematic-video.mp4
+          python scripts/check_cinematic_quality.py --video smoke-output/cinematic-video.mp4 --subtitles smoke-scenes/captions.srt --narration smoke-scenes/voiceover.wav --min-minutes 0.05 --max-minutes 0.20 --report smoke-output/quality-report.json
+      - name: Save short render proof
+        uses: actions/upload-artifact@v4
+        with:
+          name: cinematic-real-render-smoke-${{ github.run_id }}
+          path: smoke-output/
+          retention-days: 7

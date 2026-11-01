@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Create speech-timed Hindi SRT captions from the final narration audio.
 
-Optional dependency: faster-whisper. Uses transcription segment timestamps from
-the generated audio; this is audio-timed captioning, not forced alignment to the
-original script or word-level phoneme alignment.
+Optional dependency: faster-whisper. Uses word timestamps from the generated audio
+and groups them into short readable caption lines. This is ASR-derived timing,
+not forced alignment to the original script or phoneme-level alignment.
 """
 from __future__ import annotations
 
@@ -59,7 +59,7 @@ def transcribe_to_srt(audio_path: Path, output_path: Path, model_size: str = "sm
     model = WhisperModel(model_size, device="cpu", compute_type=compute_type)
     segments, info = model.transcribe(
         str(audio_path), language=language, vad_filter=True,
-        word_timestamps=False, beam_size=5,
+        word_timestamps=True, beam_size=5,
     )
     srt = segments_to_srt(segments)
     print(

@@ -168,6 +168,31 @@ class CinematicRendererGuardTests(unittest.TestCase):
             self.assertEqual(report["background_music"], "background-music.wav")
             self.assertEqual(report["background_music_gain"], 0.12)
 
+    def test_captions_are_burned_with_readable_styled_subtitles(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            scenes = root / "scenes"
+            plan_path = self._write_eight_minute_plan(root, scenes)
+            (scenes / "captions.srt").write_text(
+                "1\\n00:00:00,000 --> 00:00:02,000\\nनमस्ते दुनिया\\n",
+                encoding="utf-8",
+            )
+            with patch.object(renderer, "ffmpeg_available", return_value=True), \
+                 patch.object(renderer, "run") as run_mock, \
+                 patch.object(renderer, "probe_duration", return_value=480.0):
+                renderer.render(scenes, root / "out", scene_plan_path=plan_path,
+                                min_minutes=8, max_minutes=10)
+            final_command = next(
+                call.args[0] for call in run_mock.call_args_list
+                if str(root / "out" / "cinematic-video.mp4") in call.args[0]
+            )
+            vf = final_command[final_command.index("-vf") + 1]
+            self.assertIn("subtitles=", vf)
+            self.assertIn("FontSize=26", vf)
+            self.assertIn("Bold=1", vf)
+            self.assertIn("Outline=2", vf)
+            self.assertIn("Alignment=2", vf)
+
     def test_renderer_report_policy_is_private_review_only(self):
         source = Path(renderer.__file__).read_text(encoding="utf-8")
         self.assertIn('"upload_enabled": False', source)

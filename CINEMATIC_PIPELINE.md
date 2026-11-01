@@ -23,12 +23,15 @@ Optional files in the same directory:
 
 - `voiceover.mp3` or `voiceover.wav`: narration track
 - `background-music.mp3` or `background-music.wav`: optional music bed
-- `captions.srt`: subtitles (UTF-8)
+- `captions.srt`: subtitles (UTF-8), burned in with bold white text, dark outline,
+  subtle shadow, and a bottom-safe margin for mobile readability
 
 If no narration or music is provided, the result is silent. When both narration and
 background music are present, the renderer mixes music under the voice at a conservative
 12% gain; narration remains the primary audio. Music loops to cover the timeline. Use
-music you have rights to use. Captions are burned in when FFmpeg subtitle support is available.
+music you have rights to use. Captions are burned in with a readable bold style when FFmpeg subtitle support is
+available. This is styled line-level SRT captioning, not word-by-word kinetic karaoke
+highlighting; precise word timing requires word-aligned caption data.
 
 ## 2. Render locally
 

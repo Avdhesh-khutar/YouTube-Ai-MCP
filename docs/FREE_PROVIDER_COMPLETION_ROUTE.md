@@ -102,3 +102,10 @@ This route is a concrete implementation direction, **not a claim of completion**
 An updated direct model-card review supersedes the earlier ~106 MB estimate. The current `saryps-labs/pocket-tts-hindi` release is 219 MB BF16 weights; its selective INT8 ONNX bundle is about 240 MB. It is an early research release, not a turnkey 106 MB browser package. Hindi weights are CC BY 4.0; attribution is required. CPU benchmarks were measured on an EPYC server and should not be extrapolated to an 8 GB laptop or Android phone. Male-labelled examples exist, but the requested deep male timbre still needs a listening test.
 
 Hugging Face's current Spaces API documentation describes queue-based Gradio endpoints and indicates daily ZeroGPU quotas of 2 minutes unauthenticated and 5 minutes for free accounts. These quotas are shared/plan-specific and can change; do not treat them as a guaranteed number of successful clips. Public Spaces can be invoked via their documented API, but inspect the exact Space's `Use via API` schema before passing any inputs.
+
+
+## Browser TTS handoff utility added to the feature branch
+
+`scripts/prepare_browser_tts_chunks.py` splits a UTF-8 Hindi script into sentence-aware chunks (default maximum 1,800 characters), writes numbered text files, and creates a manifest mapping each text chunk to an expected WAV filename. It does not call a TTS site or pretend audio exists. After the user/browser produces and reviews WAV files, those can be assembled in a later step.
+
+Tests: `tests/test_prepare_browser_tts_chunks.py`. A dedicated GitHub Actions workflow runs these tests on relevant feature-branch pushes and pull requests. The workflow result must be checked after GitHub Actions starts; no passing result is claimed yet.

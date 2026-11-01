@@ -58,7 +58,7 @@ def segments_to_srt(segments: Iterable[object], min_duration: float = 0.25,
                 end = start + min_duration
             text = "".join(item[2] for item in group).strip()
             index += 1
-            blocks.append(f"{index}\\n{srt_timestamp(start)} --> {srt_timestamp(end)}\\n{text}")
+            blocks.append(f"{index}\n{srt_timestamp(start)} --> {srt_timestamp(end)}\n{text}")
             previous_end = end
     else:
         # Fallback for ASR backends that provide only segment-level timestamps.
@@ -73,11 +73,11 @@ def segments_to_srt(segments: Iterable[object], min_duration: float = 0.25,
             if end - start < min_duration:
                 end = start + min_duration
             index += 1
-            blocks.append(f"{index}\\n{srt_timestamp(start)} --> {srt_timestamp(end)}\\n{text}")
+            blocks.append(f"{index}\n{srt_timestamp(start)} --> {srt_timestamp(end)}\n{text}")
             previous_end = end
     if not blocks:
         raise ValueError("Speech recognizer returned no usable Hindi caption segments or words.")
-    return "\\n\\n".join(blocks) + "\\n"
+    return "\n\n".join(blocks) + "\n"
 
 def transcribe_to_srt(audio_path: Path, output_path: Path, model_size: str = "small",
                       compute_type: str = "int8", language: str = "hi") -> Path:

@@ -10,7 +10,9 @@ Create `assets/cinematic-scenes/` and add at least two images named in order:
 - `scene-02.png`
 - `scene-03.png`
 
-Use your preferred open-source image model locally (for example, a compatible Stable Diffusion/SDXL workflow) to create the images. Keep each scene visually consistent and use images you have rights to use. The renderer does not call a paid API or generate images itself.
+Use your preferred open-source image model locally (for example, a compatible Stable Diffusion/SDXL workflow) to create the images. Keep each scene visually consistent and use images you have rights to use. The renderer does not call a paid API or generate images itself. Each scene now gets a
+subtle 0.45-second fade-in and fade-out at its boundaries; for a sequence of short motion
+clips, fades are applied at the start and end of the scene rather than between every clip.
 
 For scenes that should have actual AI motion, put a video beside its image with the same base name:
 

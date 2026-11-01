@@ -58,6 +58,27 @@ class SpeechTimedHindiCaptionTests(unittest.TestCase):
         segments = [SimpleNamespace(start=0.0, end=1.5, text="केवल सेगमेंट टाइमिंग")]
         self.assertIn("केवल सेगमेंट टाइमिंग", segments_to_srt(segments))
 
+    def test_transcription_requests_word_level_timestamps(self):
+        import sys
+        from unittest.mock import MagicMock
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            audio = root / "voiceover.wav"
+            audio.write_bytes(b"audio")
+            word = SimpleNamespace(start=0.0, end=0.4, word=" नमस्ते")
+            segment = SimpleNamespace(start=0.0, end=0.4, text="नमस्ते", words=[word])
+            info = SimpleNamespace(language="hi", language_probability=0.99)
+            model = MagicMock()
+            model.transcribe.return_value = ([segment], info)
+            whisper_module = MagicMock()
+            whisper_module.WhisperModel.return_value = model
+            with patch.dict(sys.modules, {"faster_whisper": whisper_module}):
+                output = transcribe_to_srt(audio, root / "captions.srt")
+            model.transcribe.assert_called_once()
+            self.assertTrue(model.transcribe.call_args.kwargs["word_timestamps"])
+            self.assertEqual(model.transcribe.call_args.kwargs["language"], "hi")
+            self.assertIn("नमस्ते", output.read_text(encoding="utf-8"))
+
     def test_missing_audio_fails_before_model_import(self):
         with tempfile.TemporaryDirectory() as tmp:
             with self.assertRaisesRegex(FileNotFoundError, "not found"):

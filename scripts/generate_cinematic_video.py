@@ -223,7 +223,9 @@ def render(scenes_dir: Path, output_dir: Path, seconds_per_scene: float = 5.0,
     if narration.exists() and music.exists():
         command += [
             "-filter_complex",
-            "[1:a]volume=1.0[voice];[2:a]volume=0.12,afade=t=in:st=0:d=2[bed];"
+            f"[1:a]volume=1.0[voice];[2:a]volume=0.12,"
+            f"afade=t=in:st=0:d=2,"
+            f"afade=t=out:st={max(0.0, timeline_duration - 2.0):.3f}:d=2[bed];"
             "[voice][bed]amix=inputs=2:duration=first:dropout_transition=2[a]",
             "-map", "0:v:0", "-map", "[a]",
         ]

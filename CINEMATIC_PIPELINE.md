@@ -98,6 +98,23 @@ Suggested local-first workflow:
 
 The GitHub Actions runner is for rendering, not GPU-based image/video generation. Do not put model credentials or private tokens into the repository.
 
+### Speech-timed Hindi captions (optional)
+
+After preparing `voiceover.wav` (or `voiceover.mp3`), install the optional
+`faster-whisper` dependency in the rendering environment and run:
+
+```bash
+python scripts/align_hindi_captions.py --audio assets/cinematic-scenes/voiceover.wav --output assets/cinematic-scenes/captions.srt --language hi --model small --compute-type int8
+```
+
+The recognizer requests word timestamps and groups them into short readable SRT
+lines. The output path is the same `captions.srt` consumed by the renderer.
+CPU runtime and memory depend on model size and audio duration; on an 8 GB
+machine, start with `tiny` or `base` if `small` is too heavy. This step is
+optional and is not run automatically in GitHub Actions. Always review Hindi
+recognition, punctuation, and timing against the audio before publishing.
+
+
 
 ## 4. Generate assets with local ComfyUI (open-source-first)
 

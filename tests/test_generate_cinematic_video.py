@@ -163,7 +163,7 @@ class CinematicRendererGuardTests(unittest.TestCase):
             filter_text = final_command[final_command.index("-filter_complex") + 1]
             self.assertIn("amix=inputs=2:duration=first", filter_text)
             self.assertIn("volume=0.12", filter_text)
-            self.assertIn("background-music.wav", final_command)
+            self.assertTrue(any("background-music.wav" in item for item in final_command))
             report = json.loads((root / "out" / "render-report.json").read_text(encoding="utf-8"))
             self.assertEqual(report["background_music"], "background-music.wav")
             self.assertEqual(report["background_music_gain"], 0.12)

@@ -34,7 +34,7 @@ def build_title_overlay_filter(title: str, duration: float) -> str:
         f"if(gt(t,{fade_out_start:.3f}),({end:.3f}-t)/0.45,1))"
     )
     return (
-        "drawbox=x=0:y=h-142:w=w:h=142:color=black@0.48:t=fill:"
+        "drawbox=x=0:y=ih-142:w=iw:h=142:color=black@0.48:t=fill:"
         f"enable='between(t,0,{end:.3f})',"
         "drawtext=text='" + safe_title + "':fontcolor=white:fontsize=42:"
         "x='80+if(lt(t,0.45), (1-t/0.45)*-55, 0)':y=h-96:"

@@ -10,5 +10,13 @@
       "binding": "OAUTH_KV",
       "id": "205292538c124da5849edb8234ae2377"
     }
-  ]
+  ],
+  "previews": {
+    "kv_namespaces": [
+      {
+        "binding": "OAUTH_KV",
+        "id": "619acbb865934b2f92fc459a8ed4ce00"
+      }
+    ]
+  }
 }

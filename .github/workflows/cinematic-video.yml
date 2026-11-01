@@ -1,0 +1,49 @@
+name: Cinematic video review package
+
+on:
+  workflow_dispatch:
+    inputs:
+      seconds_per_scene:
+        description: "Seconds per scene (2-12)"
+        required: true
+        default: "5"
+      require_full_length:
+        description: "Require actual 8-10 minute runtime (fails short review clips)"
+        type: boolean
+        required: true
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Install FFmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+      - name: Validate cinematic assets
+        run: |
+          python -c "from pathlib import Path; p=Path('assets/cinematic-scenes'); files=[x for x in p.iterdir() if x.is_file() and x.stem.startswith(('scene-', 'scene_')) and x.suffix.lower() in {'.png','.jpg','.jpeg','.webp'}] if p.exists() else []; assert len(files) >= 2, 'Add at least two AI scene images to assets/cinematic-scenes/ (scene-01.png, scene-02.png, ...)'"
+      - name: Render cinematic video
+        run: python scripts/generate_cinematic_video.py --seconds-per-scene "${{ inputs.seconds_per_scene }}"
+      - name: Verify output
+        run: |
+          test -s dist-cinematic/cinematic-video.mp4
+          test -s dist-cinematic/thumbnail.jpg
+          test -s dist-cinematic/render-report.json
+          ffprobe -v error -show_entries stream=codec_type,width,height -of json dist-cinematic/cinematic-video.mp4
+      - name: Verify actual 8-10 minute runtime
+        if: ${{ inputs.require_full_length }}
+        run: python scripts/verify_render_duration.py dist-cinematic/cinematic-video.mp4 --require-audio
+      - name: Save private review artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cinematic-video-review-${{ github.run_id }}
+          path: dist-cinematic/
+          retention-days: 7

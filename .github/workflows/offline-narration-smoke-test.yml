@@ -1,0 +1,153 @@
+name: Offline Hindi narration smoke test
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'scripts/prepare_offline_narration.py'
+      - 'scripts/plan_cinematic_scenes.py'
+      - 'scripts/validate_scene_plan.py'
+      - 'scripts/check_cinematic_quality.py'
+      - 'scripts/generate_cinematic_video.py'
+      - 'tests/test_prepare_offline_narration.py'
+      - '.github/workflows/offline-narration-smoke-test.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  narration-smoke-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Install free offline tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg espeak-ng
+      - name: Create temporary Hindi smoke-test script
+        run: |
+          mkdir -p /tmp/narration-smoke dist-cinematic
+          cat > /tmp/narration-smoke/script.txt <<'EOF'
+          नमस्कार। आज हम एक विस्तृत तकनीकी परीक्षण कर रहे हैं, जिसमें हिंदी narration को सामान्य गति पर बनाया जाएगा। हर दृश्य के लिए केवल छोटा वाक्य नहीं, बल्कि पूरा समझाने वाला अनुच्छेद इस्तेमाल होगा। इसका उद्देश्य यह देखना है कि दृश्य की कुल अवधि के मुकाबले आवाज़ पर्याप्त समय तक चलती है या नहीं। अगर कहानी में कोई नया विचार आता है, तो उसे सरल भाषा में समझाया जाएगा, उदाहरण दिया जाएगा और उसके महत्व को बताया जाएगा। आवाज़ को तेज़ करके अवधि घटाने या बढ़ाने के बजाय सामान्य गति पर रखा जाएगा।
+
+          दूसरे भाग में हम ऑडियो की गुणवत्ता और समय की जाँच करेंगे। स्थानीय text to speech इंजन लिखे हुए हिंदी पाठ को आवाज़ में बदलेगा और ffmpeg उस आवाज़ को सही ऑडियो फ़ॉर्मेट में तैयार करेगा। हर scene के लिए आवाज़ की वास्तविक अवधि मापी जाएगी। अगर किसी दृश्य में बहुत कम शब्द होंगे और बाकी समय ख़ामोशी होगी, तो परीक्षण उसे स्वीकार नहीं करेगा। इस तरह आठ मिनट की फ़ाइल केवल तकनीकी रूप से लंबी नहीं होगी, बल्कि उसमें पर्याप्त narration भी होना चाहिए। इस जाँच से खाली समय छिपाकर परिणाम को सफल दिखाने की समस्या पकड़ी जा सकेगी।
+
+          तीसरे भाग में subtitles की जाँच होगी। हर subtitle block में क्रमांक, शुरू होने का समय, समाप्ति का समय और पढ़ने योग्य पाठ होना चाहिए। समय क्रम में होना चाहिए और कोई block पिछले block से टकराना नहीं चाहिए। यह परीक्षण scene-level timing को सत्यापित करता है, शब्द-दर-शब्द alignment का दावा नहीं करता। वास्तविक वीडियो में captions को और बेहतर बनाने के लिए narration और scene transitions की अलग जाँच आवश्यक होगी। इसलिए इस smoke test के परिणाम को पूरी cinematic video की गुणवत्ता का प्रमाण नहीं माना जाएगा।
+
+          आख़िरी भाग में हम स्पष्ट करेंगे कि यह परीक्षण क्या साबित करता है और क्या नहीं। यह मुफ़्त, offline tools से हिंदी narration और subtitles बनाने की प्रक्रिया जाँचता है। यह अपने आप AI चित्र, image-to-video clips, संगीत की licensing, thumbnail design या YouTube upload नहीं बनाता। उन चरणों के लिए अलग provider integration और वास्तविक output tests चाहिए। इस परीक्षण में voice speed सामान्य रखी जाएगी, scene की अवधि के साथ वास्तविक speech coverage मापी जाएगी और अपर्याप्त narration को असफल माना जाएगा। सफल होने पर audio की अवधि और subtitle timeline दोनों आठ मिनट के आसपास होने चाहिए।
+          EOF
+      - name: Plan an eight-minute test
+        run: |
+          python scripts/plan_cinematic_scenes.py --script /tmp/narration-smoke/script.txt --output dist-cinematic --max-scenes 4 --target-minutes 8
+      - name: Generate offline Hindi narration and SRT
+        run: |
+          python scripts/prepare_offline_narration.py --scene-plan dist-cinematic/scene-plan.json --output dist-cinematic --min-minutes 8 --max-minutes 8
+      - name: Verify audio and subtitles
+        run: |
+          test -s dist-cinematic/voiceover.wav
+          test -s dist-cinematic/captions.srt
+          test -s dist-cinematic/narration-coverage.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(Path("dist-cinematic/narration-coverage.json").read_text(encoding="utf-8"))
+          assert report["all_scenes_pass"] is True
+          assert report["playback_speed_adjusted"] is False
+          assert len(report["scenes"]) == 4
+          assert all(row["speech_coverage"] >= report["minimum_speech_coverage"] for row in report["scenes"])
+          print("PASS: per-scene coverage report confirms every scene passes without speed adjustment")
+          PY
+          ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 dist-cinematic/voiceover.wav
+          python - <<'PY'
+          from pathlib import Path
+          from scripts.check_cinematic_quality import validate_srt
+          p = Path("dist-cinematic/captions.srt")
+          count, end, errors = validate_srt(p.read_text(encoding="utf-8"))
+          assert count >= 2, f"Expected multiple subtitle blocks, got {count}"
+          assert not errors, errors
+          assert 479 <= end <= 480, f"Expected subtitle timeline near 480 seconds, got {end}"
+          print(f"PASS: {count} SRT blocks, timeline {end:.3f}s")
+          PY
+      - name: Verify short narration is rejected
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          plan = {"scenes": [
+              {"scene_id": f"scene-{i:02d}", "narration": "छोटा वाक्य।",
+               "visual_prompt": "test still", "duration_seconds": 120}
+              for i in range(1, 5)
+          ]}
+          Path("/tmp/narration-smoke/short-plan.json").write_text(
+              json.dumps(plan, ensure_ascii=False), encoding="utf-8")
+          PY
+          set +e
+          python scripts/prepare_offline_narration.py \
+            --scene-plan /tmp/narration-smoke/short-plan.json \
+            --output /tmp/narration-smoke/short-output \
+            --min-minutes 8 --max-minutes 8 > /tmp/narration-smoke/short-check.log 2>&1
+          status=$?
+          set -e
+          if [ "$status" -eq 0 ]; then
+            echo "ERROR: short narration was incorrectly accepted"
+            cat /tmp/narration-smoke/short-check.log
+            exit 1
+          fi
+          grep -F "minimum is 20%" /tmp/narration-smoke/short-check.log
+          echo "PASS: insufficient spoken coverage is rejected"
+      - name: Render and quality-check a short fixture video
+        run: |
+          mkdir -p /tmp/cinematic-render-smoke/scenes /tmp/cinematic-render-smoke/output
+          ffmpeg -y -f lavfi -i color=c=navy:s=640x360 -frames:v 1 /tmp/cinematic-render-smoke/scenes/scene-01.png
+          ffmpeg -y -f lavfi -i color=c=darkgreen:s=640x360 -frames:v 1 /tmp/cinematic-render-smoke/scenes/scene-02.png
+          cp dist-cinematic/voiceover.wav /tmp/cinematic-render-smoke/scenes/voiceover.wav
+          cat > /tmp/cinematic-render-smoke/scenes/captions.srt <<'EOF'
+          1
+          00:00:00,000 --> 00:00:02,000
+          पहला परीक्षण दृश्य।
+
+          2
+          00:00:02,000 --> 00:00:04,000
+          दूसरा परीक्षण दृश्य।
+          EOF
+          python scripts/generate_cinematic_video.py --scenes /tmp/cinematic-render-smoke/scenes --output /tmp/cinematic-render-smoke/output --seconds-per-scene 2
+          python scripts/check_cinematic_quality.py --video /tmp/cinematic-render-smoke/output/cinematic-video.mp4 --subtitles /tmp/cinematic-render-smoke/scenes/captions.srt --min-minutes 0.05 --max-minutes 1 --report /tmp/cinematic-render-smoke/output/quality-report.json
+          test -s /tmp/cinematic-render-smoke/output/thumbnail.jpg
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(Path("/tmp/cinematic-render-smoke/output/quality-report.json").read_text(encoding="utf-8"))
+          assert report["ready_for_owner_review"] is True, report
+          assert report["upload_performed"] is False
+          assert report["public_publish"] is False
+          print("PASS: short fixture video rendered and passed media/subtitle QA; no upload or public publishing")
+          PY
+      - name: Verify the 720p quality gate rejects low-resolution video
+        run: |
+          ffmpeg -y -f lavfi -i color=c=black:s=640x360:r=30 -t 4 -pix_fmt yuv420p /tmp/cinematic-render-smoke/low-resolution.mp4
+          set +e
+          python scripts/check_cinematic_quality.py \
+            --video /tmp/cinematic-render-smoke/low-resolution.mp4 \
+            --subtitles /tmp/cinematic-render-smoke/scenes/captions.srt \
+            --min-minutes 0.05 --max-minutes 1 > /tmp/cinematic-render-smoke/low-resolution-check.log 2>&1
+          status=$?
+          set -e
+          if [ "$status" -eq 0 ]; then
+            echo "ERROR: 640x360 video was incorrectly accepted"
+            cat /tmp/cinematic-render-smoke/low-resolution-check.log
+            exit 1
+          fi
+          grep -F "below the 1280x720 minimum" /tmp/cinematic-render-smoke/low-resolution-check.log
+          echo "PASS: low-resolution video is rejected by the 720p gate"
+      - name: Save smoke-test evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: offline-hindi-narration-smoke-test-${{ github.run_id }}
+          path: |
+            dist-cinematic/voiceover.wav
+            dist-cinematic/captions.srt
+            dist-cinematic/scene-plan.json
+            dist-cinematic/narration-coverage.json
+          retention-days: 7

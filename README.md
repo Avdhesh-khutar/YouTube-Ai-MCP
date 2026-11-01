@@ -20,7 +20,7 @@ OAuth-protected Model Context Protocol (MCP) server for Claude, hosted on Cloudf
 
 ## Daily video package starter
 
-A GitHub Actions workflow at `.github/workflows/daily-video.yml` runs daily at 04:30 UTC (10:00 AM India time) and can also be started manually. It uses free Ubuntu packages (FFmpeg + eSpeak NG) and Pillow to render a short motion-card video, thumbnail, script, and metadata into a downloadable workflow artifact.
+A GitHub Actions workflow at `.github/workflows/daily-video.yml` runs daily at 04:30 UTC (10:00 AM India time) and can also be started manually. On the feature branch, manual runs accept an optional `topic` input; the renderer uses it to create a topic-specific Hindi explainer draft, thumbnail, script, captions, and metadata. It uses free Ubuntu packages (FFmpeg + eSpeak NG) and Pillow to render the downloadable workflow artifact.
 
 Important limitations:
 - This is a **starter motion-card video**, not generative AI footage. The offline Hindi voice is synthetic and must be reviewed for pronunciation and quality.
@@ -28,17 +28,21 @@ Important limitations:
 - YouTube upload needs a secure file handoff plus OAuth credentials in a protected runtime. Do not place the Google refresh token in the public repository.
 - For fully AI-generated scenes and natural voice, a suitable model/service or a local model is required; free availability and quotas vary.
 
-## Enable scheduled private uploads
+## YouTube upload status (manual, private-only)
 
-The daily workflow uploads only when a repository Actions secret named `YOUTUBE_PRIVATE_UPLOAD_TOKEN` is configured. The Worker endpoint also requires the same value as the Cloudflare Worker secret `DAILY_UPLOAD_TOKEN`.
+**Automatic upload is currently disabled.** The daily workflow's upload step is guarded by `if: false`, so adding secrets alone will not enable uploading. The workflow produces a downloadable review artifact only.
 
-1. Generate a strong random token using a password manager. Do not send it in chat or commit it.
-2. In Cloudflare Dashboard → Workers & Pages → `youtube-ai-mcp` → Settings → Variables and Secrets, add a **secret** named `DAILY_UPLOAD_TOKEN` with that token, then deploy the Worker.
-3. In GitHub → repository Settings → Secrets and variables → Actions, create repository secret `YOUTUBE_PRIVATE_UPLOAD_TOKEN` with the exact same token.
-4. Run the `Daily video package` workflow manually once from Actions → Daily video package → Run workflow.
-5. Confirm the result is `uploaded: true` and `privacyStatus: private`, then review the draft in YouTube Studio.
+To upload a reviewed artifact manually:
+1. Download the video artifact from GitHub Actions and inspect the video, Hindi narration, captions, thumbnail, and metadata.
+2. Open YouTube Studio → Create → Upload videos, select the MP4, and wait for processing.
+3. In Visibility, select **Private**. Do not choose Public or Schedule.
+4. Save, then confirm the video appears as Private in YouTube Studio.
 
-Without both secrets, the workflow still generates and stores a downloadable review artifact, but skips YouTube upload. The endpoint accepts video files up to 47 MB and always sets privacy to `private`. Never enable public publishing in this workflow.
+The MCP tool `youtube_upload_video_from_url` is a separate path for an already-rendered video available at a direct HTTPS URL. It always requests `privacyStatus: private`, but requires working Google OAuth upload permission and a URL meeting its size/content requirements. Do not share OAuth tokens or upload secrets in chat. No upload is considered successful until YouTube confirms it.
+
+## Local AI scene generation
+
+The optional ComfyUI helper can generate scene images (and optionally image-to-video clips) using a compatible workflow and model installed on your own machine. Setup, workflow placeholders, commands, and limitations are documented in [Local ComfyUI scene generation](docs/COMFYUI_LOCAL_GENERATION.md). This integration has not been verified against a real model/runtime yet; GitHub Actions only tests the code and renderer scaffold.
 
 ## Automated video creation limits and next step
 
@@ -81,6 +85,16 @@ After a GitHub-triggered Cloudflare deployment succeeds:
 4. Enter the `OAUTH_ADMIN_PASSWORD` only on the connector's authorization page, after verifying the client and redirect host.
 5. Approve individual tool calls as appropriate.
 
+## Cloudflare Preview OAuth behavior
+
+The feature-branch Preview hostname is a deployment preview, not a separately registered MCP resource. The combined OAuth provider intentionally keeps the canonical protected resource and issuer configuration pointed at the production MCP endpoint:
+
+`https://youtube-ai-mcp.mkkhutar2.workers.dev/mcp`
+
+Consequently, the Preview `/health` endpoint can be used for a basic Worker health check, but Preview-hosted OAuth discovery is not a supported end-to-end MCP test. A request to the Preview `/mcp` route without a bearer token can return HTTP 401, and the Preview host's protected-resource metadata URL can return 404 because the configured canonical resource belongs to the production hostname. These responses alone do not indicate that production OAuth is broken.
+
+Use the production MCP endpoint above for the actual connector. Do not change `MCP_RESOURCE` to a Preview hostname in the shared feature-branch source: that code may later be promoted to production and would then advertise the wrong token audience. A separately addressable Preview MCP resource would need an intentionally isolated OAuth configuration and token audience, not just a Preview KV namespace.
+
 ## Health check
 
 `https://youtube-ai-mcp.mkkhutar2.workers.dev/health`
@@ -116,3 +130,11 @@ The tool reports channel-level views, estimated minutes watched, average view du
 - Keep `OAUTH_ADMIN_PASSWORD` strong and unique; never paste it into chat.
 - Restrict the YouTube API key to YouTube Data API v3 and monitor quota in Google Cloud Console.
 - OAuth for this MCP connector is separate from Google OAuth for accessing a user's own private channel data.
+
+## Cinematic video pipeline (review-only)
+
+See [CINEMATIC_PIPELINE.md](CINEMATIC_PIPELINE.md) for the new scene-based renderer, optional image-to-video clips, voice-over/caption inputs, local rendering instructions, and the manual GitHub Actions review workflow. This pipeline does not upload or publish videos.
+
+# See also: free browser-based image-to-video provider evaluation
+
+For the current read-only review of free Hugging Face image-to-video candidates, their API limitations, and the no-paid-fallback safeguards, see [docs/CURRENT_FREE_I2V_CANDIDATES.md](docs/CURRENT_FREE_I2V_CANDIDATES.md) and [docs/FREE_VIDEO_PROVIDER_EVALUATION.md](docs/FREE_VIDEO_PROVIDER_EVALUATION.md).

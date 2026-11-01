@@ -1,0 +1,208 @@
+import json
+import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from unittest.mock import patch
+from io import BytesIO
+
+from scripts.comfyui_generate_assets import (
+    replace_tokens, validate_prompts, validate_output_bytes, validate_workflow_tokens,
+    select_scene_output, download_outputs, cleanup_downloads, upload_image, submit_and_wait,
+)
+
+
+class ComfyUITokenReplacementTests(unittest.TestCase):
+    def test_replaces_tokens_recursively_in_nested_workflow(self):
+        workflow = {
+            "1": {
+                "inputs": {
+                    "text": "__POSITIVE_PROMPT__",
+                    "negative": "__NEGATIVE_PROMPT__",
+                    "filename_prefix": "__OUTPUT_PREFIX__",
+                }
+            },
+            "2": ["prefix __POSITIVE_PROMPT__", {"image": "__INPUT_IMAGE__"}],
+        }
+        result = replace_tokens(workflow, {
+            "__POSITIVE_PROMPT__": "Hindi history scene",
+            "__NEGATIVE_PROMPT__": "blurry",
+            "__OUTPUT_PREFIX__": "review/scene-01",
+            "__INPUT_IMAGE__": "scene-01.png",
+        })
+        self.assertEqual(result["1"]["inputs"]["text"], "Hindi history scene")
+        self.assertEqual(result["1"]["inputs"]["negative"], "blurry")
+        self.assertEqual(result["1"]["inputs"]["filename_prefix"], "review/scene-01")
+        self.assertEqual(result["2"][0], "prefix Hindi history scene")
+        self.assertEqual(result["2"][1]["image"], "scene-01.png")
+
+    def test_does_not_mutate_original_workflow(self):
+        workflow = {"node": {"text": "__POSITIVE_PROMPT__"}}
+        result = replace_tokens(workflow, {"__POSITIVE_PROMPT__": "hello"})
+        self.assertEqual(workflow["node"]["text"], "__POSITIVE_PROMPT__")
+        self.assertEqual(result["node"]["text"], "hello")
+
+    def test_preserves_non_string_values(self):
+        workflow = {"steps": 4, "enabled": True, "empty": None}
+        result = replace_tokens(workflow, {"__POSITIVE_PROMPT__": "hello"})
+        self.assertEqual(result, workflow)
+
+
+    def test_validates_scene_prompt_records(self):
+        prompts = [
+            {"scene": 1, "image_prompt": "A historic fort", "negative_prompt": "blurry"},
+            {"scene": 3, "image_prompt": "A river at sunrise"},
+        ]
+        self.assertEqual(validate_prompts(prompts), prompts)
+
+    def test_rejects_duplicate_scene_numbers(self):
+        with self.assertRaisesRegex(ValueError, "Duplicate scene number"):
+            validate_prompts([
+                {"scene": 1, "image_prompt": "first"},
+                {"scene": 1, "image_prompt": "second"},
+            ])
+
+    def test_rejects_missing_prompt_and_invalid_scene_number(self):
+        with self.assertRaisesRegex(ValueError, "image_prompt"):
+            validate_prompts([{"scene": 1, "image_prompt": " "}])
+        with self.assertRaisesRegex(ValueError, "positive integer"):
+            validate_prompts([{"scene": True, "image_prompt": "scene"}])
+
+    def test_rejects_empty_or_non_list_prompt_data(self):
+        with self.assertRaisesRegex(ValueError, "non-empty list"):
+            validate_prompts([])
+        with self.assertRaisesRegex(ValueError, "non-empty list"):
+            validate_prompts({"scene": 1, "image_prompt": "scene"})
+
+
+    def test_rejects_empty_generated_output(self):
+        with self.assertRaisesRegex(RuntimeError, "empty output"):
+            validate_output_bytes(Path("scene-01.png"), b"")
+
+    def test_rejects_image_bytes_with_wrong_extension(self):
+        with self.assertRaisesRegex(RuntimeError, "does not match"):
+            validate_output_bytes(Path("scene-01.png"), b"not a png")
+
+    def test_accepts_png_and_mp4_signatures(self):
+        validate_output_bytes(Path("scene-01.png"), b"\x89PNG\r\n\x1a\nrest")
+        validate_output_bytes(Path("scene-01.mp4"), b"\x00\x00\x00\x18ftypisomrest")
+
+
+    def test_workflow_token_validation_finds_nested_tokens(self):
+        workflow = {"1": {"inputs": {"text": "__POSITIVE_PROMPT__ and __NEGATIVE_PROMPT__"}},
+                    "2": {"inputs": {"prefix": "__OUTPUT_PREFIX__"}}}
+        validated = validate_workflow_tokens(
+            workflow,
+            {"__POSITIVE_PROMPT__", "__NEGATIVE_PROMPT__", "__OUTPUT_PREFIX__"},
+            "Image",
+        )
+        self.assertEqual(validated, workflow)
+
+    def test_workflow_token_validation_reports_missing_tokens(self):
+        with self.assertRaisesRegex(ValueError, "missing required token"):
+            validate_workflow_tokens(
+                {"1": {"inputs": {"text": "__POSITIVE_PROMPT__"}}},
+                {"__POSITIVE_PROMPT__", "__INPUT_IMAGE__"},
+                "Video",
+            )
+
+    def test_workflow_token_validation_rejects_non_object(self):
+        with self.assertRaisesRegex(ValueError, "non-empty JSON object"):
+            validate_workflow_tokens([], {"__POSITIVE_PROMPT__"}, "Image")
+
+
+    def test_selects_only_matching_scene_and_extension(self):
+        files = [Path("scene-02_00001_.png"), Path("scene-01_00001_.png")]
+        self.assertEqual(select_scene_output(files, 1, ".png"), Path("scene-01_00001_.png"))
+
+    def test_rejects_ambiguous_scene_outputs(self):
+        files = [Path("scene-01_00001_.png"), Path("scene-01_00002_.png")]
+        with self.assertRaisesRegex(RuntimeError, "exactly one"):
+            select_scene_output(files, 1, ".png")
+
+    def test_rejects_wrong_extension_for_scene_output(self):
+        with self.assertRaisesRegex(RuntimeError, "exactly one"):
+            select_scene_output([Path("scene-01_00001_.jpg")], 1, ".png")
+
+
+    def test_upload_image_returns_validated_name_from_comfyui(self):
+        response = BytesIO(b'{"name":"scene-01.png"}')
+        with TemporaryDirectory() as temp_dir:
+            image_path = Path(temp_dir) / "scene-01.png"
+            image_path.write_bytes(b"png fixture")
+            with patch("scripts.comfyui_generate_assets.urllib.request.urlopen", return_value=response):
+                self.assertEqual(upload_image("http://comfyui", image_path), "scene-01.png")
+
+    def test_upload_image_rejects_unsafe_returned_name(self):
+        with TemporaryDirectory() as temp_dir:
+            image_path = Path(temp_dir) / "scene-01.png"
+            image_path.write_bytes(b"png fixture")
+            for unsafe_name in ("../outside.png", "folder\\outside.png", ""):
+                response = BytesIO(json.dumps({"name": unsafe_name}).encode())
+                with patch("scripts.comfyui_generate_assets.urllib.request.urlopen", return_value=response):
+                    with self.subTest(name=unsafe_name):
+                        with self.assertRaisesRegex(RuntimeError, "unsafe or invalid"):
+                            upload_image("http://comfyui", image_path)
+
+    def test_upload_image_rejects_non_object_response(self):
+        with TemporaryDirectory() as temp_dir:
+            image_path = Path(temp_dir) / "scene-01.png"
+            image_path.write_bytes(b"png fixture")
+            with patch("scripts.comfyui_generate_assets.urllib.request.urlopen", return_value=BytesIO(b'[]')):
+                with self.assertRaisesRegex(RuntimeError, "invalid JSON object"):
+                    upload_image("http://comfyui", image_path)
+
+    def test_submit_and_wait_rejects_invalid_submission_response(self):
+        with patch("scripts.comfyui_generate_assets.request_json", return_value=[]):
+            with self.assertRaisesRegex(RuntimeError, "invalid JSON object"):
+                submit_and_wait("http://comfyui", {}, 30)
+
+    def test_submit_and_wait_rejects_comfyui_execution_error(self):
+        responses = [
+            {"prompt_id": "prompt-123"},
+            {"prompt-123": {"status": {"status_str": "error"}, "outputs": {}}},
+        ]
+        with patch("scripts.comfyui_generate_assets.request_json", side_effect=responses), patch(
+            "scripts.comfyui_generate_assets.time.monotonic", side_effect=[0, 1]
+        ):
+            with self.assertRaisesRegex(RuntimeError, "workflow failed"):
+                submit_and_wait("http://comfyui", {}, 30)
+
+    def test_submit_and_wait_returns_completed_outputs(self):
+        outputs = {"3": {"images": [{"filename": "scene-01.png"}]}}
+        responses = [
+            {"prompt_id": "prompt-123"},
+            {"prompt-123": {"status": {"status_str": "success"}, "outputs": outputs}},
+        ]
+        with patch("scripts.comfyui_generate_assets.request_json", side_effect=responses), patch(
+            "scripts.comfyui_generate_assets.time.monotonic", side_effect=[0, 1]
+        ):
+            self.assertEqual(submit_and_wait("http://comfyui", {}, 30), outputs)
+
+    def test_download_outputs_rejects_duplicate_basenames(self):
+        outputs = {
+            "1": {"images": [
+                {"filename": "scene-01.png", "subfolder": "first"},
+                {"filename": "scene-01.png", "subfolder": "second"},
+            ]}
+        }
+        with TemporaryDirectory() as temp_dir, patch(
+            "scripts.comfyui_generate_assets.urllib.request.urlopen",
+            return_value=BytesIO(bytes.fromhex("89504e470d0a1a0a") + b"fixture"),
+        ):
+            with self.assertRaisesRegex(RuntimeError, "duplicate output filename"):
+                download_outputs("http://comfyui", outputs, Path(temp_dir), {".png"})
+
+
+    def test_cleanup_downloads_preserves_selected_file_and_removes_extras(self):
+        with TemporaryDirectory() as temp_dir:
+            selected = Path(temp_dir) / "scene-01.png"
+            extra = Path(temp_dir) / "scene-02.png"
+            selected.write_bytes(b"selected")
+            extra.write_bytes(b"extra")
+            cleanup_downloads([selected, extra], keep=selected)
+            self.assertTrue(selected.exists())
+            self.assertFalse(extra.exists())
+
+
+if __name__ == "__main__":
+    unittest.main()

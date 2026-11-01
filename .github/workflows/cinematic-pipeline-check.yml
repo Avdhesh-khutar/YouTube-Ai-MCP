@@ -1,0 +1,67 @@
+name: Cinematic pipeline code checks
+
+on:
+  pull_request:
+    paths:
+      - "scripts/**"
+      - "CINEMATIC_PIPELINE.md"
+      - ".github/workflows/cinematic-*.yml"
+  push:
+    branches:
+      - "feature/cinematic-video-pipeline"
+    paths:
+      - "scripts/**"
+      - "CINEMATIC_PIPELINE.md"
+      - ".github/workflows/cinematic-*.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  python-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Python dependencies needed for CLI checks
+        run: python -m pip install --disable-pip-version-check Pillow
+      - name: Compile pipeline scripts
+        run: python -m py_compile scripts/generate_cinematic_video.py scripts/plan_cinematic_scenes.py scripts/comfyui_generate_assets.py scripts/generate_daily_video.py scripts/hf_space_i2v.py scripts/check_free_video_space.py
+      - name: Check CLI help
+        run: |
+          python scripts/generate_cinematic_video.py --help
+          python scripts/plan_cinematic_scenes.py --help
+          python scripts/comfyui_generate_assets.py --help
+          if python scripts/generate_cinematic_video.py --seconds-per-scene 1 >render-validation.log 2>&1; then
+            echo "Expected an invalid scene duration to be rejected."
+            exit 1
+          fi
+          grep -q -- "--seconds-per-scene must be between 2 and 12" render-validation.log
+          rm -rf dist
+          python scripts/generate_daily_video.py --help
+          test ! -e dist
+
+      - name: Check custom topic length validation
+        run: |
+          rm -rf dist
+          topic="$(python -c 'print("x" * 100)')"
+          python scripts/generate_daily_video.py --topic "$topic" --validate-only
+          test ! -e dist
+          normalized=$(python scripts/generate_daily_video.py --topic "  hindi   topic  " --validate-only)
+          grep -q -- "topic: hindi topic; rendering skipped" <<< "$normalized"
+          test ! -e dist
+          topic="$(python -c 'print("x" * 101)')"
+          if python scripts/generate_daily_video.py --topic "$topic" --validate-only >topic-check.log 2>&1; then
+            echo "Expected an overlong custom topic to be rejected."
+            exit 1
+          fi
+          grep -q -- "--topic must be 100 characters or fewer" topic-check.log
+          test ! -e dist
+
+      - name: Test Hugging Face adapter safety and output validation
+        run: python -m unittest tests/test_hf_space_i2v.py
+
+      - name: Test read-only Hugging Face Space discovery
+        run: python -m unittest tests/test_check_free_video_space.py

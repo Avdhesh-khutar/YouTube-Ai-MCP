@@ -143,6 +143,31 @@ class CinematicRendererGuardTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "do not match"):
                     renderer.render(scenes, root / "out", scene_plan_path=plan_path, min_minutes=2, max_minutes=10)
 
+    def test_optional_background_music_is_mixed_below_narration(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            scenes = root / "scenes"
+            plan_path = self._write_eight_minute_plan(root, scenes)
+            (scenes / "voiceover.wav").write_bytes(b"voice placeholder")
+            (scenes / "background-music.wav").write_bytes(b"music placeholder")
+            with patch.object(renderer, "ffmpeg_available", return_value=True), \
+                 patch.object(renderer, "run") as run_mock, \
+                 patch.object(renderer, "probe_duration", return_value=480.0):
+                renderer.render(scenes, root / "out", scene_plan_path=plan_path,
+                                min_minutes=8, max_minutes=10)
+            final_command = next(
+                call.args[0] for call in run_mock.call_args_list
+                if str(root / "out" / "cinematic-video.mp4") in call.args[0]
+            )
+            self.assertIn("-filter_complex", final_command)
+            filter_text = final_command[final_command.index("-filter_complex") + 1]
+            self.assertIn("amix=inputs=2:duration=first", filter_text)
+            self.assertIn("volume=0.12", filter_text)
+            self.assertIn("background-music.wav", final_command)
+            report = json.loads((root / "out" / "render-report.json").read_text(encoding="utf-8"))
+            self.assertEqual(report["background_music"], "background-music.wav")
+            self.assertEqual(report["background_music_gain"], 0.12)
+
     def test_renderer_report_policy_is_private_review_only(self):
         source = Path(renderer.__file__).read_text(encoding="utf-8")
         self.assertIn('"upload_enabled": False', source)

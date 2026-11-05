@@ -68,3 +68,6 @@ jobs:
 
       - name: Test metadata-only Hugging Face API inspector
         run: python -m unittest tests/test_inspect_hf_space_api.py
+
+      - name: Test explainer motion graphics presets
+        run: python -m unittest tests/test_motion_graphics.py

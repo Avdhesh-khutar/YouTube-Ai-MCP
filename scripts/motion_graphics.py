@@ -62,7 +62,7 @@ def build_explainer_overlay_filter(
         "drawbox=x=0:y=0:w=iw:h=ih:color=black@0.12:t=fill",
         "drawbox=x=70:y=h*0.61:w=9:h=150:color=0xF5B942@1:t=fill:"
         f"enable='between(t,0,{duration:.3f})'",
-        "drawbox=x=70:y=h*0.61:w=if(lt(t,0.55),0,210):h=4:"
+        "drawbox=x=70:y=h*0.61:w='if(lt(t,0.55),0,210)':h=4:"
         "color=0xF5B942@1:t=fill:enable='between(t,0,1.2)'",
         "drawtext=text='" + title_text + "':fontcolor=white:fontsize=54:"
         "font='DejaVu Sans':x=104:y='" + title_y + "':"
@@ -74,7 +74,7 @@ def build_explainer_overlay_filter(
         "fontcolor=white@0.78:fontsize=22:x=w-tw-72:y=58:"
         f"enable='between(t,0,{duration:.3f})'",
         "drawbox=x=0:y=h-8:w=iw:h=8:color=white@0.22:t=fill",
-        f"drawbox=x=0:y=h-8:w=iw*min(1,t/{duration:.3f}):h=8:"
+        f"drawbox=x=0:y=h-8:w='iw*min(1,t/{duration:.3f})':h=8:"
         "color=0xF5B942@1:t=fill",
     ]
     return ",".join(filters)

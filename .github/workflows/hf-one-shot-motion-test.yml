@@ -73,13 +73,45 @@ jobs:
           )
 
           if not isinstance(result, (tuple, list)) or len(result) < 2:
-              raise SystemExit("Unexpected API result structure; stopping without another request.")
+              raise SystemExit(
+                  f"Unexpected API result structure ({type(result).__name__}); "
+                  "stopping without another request."
+              )
+
+          # Gradio maps the second declared output (gr.Video) directly to
+          # FileData: usually {"path": "...", "url": "..."}; it is NOT
+          # wrapped in a {"video": ...} object.
           video_data = result[1]
-          if not isinstance(video_data, dict) or not video_data.get("video"):
-              raise SystemExit("API returned no video file; stopping without another request.")
-          video_path = Path(video_data["video"].get("path", ""))
-          if not video_path.is_file():
-              raise SystemExit("Returned video path is missing; stopping without another request.")
+
+          def get_video_path(value):
+              if isinstance(value, dict):
+                  path = value.get("path") or value.get("name")
+                  if path:
+                      return str(path)
+                  nested = value.get("video")
+                  if nested is not None:
+                      return get_video_path(nested)
+              elif isinstance(value, (str, os.PathLike)):
+                  return os.fspath(value)
+              else:
+                  path = getattr(value, "path", None)
+                  if path:
+                      return os.fspath(path)
+              return None
+
+          video_path_value = get_video_path(video_data)
+          if not video_path_value:
+              keys = sorted(video_data.keys()) if isinstance(video_data, dict) else []
+              raise SystemExit(
+                  "API returned no local video path "
+                  f"(output_type={type(video_data).__name__}, keys={keys}); "
+                  "stopping without another request."
+              )
+          video_path = Path(video_path_value)
+          if not video_path.is_file() or video_path.stat().st_size == 0:
+              raise SystemExit(
+                  "Returned video path is missing or empty; stopping without another request."
+              )
 
           out = Path("hf-motion-test")
           out.mkdir(exist_ok=True)

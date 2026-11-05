@@ -1,8 +1,4 @@
-"""Small, dependency-free helpers for animated scene title overlays.
-
-The FFmpeg drawtext filter is applied per scene, so each title animates in at the
-start of its scene instead of appearing as a static full-video caption.
-"""
+"""Dependency-free FFmpeg motion-graphics presets for explainer videos."""
 from __future__ import annotations
 
 import re
@@ -10,7 +6,6 @@ import re
 
 def escape_drawtext(value: str) -> str:
     """Escape text for FFmpeg drawtext's filter-option parser."""
-    # Keep titles compact and prevent user-provided text from injecting filter options.
     value = re.sub(r"\s+", " ", str(value)).strip()
     escaped = (value.replace("\\", r"\\")
                .replace(":", r"\:")
@@ -22,10 +17,15 @@ def escape_drawtext(value: str) -> str:
     return escaped[:90]
 
 
-def build_title_overlay_filter(title: str, duration: float) -> str:
-    """Return a tasteful animated lower-third filter for one scene."""
-    if duration <= 0:
+def _duration(value: float) -> float:
+    if value <= 0:
         raise ValueError("duration must be positive")
+    return float(value)
+
+
+def build_title_overlay_filter(title: str, duration: float) -> str:
+    """Animated lower-third title, retained for backwards compatibility."""
+    duration = _duration(duration)
     safe_title = escape_drawtext(title)
     end = min(4.8, duration)
     fade_in = min(0.45, end / 4)
@@ -41,6 +41,43 @@ def build_title_overlay_filter(title: str, duration: float) -> str:
         "x='80+if(lt(t,0.45), (1-t/0.45)*-55, 0)':y=h-96:"
         f"alpha='{alpha}':enable='between(t,0,{end:.3f})'"
     )
+
+
+def build_explainer_overlay_filter(
+    title: str,
+    subtitle: str,
+    duration: float,
+    scene_number: int = 1,
+    scene_count: int = 1,
+) -> str:
+    """Build a multi-layer explainer overlay with animated entrance and progress."""
+    duration = _duration(duration)
+    if scene_number < 1 or scene_count < scene_number:
+        raise ValueError("scene_number and scene_count must satisfy 1 <= number <= count")
+    title_text = escape_drawtext(title)
+    subtitle_text = escape_drawtext(subtitle)
+    reveal_end = min(1.0, duration / 3)
+    title_y = "h*0.68+if(lt(t,0.65),(1-t/0.65)*42,0)"
+    filters = [
+        "drawbox=x=0:y=0:w=iw:h=ih:color=black@0.12:t=fill",
+        "drawbox=x=70:y=h*0.61:w=9:h=150:color=0xF5B942@1:t=fill:"
+        f"enable='between(t,0,{duration:.3f})'",
+        "drawbox=x=70:y=h*0.61:w=if(lt(t,0.55),0,210):h=4:"
+        "color=0xF5B942@1:t=fill:enable='between(t,0,1.2)'",
+        "drawtext=text='" + title_text + "':fontcolor=white:fontsize=54:"
+        "font='DejaVu Sans':x=104:y='" + title_y + "':"
+        f"alpha='min(1,t/{reveal_end:.3f})':enable='between(t,0,{duration:.3f})'",
+        "drawtext=text='" + subtitle_text + "':fontcolor=white@0.88:fontsize=27:"
+        "font='DejaVu Sans':x=106:y=h*0.68+76:"
+        f"alpha='min(1,max(0,(t-0.25)/0.55))':enable='between(t,0,{duration:.3f})'",
+        "drawtext=text='" + f"{scene_number:02d} / {scene_count:02d}" + "':"
+        "fontcolor=white@0.78:fontsize=22:x=w-tw-72:y=58:"
+        f"enable='between(t,0,{duration:.3f})'",
+        "drawbox=x=0:y=h-8:w=iw:h=8:color=white@0.22:t=fill",
+        f"drawbox=x=0:y=h-8:w=iw*min(1,t/{duration:.3f}):h=8:"
+        "color=0xF5B942@1:t=fill",
+    ]
+    return ",".join(filters)
 
 
 def title_for_scene(scene: dict, fallback: str) -> str:

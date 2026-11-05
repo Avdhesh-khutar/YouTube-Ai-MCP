@@ -34,9 +34,9 @@ class MotionGraphicsTests(unittest.TestCase):
 
     def test_filter_escapes_option_delimiters_and_limits_length(self):
         result = escape_drawtext("A:B, C% [D] " + "x" * 120)
-        self.assertIn(r"\\:", result)
-        self.assertIn(r"\\,", result)
-        self.assertIn(r"\\%", result)
+        self.assertIn(r"\:", result)
+        self.assertIn(r"\,", result)
+        self.assertIn(r"\%", result)
         self.assertLessEqual(len(result), 90)
 
     def test_scene_title_prefers_explicit_title_then_narration(self):

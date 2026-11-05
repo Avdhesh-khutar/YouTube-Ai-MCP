@@ -18,10 +18,10 @@ from pathlib import Path
 
 try:
     from scripts.validate_scene_plan import ScenePlanError, validate_scene_plan
-    from scripts.motion_graphics import build_title_overlay_filter, title_for_scene
+    from scripts.motion_graphics import build_explainer_overlay_filter, build_title_overlay_filter, title_for_scene
 except ModuleNotFoundError:  # Support direct execution as a script
     from validate_scene_plan import ScenePlanError, validate_scene_plan
-    from motion_graphics import build_title_overlay_filter, title_for_scene
+    from motion_graphics import build_explainer_overlay_filter, build_title_overlay_filter, title_for_scene
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_SCENES = ROOT / "assets" / "cinematic-scenes"
@@ -65,7 +65,7 @@ def ffmpeg_available() -> bool:
 
 def render(scenes_dir: Path, output_dir: Path, seconds_per_scene: float = 5.0,
            scene_plan_path: Path | None = None, min_minutes: float = 8.0,
-           max_minutes: float = 10.0, motion_graphics: bool = False) -> Path:
+           max_minutes: float = 10.0, motion_graphics: bool = False, graphics_style: str = "lower-third") -> Path:
     if not ffmpeg_available():
         raise RuntimeError("FFmpeg is required. Install FFmpeg and retry.")
     images = sorted(
@@ -80,6 +80,7 @@ def render(scenes_dir: Path, output_dir: Path, seconds_per_scene: float = 5.0,
 
     planned_durations: dict[int, float] = {}
     planned_titles: dict[int, str] = {}
+    planned_subtitles: dict[int, str] = {}
     if scene_plan_path is not None:
         try:
             plan = json.loads(scene_plan_path.read_text(encoding="utf-8"))
@@ -95,6 +96,7 @@ def render(scenes_dir: Path, output_dir: Path, seconds_per_scene: float = 5.0,
                 raise ValueError(f"Duplicate scene number in plan: {number}")
             planned_durations[number] = float(scene["duration_seconds"])
             planned_titles[number] = title_for_scene(scene, f"Scene {number:02d}")
+            planned_subtitles[number] = str(scene.get("subtitle") or scene.get("narration") or "")[:90]
         image_numbers = {
             int(re.fullmatch(r"scene[-_](\d+)", image.stem, re.IGNORECASE).group(1))
             for image in images
@@ -117,7 +119,11 @@ def render(scenes_dir: Path, output_dir: Path, seconds_per_scene: float = 5.0,
         title_filter = ""
         if motion_graphics:
             scene_title = planned_titles.get(scene_number, image.stem.replace("-", " "))
-            title_filter = "," + build_title_overlay_filter(scene_title, duration)
+            if graphics_style == "explainer":
+                scene_subtitle = planned_subtitles.get(scene_number, "")
+                title_filter = "," + build_explainer_overlay_filter(scene_title, scene_subtitle, duration, index, max(1, len(images)))
+            else:
+                title_filter = "," + build_title_overlay_filter(scene_title, duration)
 
         # Numbered short clips form a timeline for one long narration scene:
         # scene-01-clip-001.mp4, scene-01-clip-002.mp4, ...
@@ -312,6 +318,7 @@ def main() -> int:
         "--motion-graphics", action="store_true",
         help="Add animated scene-title lower thirds (requires FFmpeg drawtext support).",
     )
+    parser.add_argument("--graphics-style", choices=("lower-third", "explainer"), default="explainer", help="Animated motion-graphics preset.")
     args = parser.parse_args()
     try:
         if not 2.0 <= args.seconds_per_scene <= 12.0:
@@ -320,7 +327,7 @@ def main() -> int:
             raise ValueError("duration range must satisfy 0 < min-minutes <= max-minutes")
         video = render(args.scenes, args.output, args.seconds_per_scene,
                        args.scene_plan, args.min_minutes, args.max_minutes,
-                       args.motion_graphics)
+                       args.motion_graphics, args.graphics_style)
     except (RuntimeError, OSError, ValueError) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1

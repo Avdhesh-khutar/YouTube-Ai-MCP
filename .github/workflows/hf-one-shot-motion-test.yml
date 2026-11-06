@@ -105,11 +105,11 @@ jobs:
               print("Required parameter indexes:", json.dumps(required_indexes))
               print("Enum mismatches:", json.dumps(enum_mismatches))
               with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
-                  f.write("schema_ok=false\\n")
+                  f.write("schema_ok=false\n")
               raise SystemExit("Full 17-input schema contract mismatch. No GPU request was sent.")
           print("Exact 17-input names, components, required fields, and enums verified.")
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
-              f.write("schema_ok=true\\n")
+              f.write("schema_ok=true\n")
           print("Schema preflight complete. No generation request was sent.")
           PY
 

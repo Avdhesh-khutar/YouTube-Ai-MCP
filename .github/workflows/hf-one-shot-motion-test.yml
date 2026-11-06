@@ -34,7 +34,6 @@ jobs:
         id: schema
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-          GITHUB_OUTPUT: ${{ github.output }}
         run: |
           python - <<'PY'
           import json

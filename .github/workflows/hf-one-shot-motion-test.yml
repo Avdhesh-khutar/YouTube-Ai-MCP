@@ -112,6 +112,7 @@ jobs:
               f.write("schema_ok=true\\n")
           print("Schema preflight complete. No generation request was sent.")
           PY
+
   generate-one-clip:
     needs: inspect-api-schema
     if: ${{ inputs.run_generation == true && needs.inspect-api-schema.outputs.schema_ok == 'true' }}

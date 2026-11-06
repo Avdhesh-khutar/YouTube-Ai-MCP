@@ -116,23 +116,29 @@ jobs:
   report-dispatch-choice:
     needs: inspect-api-schema
     runs-on: ubuntu-latest
+    outputs:
+      generation_enabled: ${{ steps.gate.outputs.generation_enabled }}
     steps:
-      - name: Report generation selection without using GPU
+      - name: Normalize dispatch and schema gate (no GPU)
+        id: gate
         env:
           RUN_GENERATION: ${{ github.event.inputs.run_generation }}
-          SCHEMA_OK: ${{ needs.inspect-api-schema.outputs.schema_ok }}
+          SCHEMA_OK_RAW: ${{ needs.inspect-api-schema.outputs.schema_ok }}
         run: |
+          SCHEMA_OK="$(printf '%s' "${SCHEMA_OK_RAW}" | tr -d '[:space:]')"
           echo "run_generation='${RUN_GENERATION}'"
-          echo "schema_ok='${SCHEMA_OK}'"
+          echo "schema_ok_normalized='${SCHEMA_OK}'"
           if [ "${RUN_GENERATION}" = "true" ] && [ "${SCHEMA_OK}" = "true" ]; then
+            echo "generation_enabled=true" >> "$GITHUB_OUTPUT"
             echo "One-shot generation is enabled and schema is valid."
           else
-            echo "Generation will be skipped. To enable it, tick the checkbox; schema must also pass."
+            echo "generation_enabled=false" >> "$GITHUB_OUTPUT"
+            echo "Generation disabled: checkbox must be true and schema must pass."
           fi
 
   generate-one-clip:
-    needs: inspect-api-schema
-    if: ${{ github.event.inputs.run_generation == 'true' && needs.inspect-api-schema.outputs.schema_ok == 'true' }}
+    needs: [inspect-api-schema, report-dispatch-choice]
+    if: ${{ needs.report-dispatch-choice.outputs.generation_enabled == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:

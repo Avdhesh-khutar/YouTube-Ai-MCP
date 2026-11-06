@@ -2,20 +2,151 @@ name: Hugging Face one-shot AI motion test
 
 on:
   workflow_dispatch:
+    inputs:
+      run_generation:
+        description: "Run one Free ZeroGPU generation request (uses quota)"
+        required: true
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
 jobs:
+  inspect-api-schema:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    outputs:
+      schema_ok: ${{ steps.schema.outputs.schema_ok }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Install Gradio client
+        run: python -m pip install --disable-pip-version-check gradio_client
+
+      - name: Inspect and validate exact Gradio endpoint schema (no GPU generation)
+        id: schema
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from gradio_client import Client
+
+          space = "techfreakworm/LTX2.3-Studio"
+          token = os.environ.get("HF_TOKEN")
+          if not token:
+              raise SystemExit("HF_TOKEN secret is missing. No request was sent.")
+
+          client = Client(space, token=token)
+          api = client.view_api(all_endpoints=True, print_info=False, return_format="dict")
+          endpoints = api.get("named_endpoints", {})
+          endpoint = endpoints.get("/handler_1")
+          if endpoint is None:
+              raise SystemExit(
+                  "No named /handler_1 endpoint was found. Available named endpoints: "
+                  + ", ".join(sorted(endpoints))
+                  + ". No GPU request was sent."
+              )
+
+          parameters = endpoint.get("parameters", [])
+          schema = [
+              (p.get("label"), p.get("parameter_name"), p.get("parameter_has_default"))
+              for p in parameters
+          ]
+          print("Discovered /handler_1 schema (label, name, has_default):")
+          print(json.dumps(schema, indent=2, ensure_ascii=False))
+          expected = [
+              "Prompt", "Preset", "Width", "Height", "Length (seconds)", "FPS",
+              "Seed", "Randomize seed each run", "Source image", "Negative prompt",
+              "Camera", "Camera strength", "Apply IC-LoRA-Detailer", "Detailer strength",
+              "IC-LoRA", "IC strength", "Apply IC-LoRA-Pose-Control",
+          ]
+          actual = [p.get("label") for p in parameters]
+          expected_components = [
+              "Textbox", "Radio", "Slider", "Slider", "Slider", "Slider", "Number",
+              "Checkbox", "Image", "Textbox", "Dropdown", "Slider", "Checkbox",
+              "Slider", "Dropdown", "Slider", "Checkbox",
+          ]
+          actual_components = [p.get("component") for p in parameters]
+          actual_names = [p.get("parameter_name") for p in parameters]
+          required_indexes = [i for i, p in enumerate(parameters) if p.get("parameter_has_default") is False]
+          enum_contract = {
+              1: ["Fast", "Balanced", "Quality"],
+              10: ["none", "static", "dolly-in", "dolly-out", "dolly-left", "dolly-right", "jib-up", "jib-down"],
+              14: ["none", "union", "pose-control"],
+          }
+          enum_mismatches = {
+              index: parameters[index].get("type", {}).get("enum")
+              for index, allowed in enum_contract.items()
+              if parameters[index].get("type", {}).get("enum") != allowed
+          } if len(parameters) == 17 else {"schema": "wrong parameter count"}
+          contract_ok = (
+              len(parameters) == 17
+              and actual == expected
+              and actual_names == [f"param_{i}" for i in range(17)]
+              and actual_components == expected_components
+              and required_indexes == [0, 8, 9]
+              and not enum_mismatches
+          )
+          if not contract_ok:
+              print("Expected labels:", json.dumps(expected))
+              print("Actual labels:", json.dumps(actual))
+              print("Expected components:", json.dumps(expected_components))
+              print("Actual components:", json.dumps(actual_components))
+              print("Actual parameter names:", json.dumps(actual_names))
+              print("Required parameter indexes:", json.dumps(required_indexes))
+              print("Enum mismatches:", json.dumps(enum_mismatches))
+              with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
+                  f.write("schema_ok=false\n")
+              raise SystemExit("Full 17-input schema contract mismatch. No GPU request was sent.")
+          print("Exact 17-input names, components, required fields, and enums verified.")
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
+              f.write("schema_ok=true\n")
+          print("Schema preflight complete. No generation request was sent.")
+          PY
+
+  report-dispatch-choice:
+    needs: inspect-api-schema
+    runs-on: ubuntu-latest
+    outputs:
+      generation_enabled: ${{ steps.gate.outputs.generation_enabled }}
+    steps:
+      - name: Normalize dispatch and schema gate (no GPU)
+        id: gate
+        env:
+          RUN_GENERATION: ${{ github.event.inputs.run_generation }}
+          SCHEMA_OK_RAW: ${{ needs.inspect-api-schema.outputs.schema_ok }}
+        run: |
+          SCHEMA_OK="$(printf '%s' "${SCHEMA_OK_RAW}" | tr -d '[:space:]')"
+          echo "run_generation='${RUN_GENERATION}'"
+          echo "schema_ok_normalized='${SCHEMA_OK}'"
+          if [ "${RUN_GENERATION}" = "true" ] && [ "${SCHEMA_OK}" = "true" ]; then
+            echo "generation_enabled=true" >> "$GITHUB_OUTPUT"
+            echo "One-shot generation is enabled and schema is valid."
+          else
+            echo "generation_enabled=false" >> "$GITHUB_OUTPUT"
+            echo "Generation disabled: checkbox must be true and schema must pass."
+          fi
+
   generate-one-clip:
+    needs: [inspect-api-schema, report-dispatch-choice]
+    if: ${{ needs.report-dispatch-choice.outputs.generation_enabled == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
 
@@ -25,7 +156,7 @@ jobs:
           sudo apt-get install -y ffmpeg
           python -m pip install --disable-pip-version-check gradio_client
 
-      - name: Run exactly one free-tier image-to-video request
+      - name: Run exactly one Free image-to-video request with all 17 inputs
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
@@ -33,6 +164,7 @@ jobs:
           import json
           import os
           import shutil
+          import subprocess
           import urllib.request
           from pathlib import Path
           from gradio_client import Client, handle_file
@@ -42,15 +174,24 @@ jobs:
           if not token:
               raise SystemExit("HF_TOKEN secret is missing. No request was sent.")
 
+          client = Client(space, token=token)
+          api = client.view_api(all_endpoints=True, print_info=False, return_format="dict")
+          endpoint = api.get("named_endpoints", {}).get("/handler_1")
+          expected = [
+              "Prompt", "Preset", "Width", "Height", "Length (seconds)", "FPS",
+              "Seed", "Randomize seed each run", "Source image", "Negative prompt",
+              "Camera", "Camera strength", "Apply IC-LoRA-Detailer", "Detailer strength",
+              "IC-LoRA", "IC strength", "Apply IC-LoRA-Pose-Control",
+          ]
+          if endpoint is None or [p.get("label") for p in endpoint.get("parameters", [])] != expected:
+              raise SystemExit("Endpoint schema changed; no GPU request was sent.")
+
           image = Path("sample-motion-input.png")
           image_url = "https://raw.githubusercontent.com/gradio-app/gradio/main/test/test_files/bus.png"
           urllib.request.urlretrieve(image_url, image)
           if not image.is_file() or image.stat().st_size < 1000:
-              raise SystemExit("Sample input image download failed. No request was sent.")
+              raise SystemExit("Sample input image download failed. No GPU request was sent.")
 
-          client = Client(space, token=token)
-          # One predict call only; no retries. Conservative Fast preset, 256x256,
-          # 3 seconds, 8 FPS, fixed seed, static camera, optional detail modules off.
           result = client.predict(
               "A cinematic gentle camera movement, natural realistic motion, preserve the original scene and subjects.",
               "Fast",
@@ -61,11 +202,11 @@ jobs:
               42,
               False,
               handle_file(str(image.resolve())),
-              "blurry, distorted, flicker, deformed objects, text, watermark",
-              "static",
-              0.0,
+              "blurry, distorted, flicker, artifacts, duplicate subjects, text, watermark",
+              "dolly-in",
+              0.8,
               False,
-              0.0,
+              0.5,
               "none",
               0.0,
               False,
@@ -73,14 +214,9 @@ jobs:
           )
 
           if not isinstance(result, (tuple, list)) or len(result) < 2:
-              raise SystemExit(
-                  f"Unexpected API result structure ({type(result).__name__}); "
-                  "stopping without another request."
-              )
-
-          # Gradio maps the second declared output (gr.Video) directly to
-          # FileData: usually {"path": "...", "url": "..."}; it is NOT
-          # wrapped in a {"video": ...} object.
+              raise SystemExit(f"Unexpected API result structure: {type(result).__name__}. No retry.")
+          print("Hugging Face status output:")
+          print(str(result[0])[:4000])
           video_data = result[1]
 
           def get_video_path(value):
@@ -103,22 +239,18 @@ jobs:
           if not video_path_value:
               keys = sorted(video_data.keys()) if isinstance(video_data, dict) else []
               raise SystemExit(
-                  "API returned no local video path "
-                  f"(output_type={type(video_data).__name__}, keys={keys}); "
-                  "stopping without another request."
-              )
-          video_path = Path(video_path_value)
-          if not video_path.is_file() or video_path.stat().st_size == 0:
-              raise SystemExit(
-                  "Returned video path is missing or empty; stopping without another request."
+                  f"No video path returned (type={type(video_data).__name__}, keys={keys}). "
+                  "See status output above. No retry was attempted."
               )
 
+          video_path = Path(video_path_value)
+          if not video_path.is_file() or video_path.stat().st_size == 0:
+              raise SystemExit("Returned video path is missing or empty. No retry.")
           out = Path("hf-motion-test")
           out.mkdir(exist_ok=True)
           target = out / "ltx23-motion-test.mp4"
           shutil.copy2(video_path, target)
 
-          import subprocess
           probe = subprocess.run(
               ["ffprobe", "-v", "error", "-select_streams", "v:0",
                "-show_entries", "stream=codec_name,width,height",
@@ -131,7 +263,7 @@ jobs:
               raise SystemExit("Generated file has no readable video stream.")
           (out / "verification.json").write_text(
               json.dumps({"space": space, "endpoint": "/handler_1",
-                          "preset": "Fast", "requested_duration_seconds": 3,
+                          "requested_duration_seconds": 3,
                           "video_stream": streams[0],
                           "format": metadata.get("format", {})}, indent=2),
               encoding="utf-8",
@@ -141,7 +273,7 @@ jobs:
 
       - name: Upload generated sample for review
         if: ${{ success() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: hf-ltx23-motion-test
           path: hf-motion-test/

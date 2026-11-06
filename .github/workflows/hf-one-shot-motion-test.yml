@@ -25,6 +25,43 @@ jobs:
           sudo apt-get install -y ffmpeg
           python -m pip install --disable-pip-version-check gradio_client
 
+      - name: Inspect Gradio endpoint schema before any GPU request
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from gradio_client import Client
+
+          space = "techfreakworm/LTX2.3-Studio"
+          token = os.environ.get("HF_TOKEN")
+          if not token:
+              raise SystemExit("HF_TOKEN secret is missing. No request was sent.")
+
+          client = Client(space, token=token)
+          api = client.view_api(all_endpoints=True, print_info=False, return_format="dict")
+          endpoints = api.get("named_endpoints", {})
+          endpoint = endpoints.get("/handler_1")
+          if endpoint is None:
+              raise SystemExit(
+                  "No named /handler_1 endpoint was found. Available named endpoints: "
+                  + ", ".join(sorted(endpoints))
+                  + ". No GPU request was sent."
+              )
+
+          parameters = endpoint.get("parameters", [])
+          print("Discovered /handler_1 parameter schema (no generation request made):")
+          print(json.dumps(parameters, indent=2, ensure_ascii=False))
+          print(f"Required parameter count reported by Gradio: {len(parameters)}")
+          if len(parameters) != 9:
+              raise SystemExit(
+                  f"Schema mismatch: workflow currently supplies 9 values but Gradio "
+                  f"declares {len(parameters)} parameters. Stopping before GPU generation."
+              )
+          print("Schema count matches the current 9-value payload; safe to proceed to generation.")
+          PY
+
       - name: Run exactly one free-tier image-to-video request
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
@@ -49,8 +86,11 @@ jobs:
               raise SystemExit("Sample input image download failed. No request was sent.")
 
           client = Client(space, token=token)
-          # One predict call only; no retries. Conservative Fast preset, 256x256,
-          # 3 seconds, 8 FPS, fixed seed, static camera, optional detail modules off.
+          api = client.view_api(all_endpoints=True, print_info=False, return_format="dict")
+          endpoint = api.get("named_endpoints", {}).get("/handler_1")
+          if endpoint is None or len(endpoint.get("parameters", [])) != 9:
+              raise SystemExit("Endpoint schema changed after preflight. No GPU request was sent.")
+
           result = client.predict(
               "A cinematic gentle camera movement, natural realistic motion, preserve the original scene and subjects.",
               "Fast",
@@ -70,17 +110,9 @@ jobs:
                   "stopping without another request."
               )
 
-          # Preserve the first output: the Space returns useful HTML status
-          # here, including friendly ZeroGPU/runtime errors. The previous
-          # workflow ignored it and misdiagnosed gr.update() as a parser bug.
           status_data = result[0]
-          status_text = str(status_data)[:4000]
           print("Hugging Face status output:")
-          print(status_text)
-
-          # Gradio maps the second declared output (gr.Video) to FileData
-          # when a video exists. On progress/error/no-output events it may
-          # instead return {"__type__": "update"}.
+          print(str(status_data)[:4000])
           video_data = result[1]
 
           def get_video_path(value):
@@ -113,6 +145,7 @@ jobs:
                   f"(output_type={type(video_data).__name__}, keys={keys}). "
                   "Status output is logged above. No retry was attempted."
               )
+
           video_path = Path(video_path_value)
           if not video_path.is_file() or video_path.stat().st_size == 0:
               raise SystemExit(

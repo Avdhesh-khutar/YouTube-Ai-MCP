@@ -20,10 +20,10 @@ jobs:
       schema_ok: ${{ steps.schema.outputs.schema_ok }}
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
 
@@ -70,19 +70,48 @@ jobs:
               "IC-LoRA", "IC strength", "Apply IC-LoRA-Pose-Control",
           ]
           actual = [p.get("label") for p in parameters]
-          if actual != expected:
-              print("Schema mismatch. Expected:", json.dumps(expected))
-              print("Actual:", json.dumps(actual))
+          expected_components = [
+              "Textbox", "Radio", "Slider", "Slider", "Slider", "Slider", "Number",
+              "Checkbox", "Image", "Textbox", "Dropdown", "Slider", "Checkbox",
+              "Slider", "Dropdown", "Slider", "Checkbox",
+          ]
+          actual_components = [p.get("component") for p in parameters]
+          actual_names = [p.get("parameter_name") for p in parameters]
+          required_indexes = [i for i, p in enumerate(parameters) if p.get("parameter_has_default") is False]
+          enum_contract = {
+              1: ["Fast", "Balanced", "Quality"],
+              10: ["none", "static", "dolly-in", "dolly-out", "dolly-left", "dolly-right", "jib-up", "jib-down"],
+              14: ["none", "union", "pose-control"],
+          }
+          enum_mismatches = {
+              index: parameters[index].get("type", {}).get("enum")
+              for index, allowed in enum_contract.items()
+              if parameters[index].get("type", {}).get("enum") != allowed
+          } if len(parameters) == 17 else {"schema": "wrong parameter count"}
+          contract_ok = (
+              len(parameters) == 17
+              and actual == expected
+              and actual_names == [f"param_{i}" for i in range(17)]
+              and actual_components == expected_components
+              and required_indexes == [0, 8, 9]
+              and not enum_mismatches
+          )
+          if not contract_ok:
+              print("Expected labels:", json.dumps(expected))
+              print("Actual labels:", json.dumps(actual))
+              print("Expected components:", json.dumps(expected_components))
+              print("Actual components:", json.dumps(actual_components))
+              print("Actual parameter names:", json.dumps(actual_names))
+              print("Required parameter indexes:", json.dumps(required_indexes))
+              print("Enum mismatches:", json.dumps(enum_mismatches))
               with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
-                  f.write("schema_ok=false\n")
-              raise SystemExit("Endpoint schema does not match the reviewed 17-input contract. No GPU request was sent.")
-          if parameters[9].get("parameter_has_default") is not False:
-              raise SystemExit("Negative prompt requirement changed; refusing to proceed.")
+                  f.write("schema_ok=false\\n")
+              raise SystemExit("Full 17-input schema contract mismatch. No GPU request was sent.")
+          print("Exact 17-input names, components, required fields, and enums verified.")
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
-              f.write("schema_ok=true\n")
-          print("Exact 17-input schema verified. No generation request was sent.")
+              f.write("schema_ok=true\\n")
+          print("Schema preflight complete. No generation request was sent.")
           PY
-
   generate-one-clip:
     needs: inspect-api-schema
     if: ${{ inputs.run_generation == true && needs.inspect-api-schema.outputs.schema_ok == 'true' }}
@@ -90,10 +119,10 @@ jobs:
     timeout-minutes: 12
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
 
@@ -220,7 +249,7 @@ jobs:
 
       - name: Upload generated sample for review
         if: ${{ success() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: hf-ltx23-motion-test
           path: hf-motion-test/

@@ -7,9 +7,9 @@ permissions:
   contents: read
 
 jobs:
-  generate-one-clip:
+  inspect-api-schema:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 8
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -19,13 +19,10 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install FFmpeg and Gradio client
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg
-          python -m pip install --disable-pip-version-check gradio_client
+      - name: Install Gradio client
+        run: python -m pip install --disable-pip-version-check gradio_client
 
-      - name: Inspect Gradio endpoint schema before any GPU request
+      - name: Inspect Gradio endpoint schema (no GPU generation)
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
@@ -51,137 +48,8 @@ jobs:
               )
 
           parameters = endpoint.get("parameters", [])
-          print("Discovered /handler_1 parameter schema (no generation request made):")
+          print("Discovered /handler_1 parameter schema:")
           print(json.dumps(parameters, indent=2, ensure_ascii=False))
-          print(f"Required parameter count reported by Gradio: {len(parameters)}")
-          if len(parameters) != 9:
-              raise SystemExit(
-                  f"Schema mismatch: workflow currently supplies 9 values but Gradio "
-                  f"declares {len(parameters)} parameters. Stopping before GPU generation."
-              )
-          print("Schema count matches the current 9-value payload; safe to proceed to generation.")
+          print(f"Parameter count reported by Gradio: {len(parameters)}")
+          print("Schema inspection completed. This workflow intentionally sends NO generation request.")
           PY
-
-      - name: Run exactly one free-tier image-to-video request
-        env:
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
-        run: |
-          python - <<'PY'
-          import json
-          import os
-          import shutil
-          import urllib.request
-          from pathlib import Path
-          from gradio_client import Client, handle_file
-
-          space = "techfreakworm/LTX2.3-Studio"
-          token = os.environ.get("HF_TOKEN")
-          if not token:
-              raise SystemExit("HF_TOKEN secret is missing. No request was sent.")
-
-          image = Path("sample-motion-input.png")
-          image_url = "https://raw.githubusercontent.com/gradio-app/gradio/main/test/test_files/bus.png"
-          urllib.request.urlretrieve(image_url, image)
-          if not image.is_file() or image.stat().st_size < 1000:
-              raise SystemExit("Sample input image download failed. No request was sent.")
-
-          client = Client(space, token=token)
-          api = client.view_api(all_endpoints=True, print_info=False, return_format="dict")
-          endpoint = api.get("named_endpoints", {}).get("/handler_1")
-          if endpoint is None or len(endpoint.get("parameters", [])) != 9:
-              raise SystemExit("Endpoint schema changed after preflight. No GPU request was sent.")
-
-          result = client.predict(
-              "A cinematic gentle camera movement, natural realistic motion, preserve the original scene and subjects.",
-              "Fast",
-              256,
-              256,
-              3,
-              8,
-              42,
-              False,
-              handle_file(str(image.resolve())),
-              api_name="/handler_1",
-          )
-
-          if not isinstance(result, (tuple, list)) or len(result) < 2:
-              raise SystemExit(
-                  f"Unexpected API result structure ({type(result).__name__}); "
-                  "stopping without another request."
-              )
-
-          status_data = result[0]
-          print("Hugging Face status output:")
-          print(str(status_data)[:4000])
-          video_data = result[1]
-
-          def get_video_path(value):
-              if isinstance(value, dict):
-                  path = value.get("path") or value.get("name")
-                  if path:
-                      return str(path)
-                  nested = value.get("video")
-                  if nested is not None:
-                      return get_video_path(nested)
-              elif isinstance(value, (str, os.PathLike)):
-                  return os.fspath(value)
-              else:
-                  path = getattr(value, "path", None)
-                  if path:
-                      return os.fspath(path)
-              return None
-
-          video_path_value = get_video_path(video_data)
-          if not video_path_value:
-              keys = sorted(video_data.keys()) if isinstance(video_data, dict) else []
-              if isinstance(video_data, dict) and video_data.get("__type__") == "update":
-                  raise SystemExit(
-                      "Space did not return a video; inspect the status output above. "
-                      f"The video output was an update sentinel (keys={keys}). "
-                      "No retry was attempted."
-                  )
-              raise SystemExit(
-                  "API returned no local video path "
-                  f"(output_type={type(video_data).__name__}, keys={keys}). "
-                  "Status output is logged above. No retry was attempted."
-              )
-
-          video_path = Path(video_path_value)
-          if not video_path.is_file() or video_path.stat().st_size == 0:
-              raise SystemExit(
-                  "Returned video path is missing or empty; stopping without another request."
-              )
-
-          out = Path("hf-motion-test")
-          out.mkdir(exist_ok=True)
-          target = out / "ltx23-motion-test.mp4"
-          shutil.copy2(video_path, target)
-
-          import subprocess
-          probe = subprocess.run(
-              ["ffprobe", "-v", "error", "-select_streams", "v:0",
-               "-show_entries", "stream=codec_name,width,height",
-               "-show_entries", "format=duration", "-of", "json", str(target)],
-              check=True, capture_output=True, text=True, timeout=30,
-          )
-          metadata = json.loads(probe.stdout)
-          streams = metadata.get("streams", [])
-          if not streams:
-              raise SystemExit("Generated file has no readable video stream.")
-          (out / "verification.json").write_text(
-              json.dumps({"space": space, "endpoint": "/handler_1",
-                          "preset": "Fast", "requested_duration_seconds": 3,
-                          "video_stream": streams[0],
-                          "format": metadata.get("format", {})}, indent=2),
-              encoding="utf-8",
-          )
-          print("One-shot generation and ffprobe verification succeeded.")
-          PY
-
-      - name: Upload generated sample for review
-        if: ${{ success() }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: hf-ltx23-motion-test
-          path: hf-motion-test/
-          retention-days: 3

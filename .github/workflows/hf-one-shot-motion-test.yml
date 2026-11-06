@@ -113,9 +113,26 @@ jobs:
           print("Schema preflight complete. No generation request was sent.")
           PY
 
+  report-dispatch-choice:
+    needs: inspect-api-schema
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report generation selection without using GPU
+        env:
+          RUN_GENERATION: ${{ github.event.inputs.run_generation }}
+          SCHEMA_OK: ${{ needs.inspect-api-schema.outputs.schema_ok }}
+        run: |
+          echo "run_generation='${RUN_GENERATION}'"
+          echo "schema_ok='${SCHEMA_OK}'"
+          if [ "${RUN_GENERATION}" = "true" ] && [ "${SCHEMA_OK}" = "true" ]; then
+            echo "One-shot generation is enabled and schema is valid."
+          else
+            echo "Generation will be skipped. To enable it, tick the checkbox; schema must also pass."
+          fi
+
   generate-one-clip:
     needs: inspect-api-schema
-    if: ${{ inputs.run_generation == true && needs.inspect-api-schema.outputs.schema_ok == 'true' }}
+    if: ${{ github.event.inputs.run_generation == 'true' && needs.inspect-api-schema.outputs.schema_ok == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:

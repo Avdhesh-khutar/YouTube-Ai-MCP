@@ -71,7 +71,7 @@ For image-to-video, Wan2.Video currently advertises Wan 2.2 14B and LTX public-G
 4. Generate 12–24 scene images. Animate selected scenes with one of the public Wan/LTX demos; record provider, model/Space, date, clip duration, source image, and review result in the job manifest.
 5. Reject motion clips with face/body drift, flicker, morphing, artifacts, or unwanted subject exits. Generate alternatives rather than repairing defects with zoom.
 6. Join narration chunks, align Hindi captions to the actual audio, add licensed music at low gain, and render through the existing FFmpeg renderer.
-7. Require 8–10 minute actual ffprobe duration, video/audio streams, readable captions, 720p/30fps minimum, and a manual full-playback review.
+7. Require 4–5 minute actual ffprobe duration, video/audio streams, readable captions, 720p/30fps minimum, and a manual full-playback review.
 8. Keep upload disabled by default. If the owner later requests an upload, use only PRIVATE visibility and verify the result in YouTube Studio.
 
 ## Current blockers that cannot be bypassed honestly
@@ -79,7 +79,7 @@ For image-to-video, Wan2.Video currently advertises Wan 2.2 14B and LTX public-G
 - Public free GPU demos can queue, rate-limit, change endpoint schemas, or disappear. A public page is not a stable production API.
 - The current NiftyVid sample is not visually acceptable as production footage.
 - The connected Runway workspace has no available video or speech models, so it is not a free fallback.
-- The repository has no verified Indic-TTS or Kokoro browser integration, no selected provider credentials/config, and no real end-to-end 8–10 minute acceptance run.
+- The repository has no verified Indic-TTS or Kokoro browser integration, no selected provider credentials/config, and no real end-to-end 4–5 minute acceptance run.
 - The user prefers no local installation; therefore do not make local ComfyUI a prerequisite.
 
 ## Acceptance status

@@ -177,8 +177,7 @@ voice_texts = [base + " " + extra for base, extra in zip(voice_texts, scene_expa
 # Prefer a natural Hindi neural voice (Microsoft Edge TTS, no API key).
 # If the runner cannot reach the service, fall back to offline speech.
 audio_parts = []
-narration_provider = "Microsoft Edge Hindi neural voice"
-for i, phrase in enumerate(voice_texts, start=1):
+narration_provider = "Microsoft Edge Hindi neural voice"for i, phrase in enumerate(voice_texts, start=1):
     audio = OUT / f"voice-{i:02d}.mp3"
     edge_ok = False
     try:
@@ -235,7 +234,7 @@ for index, audio in enumerate(audio_parts, start=1):
          "-of", "default=noprint_wrappers=1:nokey=1", str(audio)],
         check=True, capture_output=True, text=True
     )
-    duration = max(3.0, float(probe.stdout.strip()) + 0.4)
+    duration = float(probe.stdout.strip())
     caption_blocks.append(
         f"{index}\n{srt_timestamp(cursor)} --> {srt_timestamp(cursor + duration)}\n"
         + voice_texts[index - 1] + "\n"
@@ -263,7 +262,7 @@ for i, (slide, audio) in enumerate(zip(slides, audio_parts), start=1):
         ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", str(audio)],
         check=True, capture_output=True, text=True,
     )
-    duration = max(3.0, float(probe.stdout.strip()) + 0.4)
+    duration = float(probe.stdout.strip())
     subprocess.run([
         "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
         "-loop", "1", "-framerate", "25", "-i", str(slide), "-i", str(audio), "-i", str(music),

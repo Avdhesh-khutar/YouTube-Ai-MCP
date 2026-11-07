@@ -8,7 +8,18 @@ on:
       - ".github/workflows/daily-video.yml"
   schedule:
     - cron: "30 4 * * *"
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/generate_daily_video.py"
+      - ".github/workflows/daily-video.yml"
   workflow_dispatch:
+    inputs:
+      confirm_private_upload:
+        description: "Upload this verified video to YouTube as PRIVATE"
+        required: true
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -67,7 +78,7 @@ jobs:
         env:
           UPLOAD_TOKEN: ${{ secrets.YOUTUBE_PRIVATE_UPLOAD_TOKEN }}
         # Upload only when the owner has explicitly configured the private-upload token.
-        if: success()
+        if: success() && github.event_name == 'workflow_dispatch' && inputs.confirm_private_upload == true
         run: |
           set -euo pipefail
           if [ -z "${UPLOAD_TOKEN:-}" ]; then

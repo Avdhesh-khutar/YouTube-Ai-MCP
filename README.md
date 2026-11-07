@@ -20,25 +20,25 @@ OAuth-protected Model Context Protocol (MCP) server for Claude, hosted on Cloudf
 
 ## Daily video package starter
 
-A GitHub Actions workflow at `.github/workflows/daily-video.yml` runs daily at 04:30 UTC (10:00 AM India time) and can also be started manually. It uses free Ubuntu packages (FFmpeg + eSpeak NG) and Pillow to render a short motion-card video, thumbnail, script, and metadata into a downloadable workflow artifact.
+A GitHub Actions workflow at `.github/workflows/daily-video.yml` runs daily at 04:30 UTC (10:00 AM India time) and can also be started manually. It uses free Ubuntu packages (FFmpeg + eSpeak NG) and Pillow to render a Hindi motion-card video targeting 295–330 seconds, with narration, SRT captions, thumbnail, script, metadata, and a scene contact sheet into a downloadable workflow artifact.
 
 Important limitations:
 - This is a **starter motion-card video**, not generative AI footage. The offline Hindi voice is synthetic and must be reviewed for pronunciation and quality.
-- The workflow does **not** upload to YouTube automatically. The artifact is a private-review handoff; no public publishing occurs.
+- Scheduled and pull-request runs never upload to YouTube. A manual run defaults to no upload; the owner must explicitly set `confirm_private_upload` to `true` to request a PRIVATE upload. The artifact remains available for review.
 - YouTube upload needs a secure file handoff plus OAuth credentials in a protected runtime. Do not place the Google refresh token in the public repository.
 - For fully AI-generated scenes and natural voice, a suitable model/service or a local model is required; free availability and quotas vary.
 
-## Enable scheduled private uploads
+## Enable manually confirmed private uploads
 
 The daily workflow uploads only when a repository Actions secret named `YOUTUBE_PRIVATE_UPLOAD_TOKEN` is configured. The Worker endpoint also requires the same value as the Cloudflare Worker secret `DAILY_UPLOAD_TOKEN`.
 
 1. Generate a strong random token using a password manager. Do not send it in chat or commit it.
 2. In Cloudflare Dashboard → Workers & Pages → `youtube-ai-mcp` → Settings → Variables and Secrets, add a **secret** named `DAILY_UPLOAD_TOKEN` with that token, then deploy the Worker.
 3. In GitHub → repository Settings → Secrets and variables → Actions, create repository secret `YOUTUBE_PRIVATE_UPLOAD_TOKEN` with the exact same token.
-4. Run the `Daily video package` workflow manually once from Actions → Daily video package → Run workflow.
-5. Confirm the result is `uploaded: true` and `privacyStatus: private`, then review the draft in YouTube Studio.
+4. In GitHub Actions, start `Daily video package` manually with `confirm_private_upload` left `false` for a safe test. Inspect the artifact first.
+5. Only after reviewing the video, run it again and explicitly set `confirm_private_upload` to `true` to upload as PRIVATE. Confirm the result is `uploaded: true` and `privacyStatus: private`, then review the draft in YouTube Studio.
 
-Without both secrets, the workflow still generates and stores a downloadable review artifact, but skips YouTube upload. The endpoint accepts video files up to 47 MB and always sets privacy to `private`. Never enable public publishing in this workflow.
+Without both secrets, the workflow still generates and stores a downloadable review artifact, but skips YouTube upload. The workflow limits the video to 45 MB to leave room for the thumbnail and multipart overhead; the Worker accepts video files up to 47 MB and always sets privacy to `private`. Never enable public publishing in this workflow.
 
 ## Automated video creation limits and next step
 

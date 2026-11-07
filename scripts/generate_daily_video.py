@@ -5,6 +5,7 @@ This intentionally renders motion-card slides and offline speech, not AI-generat
 It requires ffmpeg, espeak-ng, and Pillow. The workflow publishes the output as an artifact
 for review; it does not upload to YouTube automatically.
 """
+import argparse
 from datetime import date
 from pathlib import Path
 import subprocess
@@ -15,7 +16,6 @@ from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
 W, H = 1280, 720
 OUT = Path("dist")
-OUT.mkdir(parents=True, exist_ok=True)
 TODAY = date.today().isoformat()
 
 TOPICS = [
@@ -63,6 +63,21 @@ TOPICS = [
     },
 ]
 
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument("--topic", default="", help="Optional custom Hindi/English video topic")
+parser.add_argument("--validate-only", action="store_true", help="Validate arguments and exit without rendering")
+args = parser.parse_args()
+custom_topic = " ".join(args.topic.split())
+if len(custom_topic) > 100:
+    parser.error("--topic must be 100 characters or fewer")
+if args.validate_only:
+    validated_topic = custom_topic or "daily rotation"
+    print(f"Arguments valid for topic: {validated_topic}; rendering skipped.")
+    raise SystemExit(0)
+
+# Create output files only after CLI validation succeeds.
+OUT.mkdir(parents=True, exist_ok=True)
+
 topic = TOPICS[date.today().toordinal() % len(TOPICS)]
 topic_key = topic["title"]  # Keep the stable English key for matching thumbnail/metadata variants.
 # Replace the initial English/romanized drafts with proper Devanagari Hindi before rendering.
@@ -77,6 +92,25 @@ HINDI_TOPICS = {
 }
 if topic["title"] in HINDI_TOPICS:
     topic["title"], topic["subtitle"], topic["voice"], topic["points"] = HINDI_TOPICS[topic["title"]]
+
+# A user-supplied topic overrides the daily rotation. This creates a clearly generic
+# topic-specific explainer draft; it does not claim to research or verify the topic.
+if custom_topic:
+    topic_key = "CUSTOM_TOPIC"
+    topic["title"] = custom_topic
+    topic["subtitle"] = "इस विषय को आसान हिंदी में समझें"
+    topic["voice"] = (f"नमस्कार दोस्तों। आज हम {custom_topic} के बारे में आसान हिंदी में समझेंगे। "
+                      "इस विषय को समझने के लिए पहले इसका अर्थ और महत्व जानना जरूरी है। "
+                      "फिर इसके मुख्य पहलुओं, उदाहरणों और आम गलतफहमियों पर ध्यान दें। "
+                      "किसी भी महत्वपूर्ण दावे को भरोसेमंद स्रोतों से जाँचें और संदर्भ के बिना निष्कर्ष न निकालें। "
+                      "इस वीडियो का उद्देश्य विषय की शुरुआती समझ देना है; प्रकाशित करने से पहले तथ्यों और स्रोतों की समीक्षा जरूरी है।")
+    topic["points"] = [
+        f"{custom_topic} का अर्थ और परिचय",
+        "मुख्य तथ्य और जरूरी संदर्भ",
+        "आसान उदाहरणों से समझें",
+        "आम गलतफहमियों की जाँच",
+        "विश्वसनीय स्रोतों से पुष्टि करें",
+    ]
 font_candidates = [
     "/usr/share/fonts/truetype/noto/NotoSansDevanagari-Bold.ttf",
     "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
@@ -125,8 +159,12 @@ def draw_slide(index, heading, lines, footer):
     d.rounded_rectangle((48, 48, W-48, H-48), radius=30, outline=(*glow_color,), width=3)
     d.rounded_rectangle((82, 86, 370, 130), radius=14, fill=accent)
     d.text((102, 94), f"सीखें  •  भाग {index}", font=font(font_candidates, 22), fill=(8, 12, 28))
-    d.text((90, 165), heading, font=title_font, fill=(255, 255, 255), stroke_width=1)
-    y = 275
+    heading_lines = textwrap.wrap(heading, width=18, break_long_words=True, break_on_hyphens=False)[:2]
+    heading_y = 160
+    for heading_line in heading_lines:
+        d.text((90, heading_y), heading_line, font=font(font_candidates, 56 if len(heading_lines) > 1 else 64), fill=(255, 255, 255), stroke_width=1)
+        heading_y += 64
+    y = max(275, heading_y + 12)
     for line in lines:
         wrapped = textwrap.wrap(line, width=34)
         for part in wrapped:
@@ -273,7 +311,12 @@ thumbnail_titles = {
     "CREATOR WORKFLOW": ("वीडियो बनाने का", "प्रोफेशनल तरीका"),
     "YOUTUBE GROWTH": ("YouTube चैनल", "कैसे बढ़ाएँ?"),
 }
-thumb_title = "\n".join(thumbnail_titles.get(topic_key, ("YouTube वीडियो", "बेहतर कैसे बनाएँ?")))
+if topic_key == "CUSTOM_TOPIC":
+    # Keep custom topics visible in the thumbnail; split long titles into readable lines.
+    custom_thumb = textwrap.wrap(topic["title"], width=20, break_long_words=True, break_on_hyphens=False)
+    thumb_title = "\n".join(custom_thumb[:2]) if custom_thumb else "हिंदी वीडियो"
+else:
+    thumb_title = "\n".join(thumbnail_titles.get(topic_key, ("YouTube वीडियो", "बेहतर कैसे बनाएँ?")))
 for line_no, line in enumerate(thumb_title.split("\n")):
     td.text((70, 190 + line_no*100), line, font=headline_font, fill=(255, 255, 255), stroke_width=2, stroke_fill=(5, 10, 25))
 td.rounded_rectangle((72, 430, 635, 500), radius=18, fill=(224, 48, 55))
@@ -312,7 +355,7 @@ contact.save(OUT / "scene-contact-sheet.jpg", quality=92, optimize=True)
         "YOUTUBE GROWTH": "YouTube चैनल कैसे बढ़ाएँ? | Hindi Guide",
     }.get(topic_key, topic["title"] + " | Hindi YouTube Guide"),
     "description": topic["subtitle"] + "\n\n" + topic["voice"] + "\n\nवीडियो को बेहतर बनाने के लिए एक-एक सुझाव अगली वीडियो में लागू करें.",
-    "tags": ["YouTube Tips Hindi", "YouTube Growth", "Audience Retention", "Hindi Creator", "YouTube Tutorial"],
+    "tags": list(dict.fromkeys((["YouTube Tips Hindi", "Hindi Creator", "YouTube Tutorial"] + (["YouTube Growth", "Audience Retention"] if topic_key != "CUSTOM_TOPIC" else [topic["title"][:30], "Hindi Explainer"])))),
     "privacyStatus": "private",
     "note": "Offline-rendered motion-card explainer; captions.srt is included. Review pronunciation, visuals, duration, audio, and content before upload."
 }, ensure_ascii=False, indent=2), encoding="utf-8")

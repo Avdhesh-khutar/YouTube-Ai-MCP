@@ -1,0 +1,58 @@
+import unittest
+
+from scripts.motion_graphics import (
+    build_explainer_overlay_filter,
+    build_title_overlay_filter,
+    escape_drawtext,
+    title_for_scene,
+)
+
+
+class MotionGraphicsTests(unittest.TestCase):
+    def test_title_filter_animates_lower_third(self):
+        result = build_title_overlay_filter("भारत की अनसुनी कहानी", 8.0)
+        self.assertIn("drawbox=", result)
+        self.assertIn("drawtext=text='भारत की अनसुनी कहानी'", result)
+        self.assertIn("alpha='if(", result)
+        self.assertIn("between(t,0,4.800)", result)
+
+    def test_explainer_filter_has_animated_title_subtitle_and_progress(self):
+        result = build_explainer_overlay_filter(
+            "क्यों नहीं?", "अपनी कहानी खुद बनाइए", 6.0, 2, 5
+        )
+        self.assertIn("क्यों नहीं?", result)
+        self.assertIn("अपनी कहानी खुद बनाइए", result)
+        self.assertIn("02 / 05", result)
+        self.assertIn("min(1,t/1.000)", result)
+        self.assertIn("0xF5B942", result)
+
+    def test_explainer_filter_rejects_invalid_scene_numbers(self):
+        with self.assertRaises(ValueError):
+            build_explainer_overlay_filter("Title", "Subtitle", 4.0, 0, 3)
+        with self.assertRaises(ValueError):
+            build_explainer_overlay_filter("Title", "Subtitle", 4.0, 4, 3)
+
+    def test_filter_escapes_option_delimiters_and_limits_length(self):
+        result = escape_drawtext("A:B, C% [D] " + "x" * 120)
+        self.assertIn(r"\:", result)
+        self.assertIn(r"\,", result)
+        self.assertIn(r"\%", result)
+        self.assertLessEqual(len(result), 90)
+
+    def test_scene_title_prefers_explicit_title_then_narration(self):
+        self.assertEqual(title_for_scene({"title": "Intro"}, "Scene 1"), "Intro")
+        self.assertEqual(
+            title_for_scene({"narration": "यह एक छोटी कहानी है"}, "Scene 1"),
+            "यह एक छोटी कहानी है",
+        )
+        self.assertEqual(title_for_scene({}, "Scene 1"), "Scene 1")
+
+    def test_rejects_non_positive_duration(self):
+        with self.assertRaises(ValueError):
+            build_title_overlay_filter("Title", 0)
+        with self.assertRaises(ValueError):
+            build_explainer_overlay_filter("Title", "Subtitle", 0)
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -1,0 +1,30 @@
+name: Browser Hindi TTS chunk tests
+
+on:
+  pull_request:
+    paths:
+      - "scripts/prepare_browser_tts_chunks.py"
+      - "tests/test_prepare_browser_tts_chunks.py"
+      - ".github/workflows/browser-tts-chunk-tests.yml"
+  push:
+    branches:
+      - "feature/cinematic-video-pipeline"
+    paths:
+      - "scripts/prepare_browser_tts_chunks.py"
+      - "tests/test_prepare_browser_tts_chunks.py"
+      - ".github/workflows/browser-tts-chunk-tests.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  browser-tts-chunks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Test Hindi text chunk preparation
+        run: python tests/test_prepare_browser_tts_chunks.py -v

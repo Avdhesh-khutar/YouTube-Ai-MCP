@@ -177,8 +177,7 @@ voice_texts = [base + " " + extra for base, extra in zip(voice_texts, scene_expa
 # Prefer a natural Hindi neural voice (Microsoft Edge TTS, no API key).
 # If the runner cannot reach the service, fall back to offline speech.
 audio_parts = []
-narration_provider = "Microsoft Edge Hindi neural voice"for i, phrase in enumerate(voice_texts, start=1):
-    audio = OUT / f"voice-{i:02d}.mp3"
+narration_provider = "Microsoft Edge Hindi neural voice"for i, phrase in enumerate(voice_texts, start=1):    audio = OUT / f"voice-{i:02d}.mp3"
     edge_ok = False
     try:
         subprocess.run(
@@ -228,18 +227,30 @@ def srt_timestamp(seconds):
 
 caption_blocks = []
 cursor = 0.0
-for index, audio in enumerate(audio_parts, start=1):
+caption_index = 1
+for scene_index, audio in enumerate(audio_parts, start=1):
     probe = subprocess.run(
         ["ffprobe", "-v", "error", "-show_entries", "format=duration",
          "-of", "default=noprint_wrappers=1:nokey=1", str(audio)],
         check=True, capture_output=True, text=True
     )
-    duration = float(probe.stdout.strip())
-    caption_blocks.append(
-        f"{index}\n{srt_timestamp(cursor)} --> {srt_timestamp(cursor + duration)}\n"
-        + voice_texts[index - 1] + "\n"
-    )
-    cursor += duration
+    scene_duration = float(probe.stdout.strip())
+    words = voice_texts[scene_index - 1].split()
+    # Keep each caption compact for phone screens. Timing is proportional to
+    # the number of words; this is an estimate, not phoneme-level alignment.
+    chunks = [words[i:i + 8] for i in range(0, len(words), 8)]
+    total_words = max(1, len(words))
+    scene_cursor = cursor
+    for chunk_index, chunk in enumerate(chunks):
+        chunk_duration = scene_duration * len(chunk) / total_words
+        chunk_end = cursor + scene_duration if chunk_index == len(chunks) - 1 else scene_cursor + chunk_duration
+        caption_blocks.append(
+            f"{caption_index}\n{srt_timestamp(scene_cursor)} --> {srt_timestamp(chunk_end)}\n"
+            + " ".join(chunk) + "\n"
+        )
+        caption_index += 1
+        scene_cursor = chunk_end
+    cursor += scene_duration
 (OUT / "captions.srt").write_text("\n".join(caption_blocks), encoding="utf-8")
 
 

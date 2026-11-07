@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Verify a rendered MP4 has readable streams and the requested real runtime.
 
-This gate checks the media file itself with ffprobe; it does not infer duration
-from a scene plan or render manifest. It never uploads or modifies the input.
+Default acceptance window is 4:30–5:00. This gate checks the media file itself
+with ffprobe; it does not infer duration from a scene plan or render manifest.
+It never uploads or modifies the input.
 """
 from __future__ import annotations
 
@@ -55,7 +56,7 @@ def probe_media(path: Path, ffprobe: str = "ffprobe") -> dict:
     }
 
 
-def verify(path: Path, min_seconds: float = 480.0, max_seconds: float = 600.0,
+def verify(path: Path, min_seconds: float = 270.0, max_seconds: float = 300.0,
            require_audio: bool = False, ffprobe: str = "ffprobe") -> dict:
     if min_seconds <= 0 or max_seconds < min_seconds:
         raise ValueError("duration bounds must satisfy 0 < min-seconds <= max-seconds")
@@ -73,8 +74,8 @@ def verify(path: Path, min_seconds: float = 480.0, max_seconds: float = 600.0,
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("video", type=Path, help="Rendered MP4 to inspect")
-    parser.add_argument("--min-seconds", type=float, default=480.0)
-    parser.add_argument("--max-seconds", type=float, default=600.0)
+    parser.add_argument("--min-seconds", type=float, default=270.0)
+    parser.add_argument("--max-seconds", type=float, default=300.0)
     parser.add_argument("--require-audio", action="store_true")
     parser.add_argument("--ffprobe", default="ffprobe", help="ffprobe executable name/path")
     args = parser.parse_args()

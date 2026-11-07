@@ -2,7 +2,7 @@
 
 ## User defaults
 - Language: Hindi
-- Target duration: 8–10 minutes
+- Target duration: 4–5 minutes
 - YouTube privacy: PRIVATE only
 - Publishing: never public or scheduled without a separate explicit approval
 - Repository safety: changes stay on the feature branch and draft PR; do not merge to main without owner approval.
@@ -11,7 +11,7 @@
 ## Target experience
 The owner submits a topic and optional audience/style. A single orchestrator should then:
 1. Research the topic from reliable sources and retain source URLs/notes.
-2. Produce a Hindi outline and narration targeting 8–10 minutes; flag uncertain claims.
+2. Produce a Hindi outline and narration targeting 4–5 minutes; flag uncertain claims.
 3. Create a scene plan with per-scene narration, image prompt, motion prompt, and duration.
 4. Generate scene images through a configured image provider.
 5. Animate selected scenes through a configured image-to-video provider; use slow FFmpeg motion only as an explicit fallback.
@@ -29,7 +29,7 @@ The owner submits a topic and optional audience/style. A single orchestrator sho
 
 ### Stage B — research and script
 - Add a research adapter with citation/source capture and retry/rate-limit handling.
-- Generate Hindi script + scene plan as structured JSON; validate total estimated narration length against the 8–10 minute target (roughly 1,000–1,300 Hindi words is only a starting estimate; actual speech duration must be measured).
+- Generate Hindi script + scene plan as structured JSON; validate total estimated narration length against the 4–5 minute target (roughly 550–700 Hindi words is only a starting estimate; actual speech duration must be measured).
 - Do not present unsourced claims as verified facts.
 
 ### Stage C — media providers
@@ -74,10 +74,10 @@ The owner submits a topic and optional audience/style. A single orchestrator sho
 
 ## Acceptance criteria
 - One topic starts a resumable end-to-end job without manually creating each scene.
-- Output is Hindi, 8–10 minutes, with research notes, script, scene plan, generated visuals, narration, music/SFX, SRT, MP4, thumbnail, metadata, and a source/asset manifest.
+- Output is Hindi, 4–5 minutes, with research notes, script, scene plan, generated visuals, narration, music/SFX, SRT, MP4, thumbnail, metadata, and a source/asset manifest.
 - Job reports provider failures and costs/quotas clearly; no hidden paid calls.
 - Upload is private, deduplicated, and returns the video ID; public publishing is impossible by default.
 - Automated tests cover configuration validation, missing credentials, failed provider calls, render validation, and private-only upload policy.
 
 ## Important current state
-The current cinematic PR is a scaffold: prompt planning, a ComfyUI API adapter, and FFmpeg assembly exist, but actual provider-backed research, image/video generation, TTS, music, orchestration, and automated upload are not yet a verified end-to-end system. Do not claim the complete pipeline works until provider integrations are configured and an 8–10 minute test run is reviewed.
+The current cinematic PR is a scaffold: prompt planning, a ComfyUI API adapter, and FFmpeg assembly exist, but actual provider-backed research, image/video generation, TTS, music, orchestration, and automated upload are not yet a verified end-to-end system. Do not claim the complete pipeline works until provider integrations are configured and an 4–5 minute test run is reviewed.

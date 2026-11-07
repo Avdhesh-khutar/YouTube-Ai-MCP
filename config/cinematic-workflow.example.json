@@ -1,8 +1,8 @@
 {
   "language": "hi-IN",
   "target_duration_minutes": {
-    "min": 8,
-    "max": 10
+    "min": 4.5,
+    "max": 5
   },
   "output": {
     "width": 1920,
@@ -22,7 +22,7 @@
     "scene_planning": {
       "enabled": true,
       "min_scenes": 12,
-      "max_scenes": 24
+      "max_scenes": 18
     },
     "image_generation": {
       "enabled": true,

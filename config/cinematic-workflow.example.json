@@ -1,7 +1,7 @@
 {
   "language": "hi-IN",
   "target_duration_minutes": {
-    "min": 4.5,
+    "min": 4,
     "max": 5
   },
   "output": {

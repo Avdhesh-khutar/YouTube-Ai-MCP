@@ -177,7 +177,9 @@ voice_texts = [base + " " + extra for base, extra in zip(voice_texts, scene_expa
 # Prefer a natural Hindi neural voice (Microsoft Edge TTS, no API key).
 # If the runner cannot reach the service, fall back to offline speech.
 audio_parts = []
-narration_provider = "Microsoft Edge Hindi neural voice"for i, phrase in enumerate(voice_texts, start=1):    audio = OUT / f"voice-{i:02d}.mp3"
+narration_provider = "Microsoft Edge Hindi neural voice"
+for i, phrase in enumerate(voice_texts, start=1):
+    audio = OUT / f"voice-{i:02d}.mp3"
     edge_ok = False
     try:
         subprocess.run(

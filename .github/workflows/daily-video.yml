@@ -67,7 +67,38 @@ jobs:
           test "$height" = "720"
           # Validate thumbnail dimensions and required metadata/captions.
           python -c 'from PIL import Image; im=Image.open("dist/thumbnail.jpg"); assert im.size == (1280, 720), f"Unexpected thumbnail size: {im.size}"'
-          python -c 'import json; from pathlib import Path; m=json.loads(Path("dist/metadata.json").read_text(encoding="utf-8")); assert m.get("title", "").strip(), "Missing title"; assert m.get("description", "").strip(), "Missing description"; assert isinstance(m.get("tags"), list) and m["tags"], "Missing tags"; s=Path("dist/captions.srt").read_text(encoding="utf-8"); assert s.count("-->") >= 8, "Captions missing/incomplete"; assert len(Path("dist/script.txt").read_text(encoding="utf-8").strip()) >= 500, "Script too short"; print("Metadata, captions, script and thumbnail checks passed.")'
+          python - <<'PY'
+          import json, re
+          from pathlib import Path
+          metadata = json.loads(Path("dist/metadata.json").read_text(encoding="utf-8"))
+          assert metadata.get("title", "").strip(), "Missing title"
+          assert metadata.get("description", "").strip(), "Missing description"
+          assert isinstance(metadata.get("tags"), list) and metadata["tags"], "Missing tags"
+          script = Path("dist/script.txt").read_text(encoding="utf-8").strip()
+          assert len(script) >= 500, "Script too short"
+          srt = Path("dist/captions.srt").read_text(encoding="utf-8").strip()
+          cues = re.findall(r"(?m)^\d+\n(\d{2}:\d{2}:\d{2},\d{3}) --> (\d{2}:\d{2}:\d{2},\d{3})\n(.+?)(?=\n\n|$)", srt, re.S)
+          assert len(cues) >= 30, f"Expected compact multi-part captions, found {len(cues)}"
+          def seconds(stamp):
+              h, m, rest = stamp.split(":")
+              sec, ms = rest.split(",")
+              return int(h)*3600 + int(m)*60 + int(sec) + int(ms)/1000
+          previous_end = 0.0
+          for start, end, text in cues:
+              start_s, end_s = seconds(start), seconds(end)
+              assert start_s >= previous_end - 0.02, "Caption cues overlap or go backwards"
+              assert end_s > start_s, "Caption cue has zero/negative duration"
+              assert text.strip(), "Empty caption cue"
+              previous_end = end_s
+          video_duration = float(__import__("subprocess").check_output([
+              "ffprobe", "-v", "error", "-show_entries", "format=duration",
+              "-of", "default=noprint_wrappers=1:nokey=1", "dist/daily-youtube-video.mp4"
+          ], text=True).strip())
+          assert abs(previous_end - video_duration) <= 1.5, (
+              f"Captions end at {previous_end:.2f}s but video ends at {video_duration:.2f}s"
+          )
+          print(f"Metadata, {len(cues)} caption cues, script and thumbnail checks passed.")
+          PY
       - name: Upload private-review package as workflow artifact
         uses: actions/upload-artifact@v4
         with:

@@ -51,7 +51,7 @@ jobs:
           width=$(ffprobe -v error -select_streams v:0 -show_entries stream=width -of csv=s=x:p=0 dist/daily-youtube-video.mp4)
           height=$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=s=x:p=0 dist/daily-youtube-video.mp4)
           echo "Video duration: ${duration}s; resolution: ${width}x${height}"
-          python -c "import sys; assert float(sys.argv[1]) >= 60, 'Video is unexpectedly short'" "$duration"
+          python -c "import sys; d=float(sys.argv[1]); assert 295 <= d <= 330, f'Expected a ~5-minute video (295–330s), got {d:.2f}s'" "$duration"
           test "$width" = "1280"
           test "$height" = "720"
           # Validate thumbnail dimensions and required metadata/captions.
@@ -66,10 +66,14 @@ jobs:
       - name: Upload as PRIVATE to connected YouTube channel
         env:
           UPLOAD_TOKEN: ${{ secrets.YOUTUBE_PRIVATE_UPLOAD_TOKEN }}
-        # Temporarily prevent repeated uploads of the draft while visual/audio quality is being improved.
-        if: false
+        # Upload only when the owner has explicitly configured the private-upload token.
+        if: success()
         run: |
           set -euo pipefail
+          if [ -z "${UPLOAD_TOKEN:-}" ]; then
+            echo "Private upload skipped: YOUTUBE_PRIVATE_UPLOAD_TOKEN is not configured."
+            exit 0
+          fi
           size=$(stat -c%s dist/daily-youtube-video.mp4)
           if [ "$size" -gt $((47 * 1024 * 1024)) ]; then
             echo "Video exceeds the 47 MB safe upload limit; artifact retained for review."
@@ -82,7 +86,6 @@ jobs:
             -X POST "https://youtube-ai-mcp.mkkhutar2.workers.dev/automation/upload" \
             -H "Authorization: Bearer $UPLOAD_TOKEN" \
             -F "video=@dist/daily-youtube-video.mp4;type=video/mp4" \
-            -F "thumbnail=@dist/thumbnail.jpg;type=image/jpeg" \
             -F "title=$title" \
             -F "description=$description" \
             -F "tags=$tags"

@@ -86,8 +86,8 @@ jobs:
             exit 0
           fi
           size=$(stat -c%s dist/daily-youtube-video.mp4)
-          if [ "$size" -gt $((47 * 1024 * 1024)) ]; then
-            echo "Video exceeds the 47 MB safe upload limit; artifact retained for review."
+          if [ "$size" -gt $((45 * 1024 * 1024)) ]; then
+            echo "Video exceeds the 45 MB safe upload limit; artifact retained for review."
             exit 1
           fi
           title=$(jq -r .title dist/metadata.json)
@@ -97,6 +97,7 @@ jobs:
             -X POST "https://youtube-ai-mcp.mkkhutar2.workers.dev/automation/upload" \
             -H "Authorization: Bearer $UPLOAD_TOKEN" \
             -F "video=@dist/daily-youtube-video.mp4;type=video/mp4" \
+            -F "thumbnail=@dist/thumbnail.jpg;type=image/jpeg" \
             -F "title=$title" \
             -F "description=$description" \
             -F "tags=$tags"

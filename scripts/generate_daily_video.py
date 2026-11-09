@@ -292,7 +292,9 @@ with (OUT / "segments.txt").open("w", encoding="utf-8") as f:
 subprocess.run([
     "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
     "-f", "concat", "-safe", "0", "-i", str(OUT / "segments.txt"),
-    "-c", "copy", "-movflags", "+faststart", str(OUT / "daily-youtube-video.mp4")
+    "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p",
+    "-c:a", "aac", "-b:a", "160k", "-movflags", "+faststart",
+    str(OUT / "daily-youtube-video.mp4")
 ], check=True)
 
 (OUT / "script.txt").write_text("\n\n".join(voice_texts), encoding="utf-8")

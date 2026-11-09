@@ -183,7 +183,7 @@ for i, phrase in enumerate(voice_texts, start=1):
     edge_ok = False
     try:
         subprocess.run(
-            ["edge-tts", "--voice", "hi-IN-MadhurNeural", "--rate=+28%",
+            ["edge-tts", "--voice", "hi-IN-MadhurNeural", "--rate=+38%",
              "--text", phrase, "--write-media", str(audio)],
             check=True, capture_output=True, text=True, timeout=90
         )

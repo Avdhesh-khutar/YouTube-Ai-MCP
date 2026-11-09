@@ -8,7 +8,18 @@ on:
       - ".github/workflows/daily-video.yml"
   schedule:
     - cron: "30 4 * * *"
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/generate_daily_video.py"
+      - ".github/workflows/daily-video.yml"
   workflow_dispatch:
+    inputs:
+      confirm_private_upload:
+        description: "Upload this verified video to YouTube as PRIVATE"
+        required: true
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -51,12 +62,43 @@ jobs:
           width=$(ffprobe -v error -select_streams v:0 -show_entries stream=width -of csv=s=x:p=0 dist/daily-youtube-video.mp4)
           height=$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=s=x:p=0 dist/daily-youtube-video.mp4)
           echo "Video duration: ${duration}s; resolution: ${width}x${height}"
-          python -c "import sys; assert float(sys.argv[1]) >= 60, 'Video is unexpectedly short'" "$duration"
+          python -c "import sys; d=float(sys.argv[1]); assert 295 <= d <= 330, f'Expected a ~5-minute video (295–330s), got {d:.2f}s'" "$duration"
           test "$width" = "1280"
           test "$height" = "720"
           # Validate thumbnail dimensions and required metadata/captions.
           python -c 'from PIL import Image; im=Image.open("dist/thumbnail.jpg"); assert im.size == (1280, 720), f"Unexpected thumbnail size: {im.size}"'
-          python -c 'import json; from pathlib import Path; m=json.loads(Path("dist/metadata.json").read_text(encoding="utf-8")); assert m.get("title", "").strip(), "Missing title"; assert m.get("description", "").strip(), "Missing description"; assert isinstance(m.get("tags"), list) and m["tags"], "Missing tags"; s=Path("dist/captions.srt").read_text(encoding="utf-8"); assert s.count("-->") >= 8, "Captions missing/incomplete"; assert len(Path("dist/script.txt").read_text(encoding="utf-8").strip()) >= 500, "Script too short"; print("Metadata, captions, script and thumbnail checks passed.")'
+          python - <<'PY'
+          import json, re
+          from pathlib import Path
+          metadata = json.loads(Path("dist/metadata.json").read_text(encoding="utf-8"))
+          assert metadata.get("title", "").strip(), "Missing title"
+          assert metadata.get("description", "").strip(), "Missing description"
+          assert isinstance(metadata.get("tags"), list) and metadata["tags"], "Missing tags"
+          script = Path("dist/script.txt").read_text(encoding="utf-8").strip()
+          assert len(script) >= 500, "Script too short"
+          srt = Path("dist/captions.srt").read_text(encoding="utf-8").strip()
+          cues = re.findall(r"(?m)^\d+\n(\d{2}:\d{2}:\d{2},\d{3}) --> (\d{2}:\d{2}:\d{2},\d{3})\n(.+?)(?=\n\n|$)", srt, re.S)
+          assert len(cues) >= 30, f"Expected compact multi-part captions, found {len(cues)}"
+          def seconds(stamp):
+              h, m, rest = stamp.split(":")
+              sec, ms = rest.split(",")
+              return int(h)*3600 + int(m)*60 + int(sec) + int(ms)/1000
+          previous_end = 0.0
+          for start, end, text in cues:
+              start_s, end_s = seconds(start), seconds(end)
+              assert start_s >= previous_end - 0.02, "Caption cues overlap or go backwards"
+              assert end_s > start_s, "Caption cue has zero/negative duration"
+              assert text.strip(), "Empty caption cue"
+              previous_end = end_s
+          video_duration = float(__import__("subprocess").check_output([
+              "ffprobe", "-v", "error", "-show_entries", "format=duration",
+              "-of", "default=noprint_wrappers=1:nokey=1", "dist/daily-youtube-video.mp4"
+          ], text=True).strip())
+          assert abs(previous_end - video_duration) <= 1.5, (
+              f"Captions end at {previous_end:.2f}s but video ends at {video_duration:.2f}s"
+          )
+          print(f"Metadata, {len(cues)} caption cues, script and thumbnail checks passed.")
+          PY
       - name: Upload private-review package as workflow artifact
         uses: actions/upload-artifact@v4
         with:
@@ -66,13 +108,17 @@ jobs:
       - name: Upload as PRIVATE to connected YouTube channel
         env:
           UPLOAD_TOKEN: ${{ secrets.YOUTUBE_PRIVATE_UPLOAD_TOKEN }}
-        # Temporarily prevent repeated uploads of the draft while visual/audio quality is being improved.
-        if: false
+        # Upload only when the owner has explicitly configured the private-upload token.
+        if: success() && github.event_name == 'workflow_dispatch' && inputs.confirm_private_upload == true
         run: |
           set -euo pipefail
+          if [ -z "${UPLOAD_TOKEN:-}" ]; then
+            echo "Private upload skipped: YOUTUBE_PRIVATE_UPLOAD_TOKEN is not configured."
+            exit 0
+          fi
           size=$(stat -c%s dist/daily-youtube-video.mp4)
-          if [ "$size" -gt $((47 * 1024 * 1024)) ]; then
-            echo "Video exceeds the 47 MB safe upload limit; artifact retained for review."
+          if [ "$size" -gt $((45 * 1024 * 1024)) ]; then
+            echo "Video exceeds the 45 MB safe upload limit; artifact retained for review."
             exit 1
           fi
           title=$(jq -r .title dist/metadata.json)

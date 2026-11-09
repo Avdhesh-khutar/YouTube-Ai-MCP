@@ -299,6 +299,11 @@ with (OUT / "segments.txt").open("w", encoding="utf-8") as f:
 subprocess.run([
     "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
     "-f", "concat", "-safe", "0", "-i", str(OUT / "segments.txt"),
+    # Some still-image segment encodes can end their video stream before the
+    # normalized narration stream. Clone the last frame to the exact measured
+    # narration duration instead of allowing the final MP4 to end early.
+    "-vf", "tpad=stop_mode=clone:stop_duration=60",
+    "-t", f"{narration_seconds:.3f}",
     "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p",
     "-c:a", "aac", "-b:a", "160k", "-movflags", "+faststart",
     str(OUT / "daily-youtube-video.mp4")

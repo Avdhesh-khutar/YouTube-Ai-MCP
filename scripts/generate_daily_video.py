@@ -183,7 +183,7 @@ for i, phrase in enumerate(voice_texts, start=1):
     edge_ok = False
     try:
         subprocess.run(
-            ["edge-tts", "--voice", "hi-IN-MadhurNeural", "--rate=+49%",
+            ["edge-tts", "--voice", "hi-IN-MadhurNeural", "--rate=+28%",
              "--text", phrase, "--write-media", str(audio)],
             check=True, capture_output=True, text=True, timeout=90
         )
@@ -199,7 +199,14 @@ for i, phrase in enumerate(voice_texts, start=1):
             ["espeak-ng", "-v", "hi", "-s", "132", "-p", "42", "-w", str(audio), phrase],
             check=True
         )
-    audio_parts.append(audio)
+    # Normalize speech to PCM WAV before measuring it; MP3 duration metadata
+    # can include encoder padding and overstate the actual decoded narration.
+    normalized_audio = OUT / f"voice-{i:02d}-normalized.wav"
+    subprocess.run([
+        "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+        "-i", str(audio), "-ar", "48000", "-ac", "2", str(normalized_audio)
+    ], check=True)
+    audio_parts.append(normalized_audio)
 
 print("Narration provider: " + narration_provider)
 
@@ -282,7 +289,7 @@ for i, (slide, audio) in enumerate(zip(slides, audio_parts), start=1):
         "-t", f"{duration:.2f}", "-vf", f"zoompan=z='min(zoom+0.0008,1.06)':d=1:s=1280x720:fps=25,fade=t=in:st=0:d=0.45,fade=t=out:st={max(0.1, duration-0.45):.2f}:d=0.45,format=yuv420p",
         "-filter_complex", f"[2:a]volume=0.07[bg];[1:a]volume=1.0[voice];[voice][bg]amix=inputs=2:duration=first:dropout_transition=2,afade=t=in:st=0:d=0.25,afade=t=out:st={max(0.1, duration-0.35):.2f}:d=0.35,alimiter=limit=0.92[a]",
         "-map", "0:v", "-map", "[a]", "-c:v", "libx264", "-preset", "veryfast", "-c:a", "aac", "-b:a", "160k",
-        "-shortest", "-movflags", "+faststart", str(segment)
+        "-movflags", "+faststart", str(segment)
     ], check=True)
     segments.append(segment)
 

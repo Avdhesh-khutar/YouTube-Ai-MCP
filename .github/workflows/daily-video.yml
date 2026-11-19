@@ -61,8 +61,10 @@ jobs:
           duration=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 dist/daily-youtube-video.mp4)
           width=$(ffprobe -v error -select_streams v:0 -show_entries stream=width -of csv=s=x:p=0 dist/daily-youtube-video.mp4)
           height=$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=s=x:p=0 dist/daily-youtube-video.mp4)
-          echo "Video duration: ${duration}s; resolution: ${width}x${height}"
+          audio_duration=$(ffprobe -v error -select_streams a:0 -show_entries stream=duration -of default=noprint_wrappers=1:nokey=1 dist/daily-youtube-video.mp4)
+          echo "Video duration: ${duration}s; audio duration: ${audio_duration}s; resolution: ${width}x${height}"
           python -c "import sys; d=float(sys.argv[1]); assert 295 <= d <= 330, f'Expected a ~5-minute video (295–330s), got {d:.2f}s'" "$duration"
+          python -c "import sys; v=float(sys.argv[1]); a=float(sys.argv[2]); assert abs(v-a) <= 1.5, f'Audio/video duration mismatch: video={v:.2f}s audio={a:.2f}s'" "$duration" "$audio_duration"
           test "$width" = "1280"
           test "$height" = "720"
           # Validate thumbnail dimensions and required metadata/captions.

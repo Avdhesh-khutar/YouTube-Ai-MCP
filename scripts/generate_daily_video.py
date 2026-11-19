@@ -115,13 +115,50 @@ def draw_slide(index, heading, lines, footer):
     glow = glow.filter(ImageFilter.GaussianBlur(95))
     im = Image.alpha_composite(im.convert("RGBA"), glow).convert("RGB")
     d = ImageDraw.Draw(im)
-    # Oversized editorial shapes make each scene feel distinct instead of a plain text card.
-    d.polygon([(850, 110), (1190, 110), (1190, 430), (1030, 520)], fill=(*glow_color, ))
-    d.ellipse((875, 170, 1135, 430), outline=accent, width=8)
-    d.arc((900, 195, 1110, 405), start=25*index, end=300+25*index, fill=(255,255,255), width=5)
-    for bar_i, bar_h in enumerate([75, 125, 95, 170, 145]):
-        x = 790 + bar_i*65
-        d.rounded_rectangle((x, 540-bar_h, x+34, 540), radius=9, fill=accent)
+    # A different visual motif per scene: target, idea, thumbnail, retention, analytics, workflow, checklist, finish.
+    motifs = {
+        1: "target", 2: "idea", 3: "thumbnail", 4: "retention",
+        5: "analytics", 6: "workflow", 7: "checklist", 8: "finish"
+    }
+    motif = motifs.get(index, "target")
+    if motif == "target":
+        for radius in (190, 135, 78):
+            d.ellipse((900-radius//2, 300-radius//2, 900+radius//2, 300+radius//2), outline=accent, width=9)
+        d.ellipse((885, 285, 915, 315), fill=(255,255,255))
+    elif motif == "idea":
+        d.ellipse((850, 160, 1080, 390), outline=accent, width=12)
+        d.rounded_rectangle((910, 380, 1020, 420), radius=12, fill=accent)
+        d.line((930, 435, 1000, 435), fill=accent, width=10)
+        for angle in range(0, 360, 45):
+            import math
+            import math as _math
+            x1=965+145*_math.cos(_math.radians(angle)); y1=275+145*_math.sin(_math.radians(angle))
+            x2=965+175*_math.cos(_math.radians(angle)); y2=275+175*_math.sin(_math.radians(angle))
+            d.line((x1,y1,x2,y2), fill=accent, width=8)
+    elif motif == "thumbnail":
+        d.rounded_rectangle((810, 185, 1160, 405), radius=24, outline=accent, width=12)
+        d.polygon([(930, 240), (930, 350), (1030, 295)], fill=accent)
+        d.rounded_rectangle((835, 425, 1135, 455), radius=12, fill=glow_color)
+    elif motif in ("retention", "analytics"):
+        values = [90, 150, 110, 205, 165] if motif == "retention" else [70, 120, 180, 145, 225]
+        for bar_i, bar_h in enumerate(values):
+            x = 805 + bar_i*68
+            d.rounded_rectangle((x, 500-bar_h, x+42, 500), radius=10, fill=accent)
+        d.line((810, 520, 1155, 520), fill=(255,255,255), width=4)
+    elif motif == "workflow":
+        for n, x in enumerate((820, 930, 1040)):
+            d.ellipse((x, 250, x+72, 322), fill=accent)
+            if n < 2: d.line((x+72, 286, x+110, 286), fill=(255,255,255), width=7)
+        d.rounded_rectangle((835, 370, 1110, 415), radius=16, outline=accent, width=7)
+    elif motif == "checklist":
+        for n in range(4):
+            y0=190+n*65
+            d.rounded_rectangle((835,y0,885,y0+45), radius=8, outline=accent, width=6)
+            d.line((845,y0+22,860,y0+36,880,y0+10), fill=(255,255,255), width=6)
+            d.line((910,y0+22,1145,y0+22), fill=(220,230,245), width=5)
+    else:
+        d.ellipse((850, 190, 1130, 470), outline=accent, width=12)
+        d.polygon([(940, 260), (940, 400), (1050, 330)], fill=accent)
     d.rounded_rectangle((48, 48, W-48, H-48), radius=30, outline=(*glow_color,), width=3)
     d.rounded_rectangle((82, 86, 370, 130), radius=14, fill=accent)
     d.text((102, 94), f"सीखें  •  भाग {index}", font=font(font_candidates, 22), fill=(8, 12, 28))
@@ -144,10 +181,13 @@ def draw_slide(index, heading, lines, footer):
     im.save(path)
     slides.append(path)
 
-draw_slide(1, topic["title"], [topic["subtitle"], "हिंदी में पूरी जानकारी"], "हिंदी में सीखें और लागू करें")
+# Eight scenes must map one-to-one to the eight narration segments:
+# 1) promise, 2-6) five distinct actionable steps, 7) practical checklist, 8) closing action.
+draw_slide(1, topic["title"], [topic["subtitle"], "आज की वीडियो में 5 काम के कदम"], "पहले लक्ष्य समझें, फिर लागू करें")
 for i, point in enumerate(topic["points"], start=2):
-    draw_slide(i, f"चरण {i-1}", [point, "इसे स्पष्ट रखें और उपयोगी बनाएं"], "सही सीख और लगातार अभ्यास")
-draw_slide(8, "अब आपकी बारी", ["आज एक बदलाव लागू करें", "ऐसी और हिंदी गाइड के लिए जुड़े रहें"], "लगातार सीखें और सुधार करें")
+    draw_slide(i, point, [f"इसका मतलब: {point}", "एक छोटा उदाहरण लेकर आज ही आजमाएं"], "एक कदम • एक उदाहरण • एक सुधार")
+draw_slide(7, "अपलोड से पहले जांचें", ["विषय और शुरुआत स्पष्ट हैं", "आवाज और कैप्शन सही हैं", "हर दृश्य बात को समझाता है", "थंबनेल वीडियो से मेल खाता है"], "अंतिम गुणवत्ता जांच")
+draw_slide(8, "अब आपकी बारी", ["आज एक बदलाव लागू करें", "नतीजा नोट करें और अगली बार सुधारें"], "लगातार सीखें और सुधार करें")
 
 voice_texts = [
     topic["voice"] + " अब इस विषय को चरण दर चरण समझते हैं। सबसे पहले अपने लक्ष्य को स्पष्ट कीजिए। उसके बाद एक छोटा व्यावहारिक उदाहरण चुनिए और दर्शक को बताइए कि वह इसे कैसे लागू कर सकता है।",
@@ -160,6 +200,20 @@ voice_texts = [
     "अंत में याद रखें कि बेहतर YouTube वीडियो बनाने का कोई जादुई शॉर्टकट नहीं है। रिसर्च, स्पष्ट हिंदी narration, उपयोगी उदाहरण, अच्छे दृश्य और नियमित समीक्षा मिलकर गुणवत्ता बेहतर कर सकते हैं। अपनी अगली वीडियो में एक सुधार लागू कीजिए। वीडियो देखने के लिए धन्यवाद। सीखते रहिए और दर्शकों के भरोसे को प्राथमिकता दीजिए।"
 ]
 
+# Add substantive Hindi explanation to each scene so the narration targets five minutes.
+# These are spoken teaching points, not silent padding; captions are generated from the same text.
+scene_expansions = [
+    "एक उपयोगी तरीका यह है कि अपने पिछले दस वीडियो की सूची बनाएं और हर वीडियो के सामने उसका विषय, दर्शकों की प्रतिक्रिया तथा मिली हुई सीख लिखें। फिर देखें कि किस तरह के सवाल बार बार सामने आते हैं। उन्हीं सवालों को छोटे और स्पष्ट विषयों में बदलें। इससे विषय चुनने का निर्णय अनुमान के बजाय वास्तविक जरूरत पर आधारित होगा।",
+    "विषय चुनते समय यह भी जांचें कि दर्शक को वीडियो देखने के बाद कौन सा काम आसानी से करना आना चाहिए। उस नतीजे को एक वाक्य में लिखें। यदि वादा बहुत बड़ा या अस्पष्ट है, तो विषय को और छोटा करें। एक वीडियो में बहुत सारी असंबंधित बातें भरने से बचें। एक केंद्रित वीडियो अक्सर दर्शक को बेहतर दिशा देता है।",
+    "उदाहरणों को वास्तविक और सरल रखें। यदि किसी बात को चरणों में समझाया जा सकता है, तो पहले चरण का कारण बताएं, फिर उसका तरीका और अंत में आम गलती समझाएं। कठिन शब्द आएं तो उनका अर्थ आसान हिंदी में बताएं। स्क्रीन पर दिखने वाला टेक्स्ट आवाज की बात से मेल खाना चाहिए, ताकि दर्शक पढ़ते और सुनते हुए आसानी से साथ चल सके।",
+    "वीडियो की गति संतुलित रखें। हर कुछ समय बाद दृश्य, उदाहरण या स्क्रीन पर दिखने वाली जानकारी बदल सकती है, लेकिन केवल तेज बदलाव के लिए अनावश्यक प्रभाव न जोड़ें। आवाज साफ और समान स्तर पर होनी चाहिए। रिकॉर्डिंग में शोर हो तो उसे कम करें। बैकग्राउंड ध्वनि narration से काफी धीमी रखें, ताकि मोबाइल पर भी हर शब्द समझ में आए।",
+    "एनालिटिक्स देखते समय एक ही संकेत पर निर्भर न रहें। क्लिक थ्रू रेट कम है तो शीर्षक और थंबनेल की स्पष्टता जांचें। शुरुआत में दर्शक जा रहे हैं तो शुरुआती वादे और वास्तविक सामग्री का मेल देखें। यदि लोग किसी खास हिस्से पर रुकते हैं, तो उस हिस्से को और विस्तार से समझाने का अवसर हो सकता है।",
+    "हर प्रयोग को लिखकर रखें। आपने क्या बदला, किस वीडियो में बदला और कितने समय बाद परिणाम देखा, यह नोट करें। एक साथ कई चीजें बदलने पर यह समझना कठिन हो जाता है कि असर किस बदलाव से आया। छोटे प्रयोग, धैर्य और नियमित समीक्षा मिलकर एक टिकाऊ प्रक्रिया बनाते हैं। किसी भी एक तरीके से निश्चित नतीजे की उम्मीद न रखें।",
+    "अपलोड से पहले एक अंतिम समीक्षा करें। शीर्षक में विषय साफ हो, विवरण में वीडियो का सार और उपयोगी अध्याय हों, तथा टैग केवल संबंधित शब्दों के हों। कैप्शन को सुनकर जांचें, खासकर नामों और तकनीकी शब्दों की वर्तनी। थंबनेल को फोन के छोटे आकार में देखें। कोई तथ्य संदिग्ध लगे तो उसे प्रकाशित करने से पहले विश्वसनीय स्रोत से दोबारा जांचें।",
+    "अब इस सीख को अपनी अगली वीडियो पर लागू करने के लिए एक छोटा लक्ष्य चुनें। उदाहरण के लिए, आज केवल बेहतर शुरुआत लिखें या केवल कैप्शन की जांच करें। काम पूरा होने पर नोट करें कि क्या आसान रहा और अगली बार क्या बदलना है। लगातार सुधार का मतलब जल्दबाजी नहीं, बल्कि हर बार दर्शक को पहले से अधिक स्पष्ट और उपयोगी जानकारी देना है।"
+]
+voice_texts = [base + " " + extra for base, extra in zip(voice_texts, scene_expansions)]
+
 # Prefer a natural Hindi neural voice (Microsoft Edge TTS, no API key).
 # If the runner cannot reach the service, fall back to offline speech.
 audio_parts = []
@@ -169,7 +223,7 @@ for i, phrase in enumerate(voice_texts, start=1):
     edge_ok = False
     try:
         subprocess.run(
-            ["edge-tts", "--voice", "hi-IN-MadhurNeural", "--rate=-8%",
+            ["edge-tts", "--voice", "hi-IN-MadhurNeural", "--rate=+38%",
              "--text", phrase, "--write-media", str(audio)],
             check=True, capture_output=True, text=True, timeout=90
         )
@@ -185,9 +239,32 @@ for i, phrase in enumerate(voice_texts, start=1):
             ["espeak-ng", "-v", "hi", "-s", "132", "-p", "42", "-w", str(audio), phrase],
             check=True
         )
-    audio_parts.append(audio)
+    # Normalize speech to PCM WAV before measuring it; MP3 duration metadata
+    # can include encoder padding and overstate the actual decoded narration.
+    normalized_audio = OUT / f"voice-{i:02d}-normalized.wav"
+    subprocess.run([
+        "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+        "-i", str(audio), "-ar", "48000", "-ac", "2", str(normalized_audio)
+    ], check=True)
+    audio_parts.append(normalized_audio)
 
 print("Narration provider: " + narration_provider)
+
+# Fail rather than silently stretching a short narration with empty video or silence.
+narration_seconds = 0.0
+for audio in audio_parts:
+    probe = subprocess.run(
+        ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+         "-of", "default=noprint_wrappers=1:nokey=1", str(audio)],
+        check=True, capture_output=True, text=True
+    )
+    narration_seconds += float(probe.stdout.strip())
+print(f"Total Hindi narration: {narration_seconds:.2f}s")
+if not 295 <= narration_seconds <= 330:
+    raise SystemExit(
+        f"Hindi narration must be 295–330 seconds for a five-minute video; got {narration_seconds:.2f}s. "
+        "Review TTS speed or expand/reduce the spoken script."
+    )
 
 # Create a simple SRT caption file aligned to each narration scene.
 def srt_timestamp(seconds):
@@ -199,18 +276,30 @@ def srt_timestamp(seconds):
 
 caption_blocks = []
 cursor = 0.0
-for index, audio in enumerate(audio_parts, start=1):
+caption_index = 1
+for scene_index, audio in enumerate(audio_parts, start=1):
     probe = subprocess.run(
         ["ffprobe", "-v", "error", "-show_entries", "format=duration",
          "-of", "default=noprint_wrappers=1:nokey=1", str(audio)],
         check=True, capture_output=True, text=True
     )
-    duration = max(3.0, float(probe.stdout.strip()) + 0.4)
-    caption_blocks.append(
-        f"{index}\n{srt_timestamp(cursor)} --> {srt_timestamp(cursor + duration)}\n"
-        + voice_texts[index - 1] + "\n"
-    )
-    cursor += duration
+    scene_duration = float(probe.stdout.strip())
+    words = voice_texts[scene_index - 1].split()
+    # Keep each caption compact for phone screens. Timing is proportional to
+    # the number of words; this is an estimate, not phoneme-level alignment.
+    chunks = [words[i:i + 8] for i in range(0, len(words), 8)]
+    total_words = max(1, len(words))
+    scene_cursor = cursor
+    for chunk_index, chunk in enumerate(chunks):
+        chunk_duration = scene_duration * len(chunk) / total_words
+        chunk_end = cursor + scene_duration if chunk_index == len(chunks) - 1 else scene_cursor + chunk_duration
+        caption_blocks.append(
+            f"{caption_index}\n{srt_timestamp(scene_cursor)} --> {srt_timestamp(chunk_end)}\n"
+            + " ".join(chunk) + "\n"
+        )
+        caption_index += 1
+        scene_cursor = chunk_end
+    cursor += scene_duration
 (OUT / "captions.srt").write_text("\n".join(caption_blocks), encoding="utf-8")
 
 
@@ -233,24 +322,54 @@ for i, (slide, audio) in enumerate(zip(slides, audio_parts), start=1):
         ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", str(audio)],
         check=True, capture_output=True, text=True,
     )
-    duration = max(3.0, float(probe.stdout.strip()) + 0.4)
+    duration = float(probe.stdout.strip())
     subprocess.run([
         "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
         "-loop", "1", "-framerate", "25", "-i", str(slide), "-i", str(audio), "-i", str(music),
         "-t", f"{duration:.2f}", "-vf", f"zoompan=z='min(zoom+0.0008,1.06)':d=1:s=1280x720:fps=25,fade=t=in:st=0:d=0.45,fade=t=out:st={max(0.1, duration-0.45):.2f}:d=0.45,format=yuv420p",
         "-filter_complex", f"[2:a]volume=0.07[bg];[1:a]volume=1.0[voice];[voice][bg]amix=inputs=2:duration=first:dropout_transition=2,afade=t=in:st=0:d=0.25,afade=t=out:st={max(0.1, duration-0.35):.2f}:d=0.35,alimiter=limit=0.92[a]",
         "-map", "0:v", "-map", "[a]", "-c:v", "libx264", "-preset", "veryfast", "-c:a", "aac", "-b:a", "160k",
-        "-shortest", "-movflags", "+faststart", str(segment)
+        "-movflags", "+faststart", str(segment)
     ], check=True)
     segments.append(segment)
 
 with (OUT / "segments.txt").open("w", encoding="utf-8") as f:
     for p in segments:
         f.write(f"file '{p.resolve()}'\n")
+# Build a clean master narration from the measured WAV segments. The segment
+# MP4 audio streams can be shorter than their video streams after encoding, so
+# do not use those mixed segment audio tracks for the final deliverable.
+with (OUT / "voice-segments.txt").open("w", encoding="utf-8") as f:
+    for audio in audio_parts:
+        f.write(f"file '{audio.resolve()}'\n")
+master_audio = OUT / "narration-master.m4a"
+subprocess.run([
+    "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+    "-f", "concat", "-safe", "0", "-i", str(OUT / "voice-segments.txt"),
+    "-i", str(music),
+    "-filter_complex", "[0:a]volume=1.0[voice];[1:a]volume=0.07[bg];[voice][bg]amix=inputs=2:duration=first:dropout_transition=2,alimiter=limit=0.92[a]",
+    "-map", "[a]", "-t", f"{narration_seconds:.3f}",
+    "-c:a", "aac", "-b:a", "160k", str(master_audio)
+], check=True)
+
+# Render the picture track separately and pad only the final frame if needed.
+video_only = OUT / "video-only.mp4"
 subprocess.run([
     "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
     "-f", "concat", "-safe", "0", "-i", str(OUT / "segments.txt"),
-    "-c", "copy", "-movflags", "+faststart", str(OUT / "daily-youtube-video.mp4")
+    "-an", "-vf", "tpad=stop_mode=clone:stop_duration=60",
+    "-t", f"{narration_seconds:.3f}",
+    "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p",
+    str(video_only)
+], check=True)
+
+# Mux the independent, full-length narration with the matching video duration.
+subprocess.run([
+    "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+    "-i", str(video_only), "-i", str(master_audio),
+    "-map", "0:v:0", "-map", "1:a:0",
+    "-c:v", "copy", "-c:a", "copy", "-movflags", "+faststart",
+    "-shortest", str(OUT / "daily-youtube-video.mp4")
 ], check=True)
 
 (OUT / "script.txt").write_text("\n\n".join(voice_texts), encoding="utf-8")
@@ -268,8 +387,8 @@ thumbnail_titles = {
     "AUDIENCE RETENTION": ("दर्शक वीडियो", "क्यों छोड़ते हैं?"),
     "BETTER VIDEO IDEAS": ("दमदार वीडियो", "आइडिया कैसे चुनें?"),
     "THUMBNAIL BASICS": ("प्रोफेशनल", "थंबनेल कैसे बनाएँ?"),
-    "CONSISTENT CREATION": ("YouTube पर", "लगातार कैसे बढ़ें?"),
-    "YOUTUBE ANALYTICS": ("YouTube Analytics", "आसान हिंदी में"),
+    "CONSISTENT CREATION": ("यूट्यूब पर", "लगातार कैसे बढ़ें?"),
+    "YOUTUBE ANALYTICS": ("यूट्यूब एनालिटिक्स", "आसान हिंदी में"),
     "CREATOR WORKFLOW": ("वीडियो बनाने का", "प्रोफेशनल तरीका"),
     "YOUTUBE GROWTH": ("YouTube चैनल", "कैसे बढ़ाएँ?"),
 }

@@ -296,17 +296,40 @@ for i, (slide, audio) in enumerate(zip(slides, audio_parts), start=1):
 with (OUT / "segments.txt").open("w", encoding="utf-8") as f:
     for p in segments:
         f.write(f"file '{p.resolve()}'\n")
+# Build a clean master narration from the measured WAV segments. The segment
+# MP4 audio streams can be shorter than their video streams after encoding, so
+# do not use those mixed segment audio tracks for the final deliverable.
+with (OUT / "voice-segments.txt").open("w", encoding="utf-8") as f:
+    for audio in audio_parts:
+        f.write(f"file '{audio.resolve()}'\\n")
+master_audio = OUT / "narration-master.m4a"
+subprocess.run([
+    "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+    "-f", "concat", "-safe", "0", "-i", str(OUT / "voice-segments.txt"),
+    "-i", str(music),
+    "-filter_complex", "[0:a]volume=1.0[voice];[1:a]volume=0.07[bg];[voice][bg]amix=inputs=2:duration=first:dropout_transition=2,alimiter=limit=0.92[a]",
+    "-map", "[a]", "-t", f"{narration_seconds:.3f}",
+    "-c:a", "aac", "-b:a", "160k", str(master_audio)
+], check=True)
+
+# Render the picture track separately and pad only the final frame if needed.
+video_only = OUT / "video-only.mp4"
 subprocess.run([
     "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
     "-f", "concat", "-safe", "0", "-i", str(OUT / "segments.txt"),
-    # Some still-image segment encodes can end their video stream before the
-    # normalized narration stream. Clone the last frame to the exact measured
-    # narration duration instead of allowing the final MP4 to end early.
-    "-vf", "tpad=stop_mode=clone:stop_duration=60",
+    "-an", "-vf", "tpad=stop_mode=clone:stop_duration=60",
     "-t", f"{narration_seconds:.3f}",
     "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p",
-    "-c:a", "aac", "-b:a", "160k", "-movflags", "+faststart",
-    str(OUT / "daily-youtube-video.mp4")
+    str(video_only)
+], check=True)
+
+# Mux the independent, full-length narration with the matching video duration.
+subprocess.run([
+    "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+    "-i", str(video_only), "-i", str(master_audio),
+    "-map", "0:v:0", "-map", "1:a:0",
+    "-c:v", "copy", "-c:a", "copy", "-movflags", "+faststart",
+    "-shortest", str(OUT / "daily-youtube-video.mp4")
 ], check=True)
 
 (OUT / "script.txt").write_text("\n\n".join(voice_texts), encoding="utf-8")

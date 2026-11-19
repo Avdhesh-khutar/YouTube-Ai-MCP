@@ -387,8 +387,8 @@ thumbnail_titles = {
     "AUDIENCE RETENTION": ("दर्शक वीडियो", "क्यों छोड़ते हैं?"),
     "BETTER VIDEO IDEAS": ("दमदार वीडियो", "आइडिया कैसे चुनें?"),
     "THUMBNAIL BASICS": ("प्रोफेशनल", "थंबनेल कैसे बनाएँ?"),
-    "CONSISTENT CREATION": ("YouTube पर", "लगातार कैसे बढ़ें?"),
-    "YOUTUBE ANALYTICS": ("YouTube Analytics", "आसान हिंदी में"),
+    "CONSISTENT CREATION": ("यूट्यूब पर", "लगातार कैसे बढ़ें?"),
+    "YOUTUBE ANALYTICS": ("यूट्यूब एनालिटिक्स", "आसान हिंदी में"),
     "CREATOR WORKFLOW": ("वीडियो बनाने का", "प्रोफेशनल तरीका"),
     "YOUTUBE GROWTH": ("YouTube चैनल", "कैसे बढ़ाएँ?"),
 }

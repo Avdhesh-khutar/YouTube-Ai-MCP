@@ -301,7 +301,7 @@ with (OUT / "segments.txt").open("w", encoding="utf-8") as f:
 # do not use those mixed segment audio tracks for the final deliverable.
 with (OUT / "voice-segments.txt").open("w", encoding="utf-8") as f:
     for audio in audio_parts:
-        f.write(f"file '{audio.resolve()}'\\n")
+        f.write(f"file '{audio.resolve()}'\n")
 master_audio = OUT / "narration-master.m4a"
 subprocess.run([
     "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",

@@ -115,13 +115,50 @@ def draw_slide(index, heading, lines, footer):
     glow = glow.filter(ImageFilter.GaussianBlur(95))
     im = Image.alpha_composite(im.convert("RGBA"), glow).convert("RGB")
     d = ImageDraw.Draw(im)
-    # Oversized editorial shapes make each scene feel distinct instead of a plain text card.
-    d.polygon([(850, 110), (1190, 110), (1190, 430), (1030, 520)], fill=(*glow_color, ))
-    d.ellipse((875, 170, 1135, 430), outline=accent, width=8)
-    d.arc((900, 195, 1110, 405), start=25*index, end=300+25*index, fill=(255,255,255), width=5)
-    for bar_i, bar_h in enumerate([75, 125, 95, 170, 145]):
-        x = 790 + bar_i*65
-        d.rounded_rectangle((x, 540-bar_h, x+34, 540), radius=9, fill=accent)
+    # A different visual motif per scene: target, idea, thumbnail, retention, analytics, workflow, checklist, finish.
+    motifs = {
+        1: "target", 2: "idea", 3: "thumbnail", 4: "retention",
+        5: "analytics", 6: "workflow", 7: "checklist", 8: "finish"
+    }
+    motif = motifs.get(index, "target")
+    if motif == "target":
+        for radius in (190, 135, 78):
+            d.ellipse((900-radius//2, 300-radius//2, 900+radius//2, 300+radius//2), outline=accent, width=9)
+        d.ellipse((885, 285, 915, 315), fill=(255,255,255))
+    elif motif == "idea":
+        d.ellipse((850, 160, 1080, 390), outline=accent, width=12)
+        d.rounded_rectangle((910, 380, 1020, 420), radius=12, fill=accent)
+        d.line((930, 435, 1000, 435), fill=accent, width=10)
+        for angle in range(0, 360, 45):
+            import math
+            import math as _math
+            x1=965+145*_math.cos(_math.radians(angle)); y1=275+145*_math.sin(_math.radians(angle))
+            x2=965+175*_math.cos(_math.radians(angle)); y2=275+175*_math.sin(_math.radians(angle))
+            d.line((x1,y1,x2,y2), fill=accent, width=8)
+    elif motif == "thumbnail":
+        d.rounded_rectangle((810, 185, 1160, 405), radius=24, outline=accent, width=12)
+        d.polygon([(930, 240), (930, 350), (1030, 295)], fill=accent)
+        d.rounded_rectangle((835, 425, 1135, 455), radius=12, fill=glow_color)
+    elif motif in ("retention", "analytics"):
+        values = [90, 150, 110, 205, 165] if motif == "retention" else [70, 120, 180, 145, 225]
+        for bar_i, bar_h in enumerate(values):
+            x = 805 + bar_i*68
+            d.rounded_rectangle((x, 500-bar_h, x+42, 500), radius=10, fill=accent)
+        d.line((810, 520, 1155, 520), fill=(255,255,255), width=4)
+    elif motif == "workflow":
+        for n, x in enumerate((820, 930, 1040)):
+            d.ellipse((x, 250, x+72, 322), fill=accent)
+            if n < 2: d.line((x+72, 286, x+110, 286), fill=(255,255,255), width=7)
+        d.rounded_rectangle((835, 370, 1110, 415), radius=16, outline=accent, width=7)
+    elif motif == "checklist":
+        for n in range(4):
+            y0=190+n*65
+            d.rounded_rectangle((835,y0,885,y0+45), radius=8, outline=accent, width=6)
+            d.line((845,y0+22,860,y0+36,880,y0+10), fill=(255,255,255), width=6)
+            d.line((910,y0+22,1145,y0+22), fill=(220,230,245), width=5)
+    else:
+        d.ellipse((850, 190, 1130, 470), outline=accent, width=12)
+        d.polygon([(940, 260), (940, 400), (1050, 330)], fill=accent)
     d.rounded_rectangle((48, 48, W-48, H-48), radius=30, outline=(*glow_color,), width=3)
     d.rounded_rectangle((82, 86, 370, 130), radius=14, fill=accent)
     d.text((102, 94), f"सीखें  •  भाग {index}", font=font(font_candidates, 22), fill=(8, 12, 28))
@@ -144,10 +181,13 @@ def draw_slide(index, heading, lines, footer):
     im.save(path)
     slides.append(path)
 
-draw_slide(1, topic["title"], [topic["subtitle"], "हिंदी में पूरी जानकारी"], "हिंदी में सीखें और लागू करें")
+# Eight scenes must map one-to-one to the eight narration segments:
+# 1) promise, 2-6) five distinct actionable steps, 7) practical checklist, 8) closing action.
+draw_slide(1, topic["title"], [topic["subtitle"], "आज की वीडियो में 5 काम के कदम"], "पहले लक्ष्य समझें, फिर लागू करें")
 for i, point in enumerate(topic["points"], start=2):
-    draw_slide(i, f"चरण {i-1}", [point, "इसे स्पष्ट रखें और उपयोगी बनाएं"], "सही सीख और लगातार अभ्यास")
-draw_slide(8, "अब आपकी बारी", ["आज एक बदलाव लागू करें", "ऐसी और हिंदी गाइड के लिए जुड़े रहें"], "लगातार सीखें और सुधार करें")
+    draw_slide(i, point, [f"इसका मतलब: {point}", "एक छोटा उदाहरण लेकर आज ही आजमाएं"], "एक कदम • एक उदाहरण • एक सुधार")
+draw_slide(7, "अपलोड से पहले जांचें", ["विषय और शुरुआत स्पष्ट हैं", "आवाज और कैप्शन सही हैं", "हर दृश्य बात को समझाता है", "थंबनेल वीडियो से मेल खाता है"], "अंतिम गुणवत्ता जांच")
+draw_slide(8, "अब आपकी बारी", ["आज एक बदलाव लागू करें", "नतीजा नोट करें और अगली बार सुधारें"], "लगातार सीखें और सुधार करें")
 
 voice_texts = [
     topic["voice"] + " अब इस विषय को चरण दर चरण समझते हैं। सबसे पहले अपने लक्ष्य को स्पष्ट कीजिए। उसके बाद एक छोटा व्यावहारिक उदाहरण चुनिए और दर्शक को बताइए कि वह इसे कैसे लागू कर सकता है।",

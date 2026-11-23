@@ -98,8 +98,102 @@ body_font = font(regular_candidates, 34)
 small_font = font(font_candidates, 22)
 
 slides = []
+def draw_topic_visual(draw, heading, accent, glow_color, topic_key):
+    """Draw a topic-matched editorial illustration in the right-side image panel."""
+    label = (str(heading) + " " + str(topic_key)).lower()
+    if "thumbnail" in label or "थंबनेल" in label:
+        kind = "thumbnail"
+    elif any(word in label for word in ("analytics", "retention", "रिटेंशन", "एनालिटिक्स", "दर्शक वीडियो क्यों")):
+        kind = "chart"
+    elif any(word in label for word in ("workflow", "creator", "editing", "वीडियो बनाने", "रिकॉर्ड", "कैप्शन")):
+        kind = "workflow"
+    elif any(word in label for word in ("idea", "आइडिया", "विषय", "सवाल")):
+        kind = "idea"
+    elif any(word in label for word in ("consistent", "schedule", "शेड्यूल", "लगातार", "साप्ताहिक")):
+        kind = "calendar"
+    else:
+        kind = "dashboard"
+
+    # A dedicated illustrated visual tile, not a repeated abstract ornament.
+    draw.rounded_rectangle((785, 178, 1172, 535), radius=28, fill=(13, 22, 43), outline=accent, width=4)
+    draw.rounded_rectangle((815, 204, 1142, 247), radius=13, fill=glow_color)
+    draw.text((835, 211), "विषय से जुड़ा दृश्य", font=font(font_candidates, 21), fill=(255, 255, 255))
+
+    if kind == "thumbnail":
+        # Phone with a video thumbnail preview.
+        draw.rounded_rectangle((900, 268, 1070, 500), radius=26, fill=(5, 9, 20), outline=(220, 230, 245), width=5)
+        draw.rounded_rectangle((918, 290, 1052, 405), radius=12, fill=(35, 72, 125))
+        draw.ellipse((955, 320, 1015, 380), fill=accent)
+        draw.polygon([(977, 332), (977, 368), (1005, 350)], fill=(8, 15, 30))
+        draw.rounded_rectangle((925, 420, 1045, 433), radius=6, fill=(220, 230, 245))
+        draw.rounded_rectangle((925, 444, 1010, 455), radius=5, fill=glow_color)
+        draw.rounded_rectangle((958, 478, 1012, 485), radius=4, fill=(150, 165, 190))
+    elif kind == "chart":
+        # Analytics card with bars and a rising retention line.
+        draw.text((825, 270), "दर्शक डेटा", font=font(font_candidates, 24), fill=(245, 248, 255))
+        for gx in range(4):
+            ygrid = 315 + gx * 45
+            draw.line((830, ygrid, 1125, ygrid), fill=(45, 58, 82), width=2)
+        bars = [65, 110, 150, 122, 190, 225]
+        for j, height in enumerate(bars):
+            x = 845 + j * 43
+            draw.rounded_rectangle((x, 495-height, x+25, 495), radius=7, fill=accent)
+        pts = [(845, 385), (890, 360), (935, 350), (980, 325), (1025, 310), (1070, 285)]
+        draw.line(pts, fill=(255, 255, 255), width=5)
+        for px, py in pts:
+            draw.ellipse((px-6, py-6, px+6, py+6), fill=(255, 255, 255))
+    elif kind == "workflow":
+        # Video editor monitor, timeline, audio waveform and clip blocks.
+        draw.rounded_rectangle((835, 275, 1120, 420), radius=15, fill=(5, 10, 22), outline=(190, 205, 230), width=4)
+        draw.rectangle((850, 290, 1105, 395), fill=(28, 58, 96))
+        draw.polygon([(955, 320), (955, 370), (1000, 345)], fill=accent)
+        draw.line((970, 423, 970, 445), fill=(200, 210, 230), width=8)
+        draw.line((920, 447, 1020, 447), fill=(200, 210, 230), width=8)
+        for j, width in enumerate((80, 110, 72, 95)):
+            x = 835 + j * 72
+            draw.rounded_rectangle((x, 466, x+width, 486), radius=6, fill=accent if j % 2 == 0 else glow_color)
+        for j, h in enumerate((12, 23, 15, 29, 18, 32, 14, 24, 11, 20)):
+            x = 845 + j * 27
+            draw.rounded_rectangle((x, 502-h//2, x+9, 502+h//2), radius=4, fill=(210, 225, 245))
+    elif kind == "idea":
+        # Bright idea bulb with rays and idea notes.
+        draw.ellipse((900, 285, 1060, 445), fill=(255, 190, 65), outline=(255, 240, 190), width=5)
+        draw.rounded_rectangle((940, 420, 1020, 462), radius=10, fill=(220, 230, 245))
+        draw.line((950, 470, 1010, 470), fill=(220, 230, 245), width=8)
+        for angle in range(0, 360, 45):
+            import math
+            rad = math.radians(angle)
+            x1, y1 = 980 + 100*math.cos(rad), 365 + 100*math.sin(rad)
+            x2, y2 = 980 + 130*math.cos(rad), 365 + 130*math.sin(rad)
+            draw.line((x1, y1, x2, y2), fill=accent, width=7)
+        draw.rounded_rectangle((825, 300, 900, 350), radius=10, fill=glow_color)
+        draw.rounded_rectangle((1060, 385, 1130, 435), radius=10, fill=glow_color)
+    elif kind == "calendar":
+        # Weekly content calendar with selected posting days.
+        draw.rounded_rectangle((835, 270, 1125, 495), radius=18, fill=(7, 13, 28), outline=(210, 220, 240), width=4)
+        draw.rounded_rectangle((835, 270, 1125, 320), radius=15, fill=accent)
+        for col in range(4):
+            for row in range(3):
+                x, y = 858 + col*65, 342 + row*48
+                draw.rounded_rectangle((x, y, x+42, y+31), radius=7, fill=glow_color if (col+row) % 2 == 0 else (35, 48, 70))
+        draw.line((875, 405, 890, 420, 918, 385), fill=(255, 255, 255), width=7)
+        draw.line((1005, 453, 1020, 468, 1048, 433), fill=(255, 255, 255), width=7)
+    else:
+        # Creator dashboard with channel card, view graph and play preview.
+        draw.rounded_rectangle((835, 270, 1125, 495), radius=18, fill=(7, 13, 28), outline=(210, 220, 240), width=4)
+        draw.ellipse((860, 292, 925, 357), fill=accent)
+        draw.polygon([(885, 307), (885, 342), (912, 324)], fill=(8, 15, 30))
+        draw.rounded_rectangle((940, 300, 1095, 314), radius=6, fill=(225, 235, 250))
+        draw.rounded_rectangle((940, 326, 1045, 337), radius=5, fill=glow_color)
+        draw.line((860, 450, 1098, 450), fill=(45, 58, 82), width=3)
+        graph = [(865, 425), (910, 410), (950, 420), (995, 375), (1040, 385), (1095, 345)]
+        draw.line(graph, fill=accent, width=6)
+        for px, py in graph:
+            draw.ellipse((px-5, py-5, px+5, py+5), fill=(255, 255, 255))
+
+
 def draw_slide(index, heading, lines, footer):
-    # Layered editorial frame with scene-specific geometry and strong visual hierarchy.
+    # Editorial layout: teaching text on the left, topic-specific illustration on the right.
     palette = [
         ((7, 12, 28), (20, 88, 150), (255, 185, 45)),
         ((10, 12, 32), (95, 32, 112), (255, 190, 70)),
@@ -115,357 +209,31 @@ def draw_slide(index, heading, lines, footer):
     glow = glow.filter(ImageFilter.GaussianBlur(95))
     im = Image.alpha_composite(im.convert("RGBA"), glow).convert("RGB")
     d = ImageDraw.Draw(im)
-    # A different visual motif per scene: target, idea, thumbnail, retention, analytics, workflow, checklist, finish.
-    motifs = {
-        1: "target", 2: "idea", 3: "thumbnail", 4: "retention",
-        5: "analytics", 6: "workflow", 7: "checklist", 8: "finish"
-    }
-    motif = motifs.get(index, "target")
-    if motif == "target":
-        for radius in (190, 135, 78):
-            d.ellipse((900-radius//2, 300-radius//2, 900+radius//2, 300+radius//2), outline=accent, width=9)
-        d.ellipse((885, 285, 915, 315), fill=(255,255,255))
-    elif motif == "idea":
-        d.ellipse((850, 160, 1080, 390), outline=accent, width=12)
-        d.rounded_rectangle((910, 380, 1020, 420), radius=12, fill=accent)
-        d.line((930, 435, 1000, 435), fill=accent, width=10)
-        for angle in range(0, 360, 45):
-            import math
-            import math as _math
-            x1=965+145*_math.cos(_math.radians(angle)); y1=275+145*_math.sin(_math.radians(angle))
-            x2=965+175*_math.cos(_math.radians(angle)); y2=275+175*_math.sin(_math.radians(angle))
-            d.line((x1,y1,x2,y2), fill=accent, width=8)
-    elif motif == "thumbnail":
-        d.rounded_rectangle((810, 185, 1160, 405), radius=24, outline=accent, width=12)
-        d.polygon([(930, 240), (930, 350), (1030, 295)], fill=accent)
-        d.rounded_rectangle((835, 425, 1135, 455), radius=12, fill=glow_color)
-    elif motif in ("retention", "analytics"):
-        values = [90, 150, 110, 205, 165] if motif == "retention" else [70, 120, 180, 145, 225]
-        for bar_i, bar_h in enumerate(values):
-            x = 805 + bar_i*68
-            d.rounded_rectangle((x, 500-bar_h, x+42, 500), radius=10, fill=accent)
-        d.line((810, 520, 1155, 520), fill=(255,255,255), width=4)
-    elif motif == "workflow":
-        for n, x in enumerate((820, 930, 1040)):
-            d.ellipse((x, 250, x+72, 322), fill=accent)
-            if n < 2: d.line((x+72, 286, x+110, 286), fill=(255,255,255), width=7)
-        d.rounded_rectangle((835, 370, 1110, 415), radius=16, outline=accent, width=7)
-    elif motif == "checklist":
-        for n in range(4):
-            y0=190+n*65
-            d.rounded_rectangle((835,y0,885,y0+45), radius=8, outline=accent, width=6)
-            d.line((845,y0+22,860,y0+36,880,y0+10), fill=(255,255,255), width=6)
-            d.line((910,y0+22,1145,y0+22), fill=(220,230,245), width=5)
-    else:
-        d.ellipse((850, 190, 1130, 470), outline=accent, width=12)
-        d.polygon([(940, 260), (940, 400), (1050, 330)], fill=accent)
     d.rounded_rectangle((48, 48, W-48, H-48), radius=30, outline=(*glow_color,), width=3)
     d.rounded_rectangle((82, 86, 370, 130), radius=14, fill=accent)
     d.text((102, 94), f"सीखें  •  भाग {index}", font=font(font_candidates, 22), fill=(8, 12, 28))
-    d.text((90, 165), heading, font=title_font, fill=(255, 255, 255), stroke_width=1)
-    y = 275
+    # Keep the heading and bullets on the left so the illustration remains unobstructed.
+    compact_title_font = font(font_candidates, 48)
+    title_lines = textwrap.wrap(heading, width=20)[:2]
+    title_y = 165
+    for title_line in title_lines:
+        d.text((90, title_y), title_line, font=compact_title_font, fill=(255, 255, 255), stroke_width=1)
+        title_y += 58
+    y = max(285, title_y + 10)
     for line in lines:
-        wrapped = textwrap.wrap(line, width=34)
+        wrapped = textwrap.wrap(line, width=25)
         for part in wrapped:
-            d.rounded_rectangle((90, y+5, 106, y+43), radius=5, fill=accent)
-            d.text((132, y), part, font=body_font, fill=(238, 242, 252))
-            y += 55
-        y += 12
+            d.rounded_rectangle((90, y+7, 106, y+31), radius=5, fill=accent)
+            d.text((130, y), part, font=font(regular_candidates, 27), fill=(238, 242, 252))
+            y += 42
+        y += 8
+    draw_topic_visual(d, heading, accent, glow_color, topic_key)
     d.line((90, H-118, W-90, H-118), fill=(*glow_color,), width=2)
     d.text((90, H-100), footer, font=small_font, fill=(196, 210, 236))
     d.text((W-210, H-100), f"{index:02d} / 08", font=small_font, fill=(255, 210, 105))
-    # Small progress rail
     d.rounded_rectangle((90, H-65, W-90, H-57), radius=4, fill=(35, 47, 70))
     d.rounded_rectangle((90, H-65, 90 + int((W-180)*index/8), H-57), radius=4, fill=accent)
     path = OUT / f"slide-{index:02d}.png"
     im.save(path)
     slides.append(path)
-
-# Eight scenes must map one-to-one to the eight narration segments:
-# 1) promise, 2-6) five distinct actionable steps, 7) practical checklist, 8) closing action.
-draw_slide(1, topic["title"], [topic["subtitle"], "आज की वीडियो में 5 काम के कदम"], "पहले लक्ष्य समझें, फिर लागू करें")
-for i, point in enumerate(topic["points"], start=2):
-    draw_slide(i, point, [f"इसका मतलब: {point}", "एक छोटा उदाहरण लेकर आज ही आजमाएं"], "एक कदम • एक उदाहरण • एक सुधार")
-draw_slide(7, "अपलोड से पहले जांचें", ["विषय और शुरुआत स्पष्ट हैं", "आवाज और कैप्शन सही हैं", "हर दृश्य बात को समझाता है", "थंबनेल वीडियो से मेल खाता है"], "अंतिम गुणवत्ता जांच")
-draw_slide(8, "अब आपकी बारी", ["आज एक बदलाव लागू करें", "नतीजा नोट करें और अगली बार सुधारें"], "लगातार सीखें और सुधार करें")
-
-voice_texts = [
-    topic["voice"] + " अब इस विषय को चरण दर चरण समझते हैं। सबसे पहले अपने लक्ष्य को स्पष्ट कीजिए। उसके बाद एक छोटा व्यावहारिक उदाहरण चुनिए और दर्शक को बताइए कि वह इसे कैसे लागू कर सकता है।",
-    "पहला चरण। " + topic["points"][0] + "। अपने दर्शकों की जरूरत को समझने के लिए उनके सवाल पढ़िए। सामान्य सलाह देने के बजाय किसी खास स्थिति का उदाहरण दीजिए। इससे दर्शक को विषय समझने और अगला कदम चुनने में मदद मिलेगी।",
-    "दूसरा चरण। " + topic["points"][1] + "। वीडियो की शुरुआत में दर्शक को बताइए कि उसे क्या सीखने को मिलेगा। लंबी भूमिका से बचें। जानकारी को छोटे हिस्सों में बांटें और हर हिस्से के बीच स्वाभाविक बदलाव रखें।",
-    "तीसरा चरण। " + topic["points"][2] + "। अपनी बात को केवल शब्दों में न छोड़ें। स्क्रीन पर मुख्य बिंदु, सरल उदाहरण और स्पष्ट ग्राफिक्स दिखाएं। दृश्य वही समझाएं जो आवाज में बताया जा रहा है।",
-    "चौथा चरण। " + topic["points"][3] + "। परिणाम देखने के लिए समय दें और आंकड़ों को संदर्भ के साथ समझें। एक वीडियो के आधार पर जल्दबाजी में बड़ा फैसला न करें। समान विषय वाले वीडियो से तुलना करना ज्यादा उपयोगी हो सकता है।",
-    "पांचवां चरण। " + topic["points"][4] + "। आज की सीख में से एक बदलाव चुनिए और उसे अगली वीडियो में आजमाइए। फिर नोट करें कि क्या बेहतर हुआ और किस हिस्से पर अभी काम करना बाकी है।",
-    "अब एक व्यावहारिक चेकलिस्ट देखते हैं। क्या विषय दर्शकों के लिए स्पष्ट है? क्या शुरुआत में वादा समझ आता है? क्या आवाज साफ है? क्या टेक्स्ट मोबाइल पर पढ़ा जा सकता है? क्या थंबनेल वीडियो की वास्तविक सामग्री से मेल खाता है? क्या पूरी वीडियो को शुरू से अंत तक देखा गया है? अपलोड से पहले इन सभी सवालों का जवाब जरूर जांचें।",
-    "अंत में याद रखें कि बेहतर YouTube वीडियो बनाने का कोई जादुई शॉर्टकट नहीं है। रिसर्च, स्पष्ट हिंदी narration, उपयोगी उदाहरण, अच्छे दृश्य और नियमित समीक्षा मिलकर गुणवत्ता बेहतर कर सकते हैं। अपनी अगली वीडियो में एक सुधार लागू कीजिए। वीडियो देखने के लिए धन्यवाद। सीखते रहिए और दर्शकों के भरोसे को प्राथमिकता दीजिए।"
-]
-
-# Add substantive Hindi explanation to each scene so the narration targets five minutes.
-# These are spoken teaching points, not silent padding; captions are generated from the same text.
-scene_expansions = [
-    "एक उपयोगी तरीका यह है कि अपने पिछले दस वीडियो की सूची बनाएं और हर वीडियो के सामने उसका विषय, दर्शकों की प्रतिक्रिया तथा मिली हुई सीख लिखें। फिर देखें कि किस तरह के सवाल बार बार सामने आते हैं। उन्हीं सवालों को छोटे और स्पष्ट विषयों में बदलें। इससे विषय चुनने का निर्णय अनुमान के बजाय वास्तविक जरूरत पर आधारित होगा।",
-    "विषय चुनते समय यह भी जांचें कि दर्शक को वीडियो देखने के बाद कौन सा काम आसानी से करना आना चाहिए। उस नतीजे को एक वाक्य में लिखें। यदि वादा बहुत बड़ा या अस्पष्ट है, तो विषय को और छोटा करें। एक वीडियो में बहुत सारी असंबंधित बातें भरने से बचें। एक केंद्रित वीडियो अक्सर दर्शक को बेहतर दिशा देता है।",
-    "उदाहरणों को वास्तविक और सरल रखें। यदि किसी बात को चरणों में समझाया जा सकता है, तो पहले चरण का कारण बताएं, फिर उसका तरीका और अंत में आम गलती समझाएं। कठिन शब्द आएं तो उनका अर्थ आसान हिंदी में बताएं। स्क्रीन पर दिखने वाला टेक्स्ट आवाज की बात से मेल खाना चाहिए, ताकि दर्शक पढ़ते और सुनते हुए आसानी से साथ चल सके।",
-    "वीडियो की गति संतुलित रखें। हर कुछ समय बाद दृश्य, उदाहरण या स्क्रीन पर दिखने वाली जानकारी बदल सकती है, लेकिन केवल तेज बदलाव के लिए अनावश्यक प्रभाव न जोड़ें। आवाज साफ और समान स्तर पर होनी चाहिए। रिकॉर्डिंग में शोर हो तो उसे कम करें। बैकग्राउंड ध्वनि narration से काफी धीमी रखें, ताकि मोबाइल पर भी हर शब्द समझ में आए।",
-    "एनालिटिक्स देखते समय एक ही संकेत पर निर्भर न रहें। क्लिक थ्रू रेट कम है तो शीर्षक और थंबनेल की स्पष्टता जांचें। शुरुआत में दर्शक जा रहे हैं तो शुरुआती वादे और वास्तविक सामग्री का मेल देखें। यदि लोग किसी खास हिस्से पर रुकते हैं, तो उस हिस्से को और विस्तार से समझाने का अवसर हो सकता है।",
-    "हर प्रयोग को लिखकर रखें। आपने क्या बदला, किस वीडियो में बदला और कितने समय बाद परिणाम देखा, यह नोट करें। एक साथ कई चीजें बदलने पर यह समझना कठिन हो जाता है कि असर किस बदलाव से आया। छोटे प्रयोग, धैर्य और नियमित समीक्षा मिलकर एक टिकाऊ प्रक्रिया बनाते हैं। किसी भी एक तरीके से निश्चित नतीजे की उम्मीद न रखें।",
-    "अपलोड से पहले एक अंतिम समीक्षा करें। शीर्षक में विषय साफ हो, विवरण में वीडियो का सार और उपयोगी अध्याय हों, तथा टैग केवल संबंधित शब्दों के हों। कैप्शन को सुनकर जांचें, खासकर नामों और तकनीकी शब्दों की वर्तनी। थंबनेल को फोन के छोटे आकार में देखें। कोई तथ्य संदिग्ध लगे तो उसे प्रकाशित करने से पहले विश्वसनीय स्रोत से दोबारा जांचें।",
-    "अब इस सीख को अपनी अगली वीडियो पर लागू करने के लिए एक छोटा लक्ष्य चुनें। उदाहरण के लिए, आज केवल बेहतर शुरुआत लिखें या केवल कैप्शन की जांच करें। काम पूरा होने पर नोट करें कि क्या आसान रहा और अगली बार क्या बदलना है। लगातार सुधार का मतलब जल्दबाजी नहीं, बल्कि हर बार दर्शक को पहले से अधिक स्पष्ट और उपयोगी जानकारी देना है।"
-]
-voice_texts = [base + " " + extra for base, extra in zip(voice_texts, scene_expansions)]
-
-# Prefer a natural Hindi neural voice (Microsoft Edge TTS, no API key).
-# If the runner cannot reach the service, fall back to offline speech.
-audio_parts = []
-narration_provider = "Microsoft Edge Hindi neural voice"
-for i, phrase in enumerate(voice_texts, start=1):
-    audio = OUT / f"voice-{i:02d}.mp3"
-    edge_ok = False
-    try:
-        subprocess.run(
-            ["edge-tts", "--voice", "hi-IN-MadhurNeural", "--rate=+38%",
-             "--text", phrase, "--write-media", str(audio)],
-            check=True, capture_output=True, text=True, timeout=90
-        )
-        if audio.exists() and audio.stat().st_size > 1000:
-            edge_ok = True
-            print(f"Generated natural Hindi narration segment {i}/{len(voice_texts)}")
-    except Exception as error:
-        print(f"Neural Hindi voice unavailable for segment {i}; using offline fallback ({type(error).__name__}).")
-    if not edge_ok:
-        narration_provider = "offline eSpeak fallback"
-        audio = OUT / f"voice-{i:02d}.wav"
-        subprocess.run(
-            ["espeak-ng", "-v", "hi", "-s", "132", "-p", "42", "-w", str(audio), phrase],
-            check=True
-        )
-    # Normalize speech to PCM WAV before measuring it; MP3 duration metadata
-    # can include encoder padding and overstate the actual decoded narration.
-    normalized_audio = OUT / f"voice-{i:02d}-normalized.wav"
-    subprocess.run([
-        "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
-        "-i", str(audio), "-ar", "48000", "-ac", "2", str(normalized_audio)
-    ], check=True)
-    audio_parts.append(normalized_audio)
-
-print("Narration provider: " + narration_provider)
-
-# Fail rather than silently stretching a short narration with empty video or silence.
-narration_seconds = 0.0
-for audio in audio_parts:
-    probe = subprocess.run(
-        ["ffprobe", "-v", "error", "-show_entries", "format=duration",
-         "-of", "default=noprint_wrappers=1:nokey=1", str(audio)],
-        check=True, capture_output=True, text=True
-    )
-    narration_seconds += float(probe.stdout.strip())
-print(f"Total Hindi narration: {narration_seconds:.2f}s")
-if not 295 <= narration_seconds <= 330:
-    raise SystemExit(
-        f"Hindi narration must be 295–330 seconds for a five-minute video; got {narration_seconds:.2f}s. "
-        "Review TTS speed or expand/reduce the spoken script."
-    )
-
-# Create a simple SRT caption file aligned to each narration scene.
-def srt_timestamp(seconds):
-    millis = int(round(seconds * 1000))
-    hours, millis = divmod(millis, 3_600_000)
-    minutes, millis = divmod(millis, 60_000)
-    secs, millis = divmod(millis, 1000)
-    return f"{hours:02d}:{minutes:02d}:{secs:02d},{millis:03d}"
-
-caption_blocks = []
-cursor = 0.0
-caption_index = 1
-for scene_index, audio in enumerate(audio_parts, start=1):
-    probe = subprocess.run(
-        ["ffprobe", "-v", "error", "-show_entries", "format=duration",
-         "-of", "default=noprint_wrappers=1:nokey=1", str(audio)],
-        check=True, capture_output=True, text=True
-    )
-    scene_duration = float(probe.stdout.strip())
-    words = voice_texts[scene_index - 1].split()
-    # Keep each caption compact for phone screens. Timing is proportional to
-    # the number of words; this is an estimate, not phoneme-level alignment.
-    chunks = [words[i:i + 8] for i in range(0, len(words), 8)]
-    total_words = max(1, len(words))
-    scene_cursor = cursor
-    for chunk_index, chunk in enumerate(chunks):
-        chunk_duration = scene_duration * len(chunk) / total_words
-        chunk_end = cursor + scene_duration if chunk_index == len(chunks) - 1 else scene_cursor + chunk_duration
-        caption_blocks.append(
-            f"{caption_index}\n{srt_timestamp(scene_cursor)} --> {srt_timestamp(chunk_end)}\n"
-            + " ".join(chunk) + "\n"
-        )
-        caption_index += 1
-        scene_cursor = chunk_end
-    cursor += scene_duration
-(OUT / "captions.srt").write_text("\n".join(caption_blocks), encoding="utf-8")
-
-
-# Create a gentle synthesized ambient bed locally; no external music asset or paid API required.
-music = OUT / "background-music.wav"
-subprocess.run([
-    "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
-    "-f", "lavfi", "-i", "sine=frequency=110:duration=600",
-    "-f", "lavfi", "-i", "sine=frequency=164.81:duration=600",
-    "-f", "lavfi", "-i", "sine=frequency=220:duration=600",
-    "-filter_complex", "[0:a]volume=0.10[a0];[1:a]volume=0.055[a1];[2:a]volume=0.025[a2];[a0][a1][a2]amix=inputs=3:normalize=0,lowpass=f=700,afade=t=in:d=2,afade=t=out:st=590:d=10",
-    "-t", "600", str(music)
-], check=True)
-
-# Match each scene's display time to its narration duration.
-segments = []
-for i, (slide, audio) in enumerate(zip(slides, audio_parts), start=1):
-    segment = OUT / f"segment-{i:02d}.mp4"
-    probe = subprocess.run(
-        ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", str(audio)],
-        check=True, capture_output=True, text=True,
-    )
-    duration = float(probe.stdout.strip())
-    subprocess.run([
-        "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
-        "-loop", "1", "-framerate", "25", "-i", str(slide), "-i", str(audio), "-i", str(music),
-        "-t", f"{duration:.2f}", "-vf", f"zoompan=z='min(zoom+0.0008,1.06)':d=1:s=1280x720:fps=25,fade=t=in:st=0:d=0.45,fade=t=out:st={max(0.1, duration-0.45):.2f}:d=0.45,format=yuv420p",
-        "-filter_complex", f"[2:a]volume=0.07[bg];[1:a]volume=1.0[voice];[voice][bg]amix=inputs=2:duration=first:dropout_transition=2,afade=t=in:st=0:d=0.25,afade=t=out:st={max(0.1, duration-0.35):.2f}:d=0.35,alimiter=limit=0.92[a]",
-        "-map", "0:v", "-map", "[a]", "-c:v", "libx264", "-preset", "veryfast", "-c:a", "aac", "-b:a", "160k",
-        "-movflags", "+faststart", str(segment)
-    ], check=True)
-    segments.append(segment)
-
-with (OUT / "segments.txt").open("w", encoding="utf-8") as f:
-    for p in segments:
-        f.write(f"file '{p.resolve()}'\n")
-# Build a clean master narration from the measured WAV segments. The segment
-# MP4 audio streams can be shorter than their video streams after encoding, so
-# do not use those mixed segment audio tracks for the final deliverable.
-with (OUT / "voice-segments.txt").open("w", encoding="utf-8") as f:
-    for audio in audio_parts:
-        f.write(f"file '{audio.resolve()}'\n")
-master_audio = OUT / "narration-master.m4a"
-subprocess.run([
-    "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
-    "-f", "concat", "-safe", "0", "-i", str(OUT / "voice-segments.txt"),
-    "-i", str(music),
-    "-filter_complex", "[0:a]volume=1.0[voice];[1:a]volume=0.07[bg];[voice][bg]amix=inputs=2:duration=first:dropout_transition=2,alimiter=limit=0.92[a]",
-    "-map", "[a]", "-t", f"{narration_seconds:.3f}",
-    "-c:a", "aac", "-b:a", "160k", str(master_audio)
-], check=True)
-
-# Render the picture track separately and pad only the final frame if needed.
-video_only = OUT / "video-only.mp4"
-subprocess.run([
-    "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
-    "-f", "concat", "-safe", "0", "-i", str(OUT / "segments.txt"),
-    "-an", "-vf", "tpad=stop_mode=clone:stop_duration=60",
-    "-t", f"{narration_seconds:.3f}",
-    "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p",
-    str(video_only)
-], check=True)
-
-# Mux the independent, full-length narration with the matching video duration.
-subprocess.run([
-    "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
-    "-i", str(video_only), "-i", str(master_audio),
-    "-map", "0:v:0", "-map", "1:a:0",
-    "-c:v", "copy", "-c:a", "copy", "-movflags", "+faststart",
-    "-shortest", str(OUT / "daily-youtube-video.mp4")
-], check=True)
-
-# Clamp the final caption to the actual muxed MP4 duration. AAC/container
-# packet rounding can make the last scene's measured narration slightly longer
-# than the final video stream by a few milliseconds.
-video_duration_probe = subprocess.run(
-    ["ffprobe", "-v", "error", "-show_entries", "format=duration",
-     "-of", "default=noprint_wrappers=1:nokey=1", str(OUT / "daily-youtube-video.mp4")],
-    check=True, capture_output=True, text=True
 )
-video_duration = float(video_duration_probe.stdout.strip())
-caption_path = OUT / "captions.srt"
-caption_blocks = caption_path.read_text(encoding="utf-8").strip().split("\n\n")
-if caption_blocks:
-    final_caption_lines = caption_blocks[-1].splitlines()
-    if len(final_caption_lines) >= 3:
-        final_start = final_caption_lines[1].split(" --> ")[0]
-        final_caption_lines[1] = f"{final_start} --> {srt_timestamp(video_duration)}"
-        caption_blocks[-1] = "\n".join(final_caption_lines)
-        caption_path.write_text("\n\n".join(caption_blocks) + "\n", encoding="utf-8")
-
-# Burn captions into the video picture so they appear during playback,
-# not only in a separate SRT sidecar. Use Noto Devanagari with high contrast.
-burned_video = OUT / "daily-youtube-video-captioned.mp4"
-caption_filter = "subtitles=filename='dist/captions.srt':fontsdir='/usr/share/fonts/truetype/noto':force_style='FontName=Noto Sans Devanagari,FontSize=18,PrimaryColour=&H00FFFFFF,OutlineColour=&H80000000,BorderStyle=3,Outline=1.5,Shadow=0,Alignment=8,MarginV=38'"
-subprocess.run([
-    "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
-    "-i", str(OUT / "daily-youtube-video.mp4"), "-vf", caption_filter,
-    "-map", "0:v:0", "-map", "0:a:0",
-    "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
-    "-pix_fmt", "yuv420p", "-c:a", "copy", "-movflags", "+faststart",
-    str(burned_video)
-], check=True)
-burned_video.replace(OUT / "daily-youtube-video.mp4")
-
-(OUT / "script.txt").write_text("\n\n".join(voice_texts), encoding="utf-8")
-
-# Build a dedicated high-contrast thumbnail instead of reusing a mostly empty slide.
-thumb = Image.new("RGB", (1280, 720), (5, 10, 25))
-td = ImageDraw.Draw(thumb)
-td.ellipse((700, -180, 1430, 600), fill=(20, 65, 125))
-td.ellipse((-260, 420, 520, 1120), fill=(75, 20, 70))
-td.rectangle((0, 0, 26, 720), fill=(255, 185, 45))
-td.rounded_rectangle((64, 54, 520, 118), radius=18, fill=(255, 185, 45))
-td.text((90, 67), "HINDI VIDEO GUIDE", font=font(["/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", "/usr/share/fonts/truetype/liberation2/LiberationSans-Bold.ttf"], 26), fill=(10, 17, 35))
-headline_font = font(font_candidates, 76)
-thumbnail_titles = {
-    "AUDIENCE RETENTION": ("दर्शक वीडियो", "क्यों छोड़ते हैं?"),
-    "BETTER VIDEO IDEAS": ("दमदार वीडियो", "आइडिया कैसे चुनें?"),
-    "THUMBNAIL BASICS": ("प्रोफेशनल", "थंबनेल कैसे बनाएँ?"),
-    "CONSISTENT CREATION": ("यूट्यूब पर", "लगातार कैसे बढ़ें?"),
-    "YOUTUBE ANALYTICS": ("यूट्यूब एनालिटिक्स", "आसान हिंदी में"),
-    "CREATOR WORKFLOW": ("वीडियो बनाने का", "प्रोफेशनल तरीका"),
-    "YOUTUBE GROWTH": ("YouTube चैनल", "कैसे बढ़ाएँ?"),
-}
-thumb_title = "\n".join(thumbnail_titles.get(topic_key, ("YouTube वीडियो", "बेहतर कैसे बनाएँ?")))
-for line_no, line in enumerate(thumb_title.split("\n")):
-    td.text((70, 190 + line_no*100), line, font=headline_font, fill=(255, 255, 255), stroke_width=2, stroke_fill=(5, 10, 25))
-td.rounded_rectangle((72, 430, 635, 500), radius=18, fill=(224, 48, 55))
-td.text((100, 445), {"AUDIENCE RETENTION": "दर्शक क्यों रुकें?", "BETTER VIDEO IDEAS": "सही विषय चुनें", "THUMBNAIL BASICS": "डिजाइन को बेहतर करें", "CONSISTENT CREATION": "टिकाऊ शेड्यूल रखें", "YOUTUBE ANALYTICS": "डेटा से सीखें", "CREATOR WORKFLOW": "हर चरण जांचें", "YOUTUBE GROWTH": "आज से सुधार करें"}.get(topic_key, "आज से सुधार करें"), font=font(font_candidates, 34), fill=(255, 255, 255))
-td.text((74, 610), "हिंदी में आसान और उपयोगी गाइड", font=font(font_candidates, 28), fill=(215, 226, 245))
-# Simple play symbol and retention bars add a visual focal point.
-td.ellipse((890, 235, 1130, 475), fill=(255, 185, 45), outline=(255,255,255), width=6)
-td.polygon([(978, 292), (978, 418), (1070, 355)], fill=(8, 18, 40))
-for j, bar_h in enumerate([95, 150, 110, 205, 165]):
-    x = 785 + j*76
-    td.rounded_rectangle((x, 565-bar_h, x+42, 565), radius=9, fill=(95, 174, 255))
-td.text((1000, 615), "WATCH TIME", font=font(["/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", "/usr/share/fonts/truetype/liberation2/LiberationSans-Bold.ttf"], 22), fill=(180, 205, 240))
-# Export a contact sheet of all eight scenes so visual QA can catch repeated/empty cards.
-thumb.save(OUT / "thumbnail.png")
-thumb.save(OUT / "thumbnail.jpg", quality=94, optimize=True)
-contact = Image.new("RGB", (1280, 900), (12, 17, 31))
-cd = ImageDraw.Draw(contact)
-for k, slide_path in enumerate(slides[:8]):
-    shot = Image.open(slide_path).convert("RGB")
-    shot.thumbnail((400, 225))
-    x = 24 + (k % 3) * 418
-    y = 24 + (k // 3) * 285
-    contact.paste(shot, (x, y))
-    cd.text((x, y + 230), f"दृश्य {k+1}", font=font(font_candidates, 22), fill=(245, 245, 250))
-contact.save(OUT / "scene-contact-sheet.jpg", quality=92, optimize=True)
-(OUT / "script.txt").write_text("\n\n".join(voice_texts), encoding="utf-8")
-(OUT / "metadata.json").write_text(__import__("json").dumps({
-    "date": TODAY,
-    "title": {
-        "AUDIENCE RETENTION": "दर्शक वीडियो क्यों छोड़ते हैं? | 5 YouTube Tips",
-        "BETTER VIDEO IDEAS": "दमदार YouTube वीडियो आइडिया कैसे चुनें?",
-        "THUMBNAIL BASICS": "प्रोफेशनल YouTube Thumbnail कैसे बनाएँ?",
-        "CONSISTENT CREATION": "YouTube पर लगातार कैसे बढ़ें?",
-        "YOUTUBE ANALYTICS": "YouTube Analytics आसान हिंदी में",
-        "CREATOR WORKFLOW": "YouTube वीडियो बनाने का प्रोफेशनल तरीका",
-        "YOUTUBE GROWTH": "YouTube चैनल कैसे बढ़ाएँ? | Hindi Guide",
-    }.get(topic_key, topic["title"] + " | Hindi YouTube Guide"),
-    "description": topic["subtitle"] + "\n\n" + topic["voice"] + "\n\nवीडियो को बेहतर बनाने के लिए एक-एक सुझाव अगली वीडियो में लागू करें.",
-    "tags": ["YouTube Tips Hindi", "YouTube Growth", "Audience Retention", "Hindi Creator", "YouTube Tutorial"],
-    "privacyStatus": "private",
-    "note": "Offline-rendered motion-card explainer; captions.srt is included. Review pronunciation, visuals, duration, audio, and content before upload."
-}, ensure_ascii=False, indent=2), encoding="utf-8")
-print(f"Created daily video package for {TODAY}: {topic['title']}")

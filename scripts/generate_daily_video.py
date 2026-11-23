@@ -331,7 +331,7 @@ for i, phrase in enumerate(voice_texts, start=1):
         narration_provider = "offline eSpeak fallback"
         audio = OUT / f"voice-{i:02d}.wav"
         subprocess.run(
-            ["espeak-ng", "-v", "hi", "-s", "132", "-p", "42", "-w", str(audio), phrase],
+            ["espeak-ng", "-v", "hi", "-s", "220", "-p", "42", "-w", str(audio), phrase],
             check=True
         )
     # Normalize speech to PCM WAV before measuring it; MP3 duration metadata

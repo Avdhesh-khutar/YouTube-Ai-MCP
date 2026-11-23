@@ -372,6 +372,25 @@ subprocess.run([
     "-shortest", str(OUT / "daily-youtube-video.mp4")
 ], check=True)
 
+# Clamp the final caption to the actual muxed MP4 duration. AAC/container
+# packet rounding can make the last scene's measured narration slightly longer
+# than the final video stream by a few milliseconds.
+video_duration_probe = subprocess.run(
+    ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+     "-of", "default=noprint_wrappers=1:nokey=1", str(OUT / "daily-youtube-video.mp4")],
+    check=True, capture_output=True, text=True
+)
+video_duration = float(video_duration_probe.stdout.strip())
+caption_path = OUT / "captions.srt"
+caption_blocks = caption_path.read_text(encoding="utf-8").strip().split("\n\n")
+if caption_blocks:
+    final_caption_lines = caption_blocks[-1].splitlines()
+    if len(final_caption_lines) >= 3:
+        final_start = final_caption_lines[1].split(" --> ")[0]
+        final_caption_lines[1] = f"{final_start} --> {srt_timestamp(video_duration)}"
+        caption_blocks[-1] = "\n".join(final_caption_lines)
+        caption_path.write_text("\n\n".join(caption_blocks) + "\n", encoding="utf-8")
+
 (OUT / "script.txt").write_text("\n\n".join(voice_texts), encoding="utf-8")
 
 # Build a dedicated high-contrast thumbnail instead of reusing a mostly empty slide.

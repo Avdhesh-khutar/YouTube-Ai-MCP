@@ -394,7 +394,7 @@ if caption_blocks:
 # Burn captions into the video picture so they appear during playback,
 # not only in a separate SRT sidecar. Use Noto Devanagari with high contrast.
 burned_video = OUT / "daily-youtube-video-captioned.mp4"
-caption_filter = "subtitles=filename='dist/captions.srt':fontsdir='/usr/share/fonts/truetype/noto':force_style='FontName=Noto Sans Devanagari,FontSize=28,PrimaryColour=&H00FFFFFF,OutlineColour=&H80000000,BorderStyle=3,Outline=2,Shadow=1,Alignment=2,MarginV=32'"
+caption_filter = "subtitles=filename='dist/captions.srt':fontsdir='/usr/share/fonts/truetype/noto':force_style='FontName=Noto Sans Devanagari,FontSize=18,PrimaryColour=&H00FFFFFF,OutlineColour=&H80000000,BorderStyle=3,Outline=1.5,Shadow=0,Alignment=8,MarginV=38'"
 subprocess.run([
     "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
     "-i", str(OUT / "daily-youtube-video.mp4"), "-vf", caption_filter,

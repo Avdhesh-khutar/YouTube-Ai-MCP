@@ -37,7 +37,7 @@ jobs:
           python-version: "3.12"
       - name: Install free offline rendering tools
         run: |
-          sudo apt-get update
+          # GitHub's hosted runner has current apt indexes; skip a full index refresh to keep builds quick.
           sudo apt-get install -y ffmpeg espeak-ng fonts-noto-core
           python -m pip install --upgrade pip
           pip install Pillow

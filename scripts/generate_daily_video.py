@@ -236,4 +236,3 @@ def draw_slide(index, heading, lines, footer):
     path = OUT / f"slide-{index:02d}.png"
     im.save(path)
     slides.append(path)
-)

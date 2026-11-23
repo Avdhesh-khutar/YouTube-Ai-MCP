@@ -391,6 +391,20 @@ if caption_blocks:
         caption_blocks[-1] = "\n".join(final_caption_lines)
         caption_path.write_text("\n\n".join(caption_blocks) + "\n", encoding="utf-8")
 
+# Burn captions into the video picture so they appear during playback,
+# not only in a separate SRT sidecar. Use Noto Devanagari with high contrast.
+burned_video = OUT / "daily-youtube-video-captioned.mp4"
+caption_filter = "subtitles=filename='dist/captions.srt':fontsdir='/usr/share/fonts/truetype/noto':force_style='FontName=Noto Sans Devanagari,FontSize=28,PrimaryColour=&H00FFFFFF,OutlineColour=&H80000000,BorderStyle=3,Outline=2,Shadow=1,Alignment=2,MarginV=32'"
+subprocess.run([
+    "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+    "-i", str(OUT / "daily-youtube-video.mp4"), "-vf", caption_filter,
+    "-map", "0:v:0", "-map", "0:a:0",
+    "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
+    "-pix_fmt", "yuv420p", "-c:a", "copy", "-movflags", "+faststart",
+    str(burned_video)
+], check=True)
+burned_video.replace(OUT / "daily-youtube-video.mp4")
+
 (OUT / "script.txt").write_text("\n\n".join(voice_texts), encoding="utf-8")
 
 # Build a dedicated high-contrast thumbnail instead of reusing a mostly empty slide.

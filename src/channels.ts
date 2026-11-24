@@ -115,12 +115,18 @@ export async function handleDashboard(request: Request, env: ChannelEnv): Promis
       }
       channels.sort((a, b) => a.title.localeCompare(b.title));
       const defaultChannelId = await env.OAUTH_KV.get("youtube-default-channel-id") ?? channels[0]?.channelId ?? "";
-      if (defaultChannelId && !(await env.OAUTH_KV.get("youtube-default-channel-id"))) await env.OAUTH_KV.put("youtube-default-channel-id", defaultChannelId);\n      return json({ channels, defaultChannelId });
+      if (defaultChannelId && !(await env.OAUTH_KV.get("youtube-default-channel-id"))) await env.OAUTH_KV.put("youtube-default-channel-id", defaultChannelId);
+      return json({ channels, defaultChannelId });
     }
     if (request.method === "DELETE") {
       const channelId = url.searchParams.get("channelId") ?? "";
       if (!/^UC[A-Za-z0-9_-]{20,}$/.test(channelId)) return json({ error: "Invalid channel ID." }, 400);
       await env.OAUTH_KV.delete(CHANNEL_PREFIX + channelId);
+      if ((await env.OAUTH_KV.get("youtube-default-channel-id")) === channelId) {
+        const remaining = await env.OAUTH_KV.list({ prefix: CHANNEL_PREFIX, limit: 1 });
+        const next = remaining.keys[0]?.name.slice(CHANNEL_PREFIX.length) ?? "";
+        if (next) await env.OAUTH_KV.put("youtube-default-channel-id", next); else await env.OAUTH_KV.delete("youtube-default-channel-id");
+      }
       return json({ disconnected: true, channelId });
     }
     return new Response("Method Not Allowed", { status: 405, headers: { allow: "GET, DELETE" } });

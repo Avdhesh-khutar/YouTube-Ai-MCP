@@ -356,13 +356,21 @@ async function automatedPrivateUpload(request: Request, env: Env): Promise<Respo
       video.size > 47 * 1024 * 1024 || !video.type.startsWith("video/")) {
     return Response.json({ error: "Provide a video file no larger than 47 MB." }, { status: 400 });
   }
-  const channelId = String(form.get("channelId") ?? "").trim();
+  let channelId = String(form.get("channelId") ?? "").trim();
+  if (!channelId) {
+    channelId = (await env.OAUTH_KV.get("youtube-default-channel-id")) ?? "";
+    if (!channelId) {
+      const connected = await env.OAUTH_KV.list({ prefix: "yt-channel:", limit: 2 });
+      if (connected.keys.length === 1) channelId = connected.keys[0].name.slice("yt-channel:".length);
+      else if (connected.keys.length > 1) return Response.json({ error: "Multiple channels are connected. Set a default upload channel in /dashboard before enabling unattended uploads." }, { status: 409 });
+    }
+  }
   const title = String(form.get("title") ?? "Daily YouTube explainer").trim().slice(0, 100);
   const description = String(form.get("description") ?? "Automatically generated draft. Please review in YouTube Studio.").slice(0, 5000);
   const tags = String(form.get("tags") ?? "YouTubeGrowth,CreatorTips").split(",").map((tag) => tag.trim()).filter(Boolean).slice(0, 15);
   const accessToken = await getGoogleAccessToken(env, channelId || undefined);
   if (!accessToken) {
-    return Response.json({ error: channelId ? "Selected YouTube channel is not connected or its token refresh failed. Reconnect it in /dashboard." : "YouTube channel is not connected or Google token refresh failed. Reconnect at /google/connect." }, { status: 401 });
+    return Response.json({ error: channelId ? "Default/selected YouTube channel is not connected or its token refresh failed. Reconnect it and set the default in /dashboard." : "YouTube channel is not connected or Google token refresh failed. Reconnect at /dashboard." }, { status: 401 });
   }
   const metadata = {
     snippet: { title, description, tags, categoryId: "27" },

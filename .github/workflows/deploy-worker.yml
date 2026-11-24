@@ -31,7 +31,8 @@ jobs:
             echo "enabled=true" >> "$GITHUB_OUTPUT"
           else
             echo "enabled=false" >> "$GITHUB_OUTPUT"
-            echo "Cloudflare deploy skipped: configure CLOUDFLARE_API_TOKEN secret and CLOUDFLARE_ACCOUNT_ID repository variable."
+            echo "::error::Cloudflare deployment cannot run. Configure CLOUDFLARE_API_TOKEN (Actions secret) and CLOUDFLARE_ACCOUNT_ID (Actions variable)."
+            exit 1
           fi
 
       - name: Set up Node.js

@@ -111,7 +111,7 @@ jobs:
         env:
           UPLOAD_TOKEN: ${{ secrets.YOUTUBE_PRIVATE_UPLOAD_TOKEN }}
         # Upload only when the owner has explicitly configured the private-upload token.
-        if: success() && github.event_name == 'workflow_dispatch' && inputs.confirm_private_upload == true
+        if: success() && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.confirm_private_upload == true))
         run: |
           set -euo pipefail
           if [ -z "${UPLOAD_TOKEN:-}" ]; then
@@ -133,4 +133,14 @@ jobs:
             -F "thumbnail=@dist/thumbnail.jpg;type=image/jpeg" \
             -F "title=$title" \
             -F "description=$description" \
-            -F "tags=$tags"
+            -F "tags=$tags" \
+            -o upload-result.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          result = json.loads(Path("upload-result.json").read_text(encoding="utf-8"))
+          if not result.get("uploaded") or result.get("privacyStatus") != "private" or not result.get("videoId"):
+              raise SystemExit(f"YouTube did not confirm a private upload: {result}")
+          print("Confirmed PRIVATE YouTube upload:", result.get("url"))
+          print("Thumbnail uploaded:", bool(result.get("thumbnailUploaded"))) 
+          PY

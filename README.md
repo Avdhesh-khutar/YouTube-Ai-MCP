@@ -61,6 +61,15 @@ This Worker does **not** generate a finished video, voiceover, captions, or thum
 - `viewsPerDay` is a rough lifetime average since publication, not recent daily view velocity and not a forecast.
 - Engagement rates are descriptive ratios only; they do not prove why a video performed well or predict future views.
 
+## Automatic Worker deployment
+
+The repository includes `.github/workflows/deploy-worker.yml`. It deploys changes from `main` to Cloudflare when both GitHub repository settings are configured:
+
+- Repository **Secret** `CLOUDFLARE_API_TOKEN`: an API token with permission to edit/deploy Workers for this account.
+- Repository **Variable** `CLOUDFLARE_ACCOUNT_ID`: the Cloudflare account ID that owns `youtube-ai-mcp`.
+
+If either setting is missing, the deployment job safely skips. Keep the API token private; do not put it in a repository variable, source file, or chat. After adding both settings, push a change to `src/**` or run **Deploy Cloudflare Worker** manually from GitHub Actions.
+
 ## Cloudflare setup
 
 The Worker uses a Cloudflare KV namespace bound as `OAUTH_KV`.

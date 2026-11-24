@@ -114,7 +114,8 @@ export async function handleDashboard(request: Request, env: ChannelEnv): Promis
         } catch { /* skip malformed channel entry */ }
       }
       channels.sort((a, b) => a.title.localeCompare(b.title));
-      const defaultChannelId = await env.OAUTH_KV.get("youtube-default-channel-id") ?? channels[0]?.channelId ?? "";\n      if (defaultChannelId && !(await env.OAUTH_KV.get("youtube-default-channel-id"))) await env.OAUTH_KV.put("youtube-default-channel-id", defaultChannelId);\n      return json({ channels, defaultChannelId });
+      const defaultChannelId = await env.OAUTH_KV.get("youtube-default-channel-id") ?? channels[0]?.channelId ?? "";
+      if (defaultChannelId && !(await env.OAUTH_KV.get("youtube-default-channel-id"))) await env.OAUTH_KV.put("youtube-default-channel-id", defaultChannelId);\n      return json({ channels, defaultChannelId });
     }
     if (request.method === "DELETE") {
       const channelId = url.searchParams.get("channelId") ?? "";

@@ -61,15 +61,17 @@ export async function handleDashboard(request: Request, env: ChannelEnv): Promis
     const notice = connected === "1" ? "Google authorization succeeded. Your channels are listed below." : "";
     const body = `
       <section class="panel"><h2>Admin sign-in</h2><p>Enter the Worker admin password you configured in Cloudflare. It is kept only in this tab's memory.</p><label for="password">Worker admin password</label><input id="password" type="password" autocomplete="current-password" placeholder="Admin password"><div class="row"><button id="login">Unlock dashboard</button><button id="connect" class="secondary" disabled>＋ Connect Google account / channels</button></div><div id="status" class="status" role="status">${esc(notice || "Sign in to load your connected channels.")}</div></section>
+      <section class="panel"><h2>Upload a video</h2><p class="muted">Choose a video from your computer. It will be uploaded to the selected connected channel as PRIVATE.</p><label for="upload-channel">YouTube channel</label><select id="upload-channel" disabled style="width:100%;padding:12px;border:1px solid #394560;border-radius:10px;background:#0b1020;color:#fff;margin-bottom:12px"><option>Unlock dashboard first</option></select><label for="upload-file">Video file (MP4 recommended, max 47 MB)</label><input id="upload-file" type="file" accept="video/*" disabled><label for="upload-title">Video title</label><input id="upload-title" maxlength="100" value="आख़िरी मुलाक़ात 💔 | 5 साल बाद मिली मोहब्बत | Emotional Hindi Love Story" disabled><label for="upload-description">Description</label><textarea id="upload-description" rows="5" style="width:100%;padding:12px;border:1px solid #394560;border-radius:10px;background:#0b1020;color:#fff;margin-bottom:12px" disabled>एक भावुक हिंदी प्रेम कहानी — आख़िरी मुलाक़ात, पाँच साल बाद मिली मोहब्बत और यादों का सफ़र।</textarea><button id="upload-button" disabled>Upload video as Private</button><div id="upload-status" class="status" role="status">Unlock dashboard to upload.</div></section>
       <section class="panel"><h2>Connected channels</h2><p class="muted">One Google account may expose multiple channels. Connect another Google account to add its channels too.</p><div id="channels"><p class="muted">Dashboard locked.</p></div></section>
       <script>
-      (()=>{let adminPassword="";const $=id=>document.getElementById(id);const status=$("status"),list=$("channels"),login=$("login"),connect=$("connect");
+      (()=>{let adminPassword="";const $=id=>document.getElementById(id);const status=$("status"),list=$("channels"),login=$("login"),connect=$("connect"),uploadButton=$("upload-button"),uploadStatus=$("upload-status"),channelSelect=$("upload-channel");
       function say(t){status.textContent=t}
       async function api(path,opts={}){const headers=new Headers(opts.headers||{});headers.set("x-admin-password",adminPassword);if(opts.body&&!headers.has("content-type"))headers.set("content-type","application/json");const r=await fetch(path,{...opts,headers});const d=await r.json().catch(()=>({error:"Invalid server response"}));if(!r.ok)throw new Error(d.error||"Request failed ("+r.status+")");return d}
-      function draw(channels){if(!channels.length){list.innerHTML="<p>No channels connected yet. Use Connect above to add one.</p>";return}list.replaceChildren();for(const c of channels){const row=document.createElement("div");row.className="channel";const info=document.createElement("div");const name=document.createElement("strong");name.textContent=c.title||"YouTube channel";const id=document.createElement("small");id.textContent="Channel ID: "+c.channelId;info.append(name,id);const btn=document.createElement("button");btn.className="danger";btn.textContent="Disconnect";btn.addEventListener("click",async()=>{if(!confirm("Disconnect "+(c.title||c.channelId)+" from this Worker?"))return;try{await api("/dashboard/api/channels?channelId="+encodeURIComponent(c.channelId),{method:"DELETE"});say("Channel disconnected.");await load()}catch(e){say(e.message)}});row.append(info,btn);list.append(row)}}
+      function draw(channels){channelSelect.replaceChildren();if(!channels.length){channelSelect.add(new Option("No connected channels",""));channelSelect.disabled=true;uploadButton.disabled=true;list.innerHTML="<p>No channels connected yet. Use Connect above to add one.</p>";return}channelSelect.disabled=false;uploadButton.disabled=false;for(const c of channels)channelSelect.add(new Option(c.title,c.channelId));list.replaceChildren();for(const c of channels){const row=document.createElement("div");row.className="channel";const info=document.createElement("div");const name=document.createElement("strong");name.textContent=c.title||"YouTube channel";const id=document.createElement("small");id.textContent="Channel ID: "+c.channelId;info.append(name,id);const btn=document.createElement("button");btn.className="danger";btn.textContent="Disconnect";btn.addEventListener("click",async()=>{if(!confirm("Disconnect "+(c.title||c.channelId)+" from this Worker?"))return;try{await api("/dashboard/api/channels?channelId="+encodeURIComponent(c.channelId),{method:"DELETE"});say("Channel disconnected.");await load()}catch(e){say(e.message)}});row.append(info,btn);list.append(row)}}
       async function load(){try{const d=await api("/dashboard/api/channels");draw(d.channels||[]);connect.disabled=false;say("Dashboard unlocked. "+(d.channels||[]).length+" channel(s) connected.")}catch(e){draw([]);say(e.message)}}
       login.addEventListener("click",async()=>{adminPassword=$("password").value;if(!adminPassword){say("Enter the Worker admin password.");return}connect.disabled=true;await load()});
       connect.addEventListener("click",async()=>{const label=prompt("Optional label for this Google account (e.g. Alpha Studio):","");if(label===null)return;connect.disabled=true;say("Opening Google authorization…");try{const d=await api("/dashboard/api/connect",{method:"POST",body:JSON.stringify({label})});if(!d.authorizationUrl)throw new Error("Google authorization URL missing.");location.assign(d.authorizationUrl)}catch(e){say(e.message);connect.disabled=false}});
+      uploadButton.addEventListener("click",async()=>{const file=$("upload-file").files[0];if(!file){uploadStatus.textContent="Choose a video file first.";return}if(file.size>47*1024*1024){uploadStatus.textContent="Video must be 47 MB or smaller.";return}if(!channelSelect.value){uploadStatus.textContent="Connect and select a channel first.";return}const form=new FormData();form.append("video",file);form.append("channelId",channelSelect.value);form.append("title",$("upload-title").value);form.append("description",$("upload-description").value);uploadButton.disabled=true;uploadStatus.textContent="Uploading video to YouTube as PRIVATE. Keep this tab open…";try{const d=await api("/dashboard/api/upload",{method:"POST",body:form});uploadStatus.textContent="Upload successful: "+d.title+" — "+d.url+" (PRIVATE)";}catch(e){uploadStatus.textContent=e.message}finally{uploadButton.disabled=false}});
       if(location.hash==="#unlock")$("password").focus();
       })();
       </script>`;
@@ -121,6 +123,43 @@ export async function handleDashboard(request: Request, env: ChannelEnv): Promis
       return json({ disconnected: true, channelId });
     }
     return new Response("Method Not Allowed", { status: 405, headers: { allow: "GET, DELETE" } });
+  }
+
+  if (url.pathname === "/dashboard/api/upload") {
+    if (request.method !== "POST") return new Response("Method Not Allowed", { status: 405, headers: { allow: "POST" } });
+    if (!authorized(request, env)) return json({ error: "Unauthorized. Unlock the dashboard first." }, 401);
+    if (!env.GOOGLE_OAUTH_CLIENT_ID || !env.GOOGLE_OAUTH_CLIENT_SECRET) return json({ error: "Google OAuth client credentials are not configured." }, 503);
+    const length = Number(request.headers.get("content-length") ?? "0");
+    if (length > 49 * 1024 * 1024) return json({ error: "Request exceeds the 49 MB upload limit." }, 413);
+    let form: FormData;
+    try { form = await request.formData(); } catch { return json({ error: "Expected multipart video upload." }, 400); }
+    const video = form.get("video");
+    const channelId = String(form.get("channelId") ?? "");
+    const title = String(form.get("title") ?? "").trim().slice(0, 100);
+    const description = String(form.get("description") ?? "").slice(0, 5000);
+    if (!video || typeof video !== "object" || typeof (video as File).arrayBuffer !== "function") return json({ error: "Choose a video file." }, 400);
+    const file = video as File;
+    if (!/^UC[A-Za-z0-9_-]{20,}$/.test(channelId)) return json({ error: "Select a valid connected channel." }, 400);
+    if (!title) return json({ error: "Enter a video title." }, 400);
+    if (file.size < 1 || file.size > 47 * 1024 * 1024 || !file.type.startsWith("video/")) return json({ error: "Video must be a valid video file no larger than 47 MB." }, 413);
+    const raw = await env.OAUTH_KV.get(CHANNEL_PREFIX + channelId);
+    if (!raw) return json({ error: "This channel is not connected. Reconnect it in the dashboard." }, 401);
+    let channel: StoredYouTubeChannel;
+    try { channel = JSON.parse(raw) as StoredYouTubeChannel; } catch { return json({ error: "Connected channel record is invalid." }, 500); }
+    if (channel.channelId !== channelId || !channel.refreshToken) return json({ error: "Connected channel token is missing." }, 401);
+    const refresh = await fetch("https://oauth2.googleapis.com/token", { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body: new URLSearchParams({ client_id: env.GOOGLE_OAUTH_CLIENT_ID, client_secret: env.GOOGLE_OAUTH_CLIENT_SECRET, refresh_token: channel.refreshToken, grant_type: "refresh_token" }) });
+    if (!refresh.ok) return json({ error: "Google token refresh failed. Reconnect this channel from the dashboard." }, 401);
+    const token = await refresh.json() as { access_token?: string };
+    if (!token.access_token) return json({ error: "Google did not return an access token." }, 401);
+    const metadata = { snippet: { title, description, categoryId: "22" }, status: { privacyStatus: "private", selfDeclaredMadeForKids: false } };
+    const init = await fetch("https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status", { method: "POST", headers: { authorization: "Bearer " + token.access_token, "content-type": "application/json; charset=UTF-8", "x-upload-content-type": file.type || "video/mp4", "x-upload-content-length": String(file.size) }, body: JSON.stringify(metadata) });
+    if (!init.ok) return json({ error: "YouTube upload initialization failed (HTTP " + init.status + "). Check YouTube API permissions." }, 502);
+    const uploadUrl = init.headers.get("location");
+    if (!uploadUrl || !uploadUrl.startsWith("https://")) return json({ error: "YouTube did not return a resumable upload URL." }, 502);
+    const uploaded = await fetch(uploadUrl, { method: "PUT", headers: { authorization: "Bearer " + token.access_token, "content-type": file.type || "video/mp4", "content-length": String(file.size) }, body: await file.arrayBuffer() });
+    const data = await uploaded.json().catch(() => ({})) as { id?: string; snippet?: { title?: string }; status?: { privacyStatus?: string } };
+    if (!uploaded.ok || !data.id) return json({ error: "YouTube upload failed (HTTP " + uploaded.status + "). " + JSON.stringify(data).slice(0, 350) }, 502);
+    return json({ uploaded: true, videoId: data.id, title: data.snippet?.title || title, privacyStatus: data.status?.privacyStatus || "private", url: "https://www.youtube.com/watch?v=" + data.id });
   }
 
   if (url.pathname === "/dashboard/api/connect") {

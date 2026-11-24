@@ -7,6 +7,7 @@ import OAuthProvider, {
 } from "@cloudflare/workers-oauth-provider";
 import { z } from "zod/v4";
 import { isValidDateOnly } from "./date-validation";
+import { completeDashboardGoogleOAuth, getChannelRefreshToken, handleDashboard } from "./channels";
 
 interface Env {
   OAUTH_KV: KVNamespace;
@@ -144,6 +145,8 @@ async function googleConnect(request: Request, env: Env): Promise<Response> {
 }
 
 async function googleCallback(request: Request, env: Env): Promise<Response> {
+  const dashboardCallback = await completeDashboardGoogleOAuth(request, env);
+  if (dashboardCallback) return dashboardCallback;
   if (!env.GOOGLE_OAUTH_CLIENT_ID || !env.GOOGLE_OAUTH_CLIENT_SECRET) {
     return htmlMessage("Google OAuth setup required", "Configure Google OAuth client ID and client secret in Cloudflare.", 503);
   }
@@ -203,9 +206,9 @@ async function googleCallback(request: Request, env: Env): Promise<Response> {
   `);
 }
 
-async function getGoogleAccessToken(env: Env): Promise<string | null> {
+async function getGoogleAccessToken(env: Env, channelId?: string): Promise<string | null> {
   if (!env.GOOGLE_OAUTH_CLIENT_ID || !env.GOOGLE_OAUTH_CLIENT_SECRET) return null;
-  const refreshToken = await env.OAUTH_KV.get("youtube-google-refresh-token");
+  const refreshToken = channelId ? await getChannelRefreshToken(env, channelId) : await env.OAUTH_KV.get("youtube-google-refresh-token");
   if (!refreshToken) return null;
   try {
     const response = await fetch("https://oauth2.googleapis.com/token", {
@@ -353,12 +356,13 @@ async function automatedPrivateUpload(request: Request, env: Env): Promise<Respo
       video.size > 47 * 1024 * 1024 || !video.type.startsWith("video/")) {
     return Response.json({ error: "Provide a video file no larger than 47 MB." }, { status: 400 });
   }
+  const channelId = String(form.get("channelId") ?? "").trim();
   const title = String(form.get("title") ?? "Daily YouTube explainer").trim().slice(0, 100);
   const description = String(form.get("description") ?? "Automatically generated draft. Please review in YouTube Studio.").slice(0, 5000);
   const tags = String(form.get("tags") ?? "YouTubeGrowth,CreatorTips").split(",").map((tag) => tag.trim()).filter(Boolean).slice(0, 15);
-  const accessToken = await getGoogleAccessToken(env);
+  const accessToken = await getGoogleAccessToken(env, channelId || undefined);
   if (!accessToken) {
-    return Response.json({ error: "YouTube channel is not connected or Google token refresh failed. Reconnect at /google/connect." }, { status: 401 });
+    return Response.json({ error: channelId ? "Selected YouTube channel is not connected or its token refresh failed. Reconnect it in /dashboard." : "YouTube channel is not connected or Google token refresh failed. Reconnect at /google/connect." }, { status: 401 });
   }
   const metadata = {
     snippet: { title, description, tags, categoryId: "27" },
@@ -653,6 +657,7 @@ function createServer(env: Env): McpServer {
     {
       description: "Upload a finished video from a direct public HTTPS video URL to the connected owner's YouTube channel as PRIVATE. This does not generate the video. The source must return a video/* content type, must not redirect, and must be 50 MB or smaller. Requires reconnecting Google OAuth to grant youtube.upload scope.",
       inputSchema: z.object({
+        channelId: z.string().regex(/^UC[A-Za-z0-9_-]{20,}$/).optional().describe("Connected YouTube channel ID; omit to use the legacy default channel"),
         videoUrl: z.string().url().max(2048).describe("Direct HTTPS URL to a finished video file (maximum 50 MB; redirects are not followed)"),
         title: z.string().trim().min(1).max(100).describe("YouTube video title"),
         description: z.string().max(5000).optional().describe("Video description"),
@@ -660,7 +665,7 @@ function createServer(env: Env): McpServer {
         categoryId: z.string().regex(/^\\d{1,3}$/).optional().describe("YouTube category ID; defaults to 27 (Education)"),
       }),
     },
-    async ({ videoUrl, title, description, tags, categoryId }) => {
+    async ({ channelId, videoUrl, title, description, tags, categoryId }) => {
       let source: URL;
       try {
         source = new URL(videoUrl);
@@ -673,9 +678,9 @@ function createServer(env: Env): McpServer {
           /^\\d{1,3}(\\.\\d{1,3}){3}$/.test(source.hostname)) {
         return { content: [{ type: "text", text: "For safety, videoUrl must use a public HTTPS hostname without embedded credentials or an IP address." }], isError: true };
       }
-      const accessToken = await getGoogleAccessToken(env);
+      const accessToken = await getGoogleAccessToken(env, channelId);
       if (!accessToken) {
-        return { content: [{ type: "text", text: "YouTube channel is not connected. Open /google/connect and authorize the channel owner first." }], isError: true };
+        return { content: [{ type: "text", text: channelId ? "Selected YouTube channel is not connected. Open /dashboard and connect it first." : "YouTube channel is not connected. Open /google/connect and authorize the channel owner first." }], isError: true };
       }
 
       const sourceResponse = await safeFetch(source.toString(), { redirect: "error" });
@@ -868,6 +873,8 @@ export default new OAuthProvider<Env>({
   defaultHandler: {
     fetch(request: Request, env: Env): Promise<Response> {
       const url = new URL(request.url);
+      if (url.pathname === "/") return Promise.resolve(Response.redirect("https://youtube-ai-mcp.mkkhutar2.workers.dev/dashboard", 302));
+      if (url.pathname.startsWith("/dashboard")) return handleDashboard(request, env).then((response) => response ?? Response.json({ error: "Not found" }, { status: 404 }));
       if (url.pathname === "/health") {
         return Promise.resolve(Response.json({ ok: true, service: "youtube-ai-mcp", version: "0.5.0", oauth: true }));
       }

@@ -115,8 +115,8 @@ jobs:
         run: |
           set -euo pipefail
           if [ -z "${UPLOAD_TOKEN:-}" ]; then
-            echo "Private upload skipped: YOUTUBE_PRIVATE_UPLOAD_TOKEN is not configured."
-            exit 0
+            echo "::error::Private YouTube upload is not configured. Add YOUTUBE_PRIVATE_UPLOAD_TOKEN as a GitHub Actions secret (must match the Cloudflare DAILY_UPLOAD_TOKEN)."
+            exit 1
           fi
           size=$(stat -c%s dist/daily-youtube-video.mp4)
           if [ "$size" -gt $((45 * 1024 * 1024)) ]; then

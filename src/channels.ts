@@ -79,6 +79,28 @@ export async function handleDashboard(request: Request, env: ChannelEnv): Promis
   if (url.pathname === "/dashboard/api/channels") {
     if (!authorized(request, env)) return json({ error: "Unauthorized. Unlock the dashboard with the Worker admin password." }, 401);
     if (request.method === "GET") {
+      // Migrate the existing single-channel OAuth token into the channel registry on first dashboard visit.
+      const existing = await env.OAUTH_KV.list({ prefix: CHANNEL_PREFIX, limit: 1 });
+      const legacyRefreshToken = await env.OAUTH_KV.get("youtube-google-refresh-token");
+      if (existing.keys.length === 0 && legacyRefreshToken && env.GOOGLE_OAUTH_CLIENT_ID && env.GOOGLE_OAUTH_CLIENT_SECRET) {
+        try {
+          const refresh = await fetch("https://oauth2.googleapis.com/token", { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body: new URLSearchParams({ client_id: env.GOOGLE_OAUTH_CLIENT_ID, client_secret: env.GOOGLE_OAUTH_CLIENT_SECRET, refresh_token: legacyRefreshToken, grant_type: "refresh_token" }) });
+          if (refresh.ok) {
+            const token = await refresh.json() as { access_token?: string };
+            if (token.access_token) {
+              const response = await fetch("https://www.googleapis.com/youtube/v3/channels?part=snippet&mine=true&maxResults=50", { headers: { authorization: "Bearer " + token.access_token } });
+              if (response.ok) {
+                const data = await response.json() as { items?: Array<{ id?: string; snippet?: { title?: string; customUrl?: string } }> };
+                for (const c of data.items ?? []) {
+                  if (!c.id || !c.snippet?.title) continue;
+                  const record: StoredYouTubeChannel = { channelId: c.id, title: c.snippet.title, customUrl: c.snippet.customUrl, refreshToken: legacyRefreshToken, connectedAt: new Date().toISOString() };
+                  await env.OAUTH_KV.put(CHANNEL_PREFIX + record.channelId, JSON.stringify(record));
+                }
+              }
+            }
+          }
+        } catch { /* Keep the legacy token intact; user can reconnect from dashboard if migration fails. */ }
+      }
       const keys = await env.OAUTH_KV.list({ prefix: CHANNEL_PREFIX, limit: 100 });
       const channels: Array<{ channelId: string; title: string; customUrl?: string; connectedAt: string }> = [];
       for (const key of keys.keys) {

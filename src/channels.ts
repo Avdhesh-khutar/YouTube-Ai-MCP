@@ -25,10 +25,34 @@ function json(data: unknown, status = 200): Response {
   return Response.json(data, { status, headers: { "cache-control": "no-store", "x-content-type-options": "nosniff" } });
 }
 
-function authorized(request: Request, env: ChannelEnv): boolean {
+const STUDIO_SESSION_COOKIE = "alpha_studio_session";
+const STUDIO_SESSION_SECONDS = 14 * 24 * 60 * 60;
+function studioCookie(request: Request): string {
+  for (const part of (request.headers.get("cookie") ?? "").split(";")) {
+    const [key, ...value] = part.trim().split("=");
+    if (key === STUDIO_SESSION_COOKIE) return value.join("=");
+  }
+  return "";
+}
+async function studioSessionValid(request: Request, secret: string): Promise<boolean> {
+  const [timestamp, signature, extra] = studioCookie(request).split(".");
+  if (!timestamp || !signature || extra || !/^\d+$/.test(timestamp)) return false;
+  const issued = Number(timestamp), now = Math.floor(Date.now() / 1000);
+  if (!Number.isSafeInteger(issued) || issued > now + 60 || now - issued > STUDIO_SESSION_SECONDS) return false;
+  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const bytes = new Uint8Array(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(timestamp)));
+  const expected = Array.from(bytes, b => b.toString(16).padStart(2, "0")).join("");
+  if (expected.length !== signature.length) return false;
+  let diff = 0;
+  for (let i = 0; i < expected.length; i++) diff |= expected.charCodeAt(i) ^ signature.charCodeAt(i);
+  return diff === 0;
+}
+async function authorized(request: Request, env: ChannelEnv): Promise<boolean> {
   const expected = env.OAUTH_ADMIN_PASSWORD ?? "";
+  if (!expected) return false;
   const supplied = request.headers.get("x-admin-password") ?? "";
-  return expected.length > 0 && supplied.length === expected.length && supplied === expected;
+  if (supplied.length > 0 && supplied.length === expected.length && supplied === expected) return true;
+  return studioSessionValid(request, expected);
 }
 
 export interface StoredYouTubeChannel {
@@ -79,7 +103,7 @@ export async function handleDashboard(request: Request, env: ChannelEnv): Promis
   }
 
   if (url.pathname === "/dashboard/api/channels") {
-    if (!authorized(request, env)) return json({ error: "Unauthorized. Unlock the dashboard with the Worker admin password." }, 401);
+    if (!await authorized(request, env)) return json({ error: "Unauthorized. Unlock the dashboard with the Worker admin password." }, 401);
     if (request.method === "GET") {
       // Migrate the existing single-channel OAuth token into the channel registry on first dashboard visit.
       const existing = await env.OAUTH_KV.list({ prefix: CHANNEL_PREFIX, limit: 1 });
@@ -134,7 +158,7 @@ export async function handleDashboard(request: Request, env: ChannelEnv): Promis
 
   if (url.pathname === "/dashboard/api/default") {
     if (request.method !== "POST") return new Response("Method Not Allowed", { status: 405, headers: { allow: "POST" } });
-    if (!authorized(request, env)) return json({ error: "Unauthorized. Unlock the dashboard first." }, 401);
+    if (!await authorized(request, env)) return json({ error: "Unauthorized. Unlock the dashboard first." }, 401);
     const body = await request.json().catch(() => ({})) as { channelId?: string };
     const channelId = String(body.channelId ?? "");
     if (!/^UC[A-Za-z0-9_-]{20,}$/.test(channelId)) return json({ error: "Invalid channel ID." }, 400);
@@ -146,7 +170,7 @@ export async function handleDashboard(request: Request, env: ChannelEnv): Promis
 
   if (url.pathname === "/dashboard/api/upload") {
     if (request.method !== "POST") return new Response("Method Not Allowed", { status: 405, headers: { allow: "POST" } });
-    if (!authorized(request, env)) return json({ error: "Unauthorized. Unlock the dashboard first." }, 401);
+    if (!await authorized(request, env)) return json({ error: "Unauthorized. Unlock the dashboard first." }, 401);
     if (!env.GOOGLE_OAUTH_CLIENT_ID || !env.GOOGLE_OAUTH_CLIENT_SECRET) return json({ error: "Google OAuth client credentials are not configured." }, 503);
     const length = Number(request.headers.get("content-length") ?? "0");
     if (length > 49 * 1024 * 1024) return json({ error: "Request exceeds the 49 MB upload limit." }, 413);
@@ -183,7 +207,7 @@ export async function handleDashboard(request: Request, env: ChannelEnv): Promis
 
   if (url.pathname === "/dashboard/api/connect") {
     if (request.method !== "POST") return new Response("Method Not Allowed", { status: 405, headers: { allow: "POST" } });
-    if (!authorized(request, env)) return json({ error: "Unauthorized. Unlock the dashboard first." }, 401);
+    if (!await authorized(request, env)) return json({ error: "Unauthorized. Unlock the dashboard first." }, 401);
     if (!env.GOOGLE_OAUTH_CLIENT_ID || !env.GOOGLE_OAUTH_CLIENT_SECRET) return json({ error: "Google OAuth client ID/secret are not configured in Cloudflare Worker secrets." }, 503);
     const body = await request.json().catch(() => ({})) as { label?: string };
     const label = String(body.label ?? "").trim().slice(0, 80);

@@ -8,6 +8,7 @@ import OAuthProvider, {
 import { z } from "zod/v4";
 import { isValidDateOnly } from "./date-validation";
 import { completeDashboardGoogleOAuth, getChannelRefreshToken, handleDashboard } from "./channels";
+import { handleStudio } from "./studio";
 
 interface Env {
   OAUTH_KV: KVNamespace;
@@ -881,7 +882,8 @@ export default new OAuthProvider<Env>({
   defaultHandler: {
     fetch(request: Request, env: Env): Promise<Response> {
       const url = new URL(request.url);
-      if (url.pathname === "/") return Promise.resolve(Response.redirect("https://youtube-ai-mcp.mkkhutar2.workers.dev/dashboard", 302));
+      if (url.pathname === "/") return Promise.resolve(Response.redirect("https://youtube-ai-mcp.mkkhutar2.workers.dev/studio", 302));
+      if (url.pathname.startsWith("/studio")) return handleStudio(request, env).then((response) => response ?? Response.json({ error: "Not found" }, { status: 404 }));
       if (url.pathname.startsWith("/dashboard")) return handleDashboard(request, env).then((response) => response ?? Response.json({ error: "Not found" }, { status: 404 }));
       if (url.pathname === "/health") {
         return Promise.resolve(Response.json({ ok: true, service: "youtube-ai-mcp", version: "0.5.0", oauth: true }));

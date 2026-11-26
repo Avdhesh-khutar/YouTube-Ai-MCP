@@ -54,7 +54,7 @@ function socialProviderForPlatform(p:string):string{return p==="facebook"||p==="
 async function handleSocialRoutes(request:Request,env:StudioEnv):Promise<Response|null>{
  const url=new URL(request.url),path=url.pathname;
  if(path==="/studio/connect/facebook"||path==="/studio/connect/instagram"||path==="/studio/connect/pinterest"){
-  if(!await authorized(request,env))return Response.redirect(new URL("/studio",url.origin),302);
+  if(!await authorized(request,env))return Response.redirect(new URL("/studio",url.origin).toString(),302);
   const p=path.split("/").pop()||"facebook",meta=p==="facebook"||p==="instagram",configured=meta?!!(env.META_APP_ID&&env.META_APP_SECRET):!!(env.PINTEREST_APP_ID&&env.PINTEREST_APP_SECRET);
   const appLink=meta?"https://developers.facebook.com/apps/":"https://developers.pinterest.com/apps/";
   const envNames=meta?"META_APP_ID and META_APP_SECRET":"PINTEREST_APP_ID and PINTEREST_APP_SECRET";
@@ -69,7 +69,7 @@ async function handleSocialRoutes(request:Request,env:StudioEnv):Promise<Respons
   const raw=state?await env.OAUTH_KV.get("studio-social-state:"+state):null;if(state)await env.OAUTH_KV.delete("studio-social-state:"+state);
   if(!raw)return socialPage("Connection could not be verified","<p>The authorization state is missing or expired. Return to Studio and start the connection again.</p>",400);
   const saved=JSON.parse(raw) as {provider:string;platform:string;createdAt:number};if(Date.now()-saved.createdAt>600000)return socialPage("Connection expired","<p>Please start the connection again from Studio.</p>",400);
-  if(error||!code)return Response.redirect(new URL("/studio/channel/"+saved.platform+"?connect_error="+encodeURIComponent(error||"Authorization cancelled"),url.origin),302);
+  if(error||!code)return Response.redirect(new URL("/studio/channel/"+saved.platform+"?connect_error="+encodeURIComponent(error||"Authorization cancelled"),url.origin).toString(),302);
   try{
    if(saved.provider==="meta"){
     const tokenUrl=new URL("https://graph.facebook.com/v22.0/oauth/access_token");tokenUrl.searchParams.set("client_id",env.META_APP_ID||"");tokenUrl.searchParams.set("client_secret",env.META_APP_SECRET||"");tokenUrl.searchParams.set("redirect_uri",SOCIAL_REDIRECT_URI);tokenUrl.searchParams.set("code",code);
@@ -80,7 +80,7 @@ async function handleSocialRoutes(request:Request,env:StudioEnv):Promise<Respons
    }else{
     const basic=btoa((env.PINTEREST_APP_ID||"")+":"+(env.PINTEREST_APP_SECRET||""));const tr=await fetch("https://api.pinterest.com/v5/oauth/token",{method:"POST",headers:{authorization:"Basic "+basic,"content-type":"application/x-www-form-urlencoded"},body:new URLSearchParams({grant_type:"authorization_code",code,redirect_uri:SOCIAL_REDIRECT_URI})});const td=await tr.json() as {access_token?:string;refresh_token?:string;token_type?:string;error?:string};if(!tr.ok||!td.access_token)throw new Error(td.error||"Pinterest token exchange failed");const ur=await fetch("https://api.pinterest.com/v5/user_account",{headers:{authorization:"Bearer "+td.access_token}});const ud=await ur.json() as {username?:string;business_name?:string};await env.OAUTH_KV.put("studio-social:pinterest",JSON.stringify({connected:true,accountName:ud.business_name||ud.username||"Pinterest account",username:ud.username,accessToken:td.access_token,refreshToken:td.refresh_token,connectedAt:Date.now()}));
    }
-   return Response.redirect(new URL("/studio/channel/"+saved.platform+"?connected=1",url.origin),302);
+   return Response.redirect(new URL("/studio/channel/"+saved.platform+"?connected=1",url.origin).toString(),302);
   }catch(e){return socialPage("Could not finish connection",`<p>${String(e instanceof Error?e.message:e).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]!))}</p><p><a href="/studio/connect/${saved.platform}">Try connecting again</a></p>`,502)}
  }
  return null;

@@ -29,7 +29,7 @@ async function authorized(request: Request, env: StudioEnv): Promise<boolean> {
   const supplied = request.headers.get("x-admin-password") ?? "";
   if (supplied && supplied.length === secret.length && supplied === secret) return true;
   const [timestamp, signature, extra] = cookieValue(request, SESSION_COOKIE).split(".");
-  if (!timestamp || !signature || extra || !/^\\d+$/.test(timestamp)) return false;
+  if (!timestamp || !signature || extra || !/^\d+$/.test(timestamp)) return false;
   const issued = Number(timestamp), now = Math.floor(Date.now() / 1000);
   if (!Number.isSafeInteger(issued) || issued > now + 60 || now - issued > SESSION_SECONDS) return false;
   const expected = await sessionSignature(secret, timestamp);

@@ -44,9 +44,16 @@ export async function handleStudio(request: Request, env: StudioEnv): Promise<Re
     if (!response.ok) return json({ error: "YouTube Analytics API returned HTTP " + response.status + ". Ensure the Analytics API is enabled and channel access is approved." }, 502);
     const headers = report.columnHeaders || [], row = report.rows?.[0] || [];
     const val = (name: string): number | null => { const i = headers.findIndex(h => h.name === name); return i < 0 || row[i] == null ? null : Number(row[i]); };
+    const dailyUrl = new URL("https://youtubeanalytics.googleapis.com/v2/reports");
+    for (const [key, value] of Object.entries({ ids: "channel==MINE", startDate: start, endDate: end, metrics: "views", dimensions: "day", sort: "day", maxResults: "90" })) dailyUrl.searchParams.set(key, value);
+    const dailyResponse = await fetch(dailyUrl, { headers: { authorization: "Bearer " + token.access_token } });
+    const dailyReport = await dailyResponse.json().catch(() => ({})) as { columnHeaders?: Array<{ name?: string }>; rows?: Array<Array<string | number | null>> };
+    const dailyHeaders = dailyReport.columnHeaders || [];
+    const dateIndex = dailyHeaders.findIndex(h => h.name === "day"), viewsIndex = dailyHeaders.findIndex(h => h.name === "views");
+    const dailyViews = dailyResponse.ok ? (dailyReport.rows || []).map(r => ({ date: String(r[dateIndex] ?? ""), views: Number(r[viewsIndex] ?? 0) })).filter(r => r.date && Number.isFinite(r.views)) : [];
     const channelRaw = await env.OAUTH_KV.get("yt-channel:" + channelId); let channelTitle = "YouTube channel";
     try { channelTitle = (JSON.parse(channelRaw || "{}") as { title?: string }).title || channelTitle; } catch {}
-    return json({ channelId, channelTitle, startDate: start, endDate: end, metrics: { views: val("views"), watchHours: val("estimatedMinutesWatched") === null ? null : Number((val("estimatedMinutesWatched")! / 60).toFixed(1)), averageViewDuration: val("averageViewDuration"), subscribersGained: val("subscribersGained"), subscribersLost: val("subscribersLost") }, dailyViews: [] });
+    return json({ channelId, channelTitle, startDate: start, endDate: end, metrics: { views: val("views"), watchHours: val("estimatedMinutesWatched") === null ? null : Number((val("estimatedMinutesWatched")! / 60).toFixed(1)), averageViewDuration: val("averageViewDuration"), subscribersGained: val("subscribersGained"), subscribersLost: val("subscribersLost") }, dailyViews });
   }
   return null;
 }

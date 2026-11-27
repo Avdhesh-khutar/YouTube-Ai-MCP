@@ -126,3 +126,24 @@ The tool reports channel-level views, estimated minutes watched, average view du
 - Keep `OAUTH_ADMIN_PASSWORD` strong and unique; never paste it into chat.
 - Restrict the YouTube API key to YouTube Data API v3 and monitor quota in Google Cloud Console.
 - OAuth for this MCP connector is separate from Google OAuth for accessing a user's own private channel data.
+
+
+## Alpha Social Studio — social account connections
+
+Open `/studio` on the deployed Worker and sign in to the Studio dashboard. Social accounts use official OAuth authorization; tokens are stored in the Worker KV binding and are not placed in browser storage.
+
+Use the same callback URL for Meta, Pinterest, and X apps:
+
+```text
+https://youtube-ai-mcp.mkkhutar2.workers.dev/studio/oauth/callback
+```
+
+Configure these Cloudflare Worker secrets/variables before connecting:
+
+- Meta (Facebook Pages and linked Instagram Professional account): `META_APP_ID`, `META_APP_SECRET`
+- Pinterest: `PINTEREST_APP_ID`, `PINTEREST_APP_SECRET`
+- X / Twitter OAuth 2.0: `X_CLIENT_ID`; `X_CLIENT_SECRET` is optional for a public PKCE client and required for a confidential client.
+
+For X, enable OAuth 2.0 user authentication, add the callback URL to the app's redirect URI list, and grant `users.read`, `tweet.read`, and `offline.access`. Studio uses PKCE with a short-lived state record. X analytics show official account public metrics and recent post engagement; access to impressions depends on the metrics returned by the X API plan/app.
+
+Meta requires the app's applicable permissions and a Facebook Page. Instagram analytics require an Instagram Professional account linked to that Page. Pinterest requires approved API access and the appropriate analytics scopes. Platform API permissions and app review may limit available metrics. Studio displays API errors rather than inventing data.
